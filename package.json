@@ -1,0 +1,48 @@
+{
+  "name": "jsx-viewer",
+  "version": "1.0.0",
+  "description": "Drop-in viewer for JSX/React component files. Make .jsx as portable as .html.",
+  "type": "module",
+  "bin": {
+    "jsx-viewer": "./bin/jsx-viewer.mjs"
+  },
+  "scripts": {
+    "dev": "node bin/jsx-viewer.mjs",
+    "start": "node bin/jsx-viewer.mjs"
+  },
+  "keywords": [
+    "jsx",
+    "react",
+    "viewer",
+    "preview",
+    "component"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "chart.js": "^4.4.3",
+    "chokidar": "^3.6.0",
+    "d3": "^7.9.0",
+    "lodash": "^4.17.21",
+    "lucide-react": "^0.383.0",
+    "mathjs": "^13.0.3",
+    "papaparse": "^5.4.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.12.7",
+    "three": "^0.164.1",
+    "tone": "^15.0.4",
+    "ws": "^8.17.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.27",
+    "eslint": "^10.0.3",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "postcss": "^8.5.8",
+    "prettier": "^3.8.1",
+    "tailwindcss": "^3.4.19",
+    "vite": "^5.4.0"
+  }
+}
