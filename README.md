@@ -11,14 +11,17 @@ You get a `.jsx` artifact. To see it rendered, you need to scaffold a React app,
 ## Quick Start
 
 ```bash
-# Install dependencies (once)
+# Install dependencies
 npm install
 
-# View a file
-node bin/jsx-viewer.mjs dashboard.jsx
+# Start the drop/paste UI
+npm run dev
 
-# Or start the drop/paste UI
-node bin/jsx-viewer.mjs
+# Open the included example
+npm run demo
+
+# View your own file
+node bin/jsx-viewer.mjs path/to/component.jsx
 ```
 
 The viewer opens in your browser. The component renders. You're done.
@@ -30,6 +33,8 @@ npm link
 # Now available everywhere:
 jsx-viewer my-component.jsx
 ```
+
+If you prefer, `npm start` is equivalent to `npm run dev`.
 
 ## How It Works
 
@@ -93,10 +98,21 @@ WebSocket runs on port + 1 (default: 3143).
 ## Example
 
 ```bash
+npm run demo
+# or
 jsx-viewer example/Dashboard.jsx
 ```
 
 This renders the included example - a dark-mode metrics dashboard using recharts and lucide-react.
+
+## Development Commands
+
+```bash
+npm run dev    # launch the viewer UI
+npm run demo   # load and watch example/Dashboard.jsx
+npm run lint   # run ESLint
+npm run build  # create a production build in dist/
+```
 
 ## Adding More Dependencies
 
@@ -127,4 +143,3 @@ export default App;
 ## License
 
 MIT
-

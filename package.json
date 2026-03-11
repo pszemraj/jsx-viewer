@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "node bin/jsx-viewer.mjs",
     "start": "node bin/jsx-viewer.mjs",
+    "demo": "node bin/jsx-viewer.mjs example/Dashboard.jsx",
     "build": "vite build",
     "lint": "eslint ."
   },
