@@ -1,6 +1,6 @@
 # jsx-viewer
 
-Render `.jsx` files as easily as `.html`. Built for previewing React component artifacts from Claude, ChatGPT, or any AI that outputs JSX.
+Render `.jsx` files as easily as `.html`. Built for previewing React component artifacts from Claude, ChatGPT, or any AI that outputs `.jsx`.
 
 ## The Problem
 
@@ -15,7 +15,7 @@ You get a `.jsx` artifact. To see it rendered, you need to scaffold a React app,
 npm install
 
 # Start the empty drop/paste UI
-npm run dev
+npm start # or npm run dev
 
 # Open the included example dashboard
 npm run demo
@@ -26,7 +26,7 @@ node bin/jsx-viewer.mjs path/to/component.jsx
 
 The viewer opens in your browser. The component renders. You're done.
 
-## Install Globally (Optional)
+### Install Globally (Optional)
 
 ```bash
 npm link
@@ -34,7 +34,8 @@ npm link
 jsx-viewer my-component.jsx
 ```
 
-If you prefer, `npm start` is equivalent to `npm run dev`.
+> [!TIP]
+> `npm start` is equivalent to `npm run dev`.
 
 ## Run Modes
 
