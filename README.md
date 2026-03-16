@@ -17,7 +17,7 @@ The viewer opens in your browser. You're done.
 
 ## Usage
 
-There are three ways to get a component on screen:
+There are four ways to get a component on screen:
 
 **Start with a file** (recommended) - pass it directly and it's watched for changes. Save in your editor, browser updates.
 
@@ -28,6 +28,8 @@ jsx-viewer path/to/Component.jsx
 ```
 
 **Drag and drop** - start with no args (`npm start`), drag a `.jsx` file onto the browser window.
+
+**Upload a file** - start with no args (`npm start`), click `upload jsx`, and choose a local `.jsx` file.
 
 **Paste source** - start with no args, focus the viewer window, and press `Ctrl+V` / `Cmd+V`. No extra paste button is required.
 

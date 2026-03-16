@@ -93,6 +93,7 @@ function useWebSocket(onMessage) {
 function DropZone({ onContent }) {
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const handleDrop = useCallback(
     (e) => {
@@ -106,6 +107,21 @@ function DropZone({ onContent }) {
         };
         reader.readAsText(file);
       }
+    },
+    [onContent],
+  );
+
+  const handleFileSelect = useCallback(
+    (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          onContent(evt.target.result, file.name);
+        };
+        reader.readAsText(file);
+      }
+      event.target.value = "";
     },
     [onContent],
   );
@@ -180,7 +196,7 @@ function DropZone({ onContent }) {
             letterSpacing: "-0.02em",
           }}
         >
-          Drop a .jsx file here
+          Drop, upload, or paste JSX
         </h2>
         <p
           style={{
@@ -190,10 +206,35 @@ function DropZone({ onContent }) {
             lineHeight: 1.5,
           }}
         >
-          Drop a component, or press Ctrl+V / Cmd+V to paste it immediately.
-          Supports React 18, Tailwind, recharts, lucide-react, d3, three.js,
-          chart.js, and more.
+          Drag a component in, click upload, or press Ctrl+V / Cmd+V to paste
+          it immediately. Supports React 18, Tailwind, recharts, lucide-react,
+          d3, three.js, chart.js, and more.
         </p>
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            background: "#111",
+            color: "#ededed",
+            border: "1px solid #333",
+            borderRadius: "6px",
+            padding: "8px 20px",
+            fontSize: "13px",
+            fontFamily: MONO,
+            cursor: "pointer",
+            transition: "background 150ms ease",
+          }}
+          onMouseEnter={(e) => (e.target.style.background = "#1a1a1a")}
+          onMouseLeave={(e) => (e.target.style.background = "#111")}
+        >
+          upload jsx
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".jsx,.tsx"
+          onChange={handleFileSelect}
+          style={{ display: "none" }}
+        />
       </div>
 
       <div
@@ -206,6 +247,8 @@ function DropZone({ onContent }) {
           lineHeight: 1.8,
         }}
       >
+        <code>Upload JSX</code> &mdash; choose a local file
+        <br />
         <code>Ctrl+V / Cmd+V</code> &mdash; paste from clipboard
         <br />
         <code>node bin/jsx-viewer.mjs file.jsx</code> &mdash; preload from CLI
