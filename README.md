@@ -14,13 +14,13 @@ You get a `.jsx` artifact. To see it rendered, you need to scaffold a React app,
 # Install dependencies
 npm install
 
-# Start the drop/paste UI
+# Start the empty drop/paste UI
 npm run dev
 
-# Open the included example
+# Open the included example dashboard
 npm run demo
 
-# View your own file
+# Open and watch your own file
 node bin/jsx-viewer.mjs path/to/component.jsx
 ```
 
@@ -36,6 +36,35 @@ jsx-viewer my-component.jsx
 
 If you prefer, `npm start` is equivalent to `npm run dev`.
 
+## Run Modes
+
+Choose one startup mode depending on what you want to see first:
+
+```bash
+npm run dev
+```
+
+Starts the app with no file argument. This is the empty drop/paste UI.
+
+```bash
+npm run demo
+```
+
+Starts the app with `example/Dashboard.jsx` already loaded and watched. This is not the empty UI.
+
+```bash
+node bin/jsx-viewer.mjs path/to/component.jsx
+```
+
+Starts the app with your file already loaded and watched.
+
+If `npm run dev` still opens a previously loaded component after an abnormal stop, reset the transient slot first:
+
+```bash
+npm run slot:reset
+npm run dev
+```
+
 ## How It Works
 
 1. **Vite dev server** handles JSX transpilation and hot module replacement
@@ -48,7 +77,7 @@ The loaded component is ephemeral. The repo stays clean.
 
 ## Three Ways to Load JSX
 
-### 1. CLI argument (recommended)
+### 1. Start with your file already loaded (recommended)
 
 ```bash
 jsx-viewer path/to/Component.jsx
@@ -56,11 +85,11 @@ jsx-viewer path/to/Component.jsx
 
 File is watched - save your editor, browser updates.
 
-### 2. Drag and drop
+### 2. Start the empty UI, then drag and drop
 
 Start `jsx-viewer` with no args, drag a `.jsx` file onto the browser window.
 
-### 3. Paste
+### 3. Start the empty UI, then paste
 
 Start `jsx-viewer`, click "paste jsx", paste source code, click "load".
 
@@ -103,13 +132,13 @@ npm run demo
 jsx-viewer example/Dashboard.jsx
 ```
 
-This renders the included example - a dark-mode metrics dashboard using recharts and lucide-react.
+This preloads the included example and watches it for changes. Use `npm run dev` instead if you want the empty drop/paste UI first.
 
 ## Development Commands
 
 ```bash
-npm run dev    # launch the viewer UI
-npm run demo   # load and watch example/Dashboard.jsx
+npm run dev    # launch the empty drop/paste UI
+npm run demo   # preload and watch example/Dashboard.jsx
 npm run slot:reset  # restore component/View.jsx to the placeholder
 npm run guard:slot  # fail if the transient slot is loaded
 npm run lint   # run ESLint

@@ -29,9 +29,9 @@ for (let i = 0; i < args.length; i++) {
     -h, --help       Show this help
 
   Examples:
-    jsx-viewer                     # Start with drop/paste UI
-    jsx-viewer dashboard.jsx       # Load and watch a file
-    jsx-viewer -p 8080 app.jsx     # Custom port
+    jsx-viewer                     # Start with the empty drop/paste UI
+    jsx-viewer dashboard.jsx       # Start with a file already loaded and watched
+    jsx-viewer -p 8080 app.jsx     # Custom port with a preloaded file
 `);
     process.exit(0);
   } else if (!args[i].startsWith("-")) {
@@ -128,9 +128,15 @@ if (inputFile) {
   console.log(`  \x1b[2m→\x1b[0m Watching:  \x1b[33m${inputFile}\x1b[0m`);
 }
 console.log();
-console.log(
-  `  \x1b[2mDrop or paste .jsx in the browser, or pass a file via CLI.\x1b[0m`,
-);
+if (inputFile) {
+  console.log(
+    `  \x1b[2mUse "swap file" in the browser or save the watched file to reload.\x1b[0m`,
+  );
+} else {
+  console.log(
+    `  \x1b[2mDrop or paste .jsx in the browser, or pass a file via CLI.\x1b[0m`,
+  );
+}
 console.log();
 
 // ── Cleanup ─────────────────────────────────────────────────
