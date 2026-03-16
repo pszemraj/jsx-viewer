@@ -2,6 +2,15 @@ node_modules/
 dist/
 *.local
 
+# local-only contributor/agent instructions
+AGENTS.md
+
+# local validation artifacts
+.npm-cache/
+.tmp/
+demo.out
+demo.err
+
 # The component slot file is transient - never committed
 # (except the placeholder version that ships with the repo)
 # If you accidentally commit a loaded component, reset with:
