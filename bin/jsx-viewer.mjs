@@ -5,11 +5,7 @@ import { WebSocketServer } from "ws";
 import { watch } from "chokidar";
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, "..");
-const SLOT = path.join(ROOT, "component", "View.jsx");
+import { ROOT, writeSlot, resetSlot } from "./slot.mjs";
 
 // ── Parse args ──────────────────────────────────────────────
 const args = process.argv.slice(2);
@@ -43,24 +39,6 @@ for (let i = 0; i < args.length; i++) {
   }
 }
 
-// ── Slot file management ────────────────────────────────────
-const PLACEHOLDER = `// JSX Viewer - Placeholder
-export default function Placeholder() { return null; }
-Placeholder.__isPlaceholder = true;
-`;
-
-function ensureSlotDir() {
-  const dir = path.dirname(SLOT);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-}
-
-function writeSlot(content) {
-  ensureSlotDir();
-  fs.writeFileSync(SLOT, content, "utf-8");
-}
-
 function loadFileIntoSlot(filePath) {
   if (!fs.existsSync(filePath)) {
     console.error(`\x1b[31mFile not found: ${filePath}\x1b[0m`);
@@ -69,10 +47,6 @@ function loadFileIntoSlot(filePath) {
   const content = fs.readFileSync(filePath, "utf-8");
   writeSlot(content);
   return path.basename(filePath);
-}
-
-function resetSlot() {
-  writeSlot(PLACEHOLDER);
 }
 
 // ── Start ───────────────────────────────────────────────────

@@ -10,8 +10,11 @@
     "dev": "node bin/jsx-viewer.mjs",
     "start": "node bin/jsx-viewer.mjs",
     "demo": "node bin/jsx-viewer.mjs example/Dashboard.jsx",
+    "guard:slot": "node bin/check-slot.mjs",
+    "slot:reset": "node bin/check-slot.mjs --fix",
     "build": "vite build",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "prepare": "node bin/setup-hooks.mjs"
   },
   "keywords": [
     "jsx",

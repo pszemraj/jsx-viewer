@@ -1,0 +1,2 @@
+#!/bin/sh
+node bin/check-slot.mjs || exit 1

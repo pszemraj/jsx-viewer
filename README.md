@@ -110,9 +110,13 @@ This renders the included example - a dark-mode metrics dashboard using recharts
 ```bash
 npm run dev    # launch the viewer UI
 npm run demo   # load and watch example/Dashboard.jsx
+npm run slot:reset  # restore component/View.jsx to the placeholder
+npm run guard:slot  # fail if the transient slot is loaded
 npm run lint   # run ESLint
 npm run build  # create a production build in dist/
 ```
+
+`npm install` also configures a repo-local pre-commit hook that blocks commits when `component/View.jsx` contains loaded artifact code instead of the tracked placeholder.
 
 ## Adding More Dependencies
 
