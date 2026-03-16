@@ -1,102 +1,74 @@
 # jsx-viewer
 
-Render `.jsx` files as easily as `.html`. Built for previewing React component artifacts from Claude, ChatGPT, or any AI that outputs `.jsx`.
+Render `.jsx` files as easily as `.html`. One command, one file, rendered.
 
-## The Problem
-
-You get a `.jsx` artifact. To see it rendered, you need to scaffold a React app, install dependencies, wire up imports, run a dev server. That's 5 minutes of ceremony for 2 seconds of viewing.
-
-**jsx-viewer** makes it instant: one command, one file, rendered.
-
-## Quick Start
+You get a `.jsx` artifact from Claude, ChatGPT, or wherever. To actually *see* it, you'd normally scaffold a React app, install deps, wire up imports, run a dev server. That's 5 minutes of ceremony for 2 seconds of viewing. `jsx-viewer` skips all of it.
 
 ```bash
-# Install dependencies
+git clone https://github.com/pszemraj/jsx-viewer.git
+cd jsx-viewer
 npm install
 
-# Start the empty drop/paste UI
-npm start # or npm run dev
-
-# Open the included example dashboard
-npm run demo
-
-# Open and watch your own file
-node bin/jsx-viewer.mjs path/to/component.jsx
+npm start        # empty drop/paste UI
+# npm run demo     # preloads the example dashboard
 ```
 
-The viewer opens in your browser. The component renders. You're done.
+The viewer opens in your browser. You're done.
 
-### Install Globally (Optional)
+## Usage
 
-```bash
-npm link
-# Now available everywhere:
-jsx-viewer my-component.jsx
-```
+There are three ways to get a component on screen:
 
-> [!TIP]
-> `npm start` is equivalent to `npm run dev`.
-
-## Run Modes
-
-Choose one startup mode depending on what you want to see first:
+**Start with a file** (recommended) - pass it directly and it's watched for changes. Save in your editor, browser updates.
 
 ```bash
-npm run dev
-```
-
-Starts the app with no file argument. This is the empty drop/paste UI.
-
-```bash
-npm run demo
-```
-
-Starts the app with `example/Dashboard.jsx` already loaded and watched. This is not the empty UI.
-
-```bash
-node bin/jsx-viewer.mjs path/to/component.jsx
-```
-
-Starts the app with your file already loaded and watched.
-
-If `npm run dev` still opens a previously loaded component after an abnormal stop, reset the transient slot first:
-
-```bash
-npm run slot:reset
-npm run dev
-```
-
-## How It Works
-
-1. **Vite dev server** handles JSX transpilation and hot module replacement
-2. Your file is copied to a **slot** (`component/View.jsx`) - the single render target
-3. **Vite HMR** picks up the change and hot-reloads the browser instantly
-4. A **WebSocket bridge** connects the browser UI to the CLI for drag-and-drop/paste
-5. On exit, the slot resets to a placeholder - your file is never committed
-
-The loaded component is ephemeral. The repo stays clean.
-
-## Three Ways to Load JSX
-
-### 1. Start with your file already loaded (recommended)
-
-```bash
+node bin/jsx-viewer.mjs path/to/Component.jsx
+# or, if installed globally (npm link):
 jsx-viewer path/to/Component.jsx
 ```
 
-File is watched - save your editor, browser updates.
+**Drag and drop** - start with no args (`npm start`), drag a `.jsx` file onto the browser window.
 
-### 2. Start the empty UI, then drag and drop
+**Paste source** - start with no args, click "paste jsx", paste code, click "load".
 
-Start `jsx-viewer` with no args, drag a `.jsx` file onto the browser window.
+An included example dashboard is available via `npm run demo`.
 
-### 3. Start the empty UI, then paste
+### Options
 
-Start `jsx-viewer`, click "paste jsx", paste source code, click "load".
+```bash
+jsx-viewer [options] [file.jsx]
 
-## Pre-installed Libraries
+  -p, --port <n>   Dev server port (default: 3142)
+  -h, --help       Show help
+```
 
-These are available for `import` in your JSX files - no setup needed:
+WebSocket runs on port + 1 (default: 3143).
+
+### Component requirements
+
+Your JSX file needs a **default export** of a React component:
+
+```jsx
+export default function MyComponent() {
+  return <div>Hello</div>;
+}
+```
+
+## Reference
+
+### How it works
+
+1. **Vite dev server** handles JSX transpilation and HMR
+2. Your file is copied to a **slot** (`component/View.jsx`) - the single render target
+3. Vite picks up the change and hot-reloads the browser instantly
+4. A **WebSocket bridge** connects the browser UI to the CLI for drag-and-drop/paste
+5. On exit, the slot resets to a placeholder - your file is never committed, the repo stays clean
+
+If the viewer still shows a previously loaded component after an abnormal stop, run `npm run slot:reset` before starting again.
+
+### Pre-installed libraries
+
+These are available for `import` in your JSX files with no setup:
 
 | Package      | Version | Notes              |
 | ------------ | ------- | ------------------ |
@@ -112,67 +84,22 @@ These are available for `import` in your JSX files - no setup needed:
 | chart.js     | 4.x     | Canvas charts      |
 | tone         | 15.x    | Audio synthesis    |
 
-**Tailwind CSS v3** is compiled locally via PostCSS - no CDN, no external network calls. Works fully offline and behind corporate firewalls. Tailwind JIT recompiles on every slot swap, so arbitrary utility classes in your artifacts just work.
+**Tailwind CSS v3** is compiled locally via PostCSS - no CDN, no external network calls. Works fully offline and behind corporate firewalls. JIT recompiles on every slot swap, so arbitrary utility classes just work.
 
-## Options
+If your artifact imports something not listed here, `npm install` it and restart the viewer. Vite picks it up automatically.
 
-```
-jsx-viewer [options] [file.jsx]
+### Dev commands
 
-  -p, --port <n>   Dev server port (default: 3142)
-  -h, --help       Show help
-```
-
-WebSocket runs on port + 1 (default: 3143).
-
-## Example
-
-```bash
-npm run demo
-# or
-jsx-viewer example/Dashboard.jsx
-```
-
-This preloads the included example and watches it for changes. Use `npm run dev` instead if you want the empty drop/paste UI first.
-
-## Development Commands
-
-```bash
-npm run dev    # launch the empty drop/paste UI
-npm run demo   # preload and watch example/Dashboard.jsx
-npm run slot:reset  # restore component/View.jsx to the placeholder
-npm run guard:slot  # fail if the transient slot is loaded
-npm run lint   # run ESLint
-npm run build  # create a production build in dist/
-```
+| Command                     | Purpose                                         |
+| --------------------------- | ----------------------------------------------- |
+| `npm start` / `npm run dev` | Launch the empty drop/paste UI                  |
+| `npm run demo`              | Preload and watch `example/Dashboard.jsx`       |
+| `npm run slot:reset`        | Restore `component/View.jsx` to the placeholder |
+| `npm run guard:slot`        | Fail if the slot contains loaded artifact code  |
+| `npm run lint`              | Run ESLint                                      |
+| `npm run build`             | Production build to `dist/`                     |
 
 `npm install` also configures a repo-local pre-commit hook that blocks commits when `component/View.jsx` contains loaded artifact code instead of the tracked placeholder.
-
-## Adding More Dependencies
-
-If your artifact imports something not listed above:
-
-```bash
-npm install some-package
-# Restart jsx-viewer
-```
-
-Vite will pick it up automatically.
-
-## Component Requirements
-
-Your JSX file should have a **default export** of a React component:
-
-```jsx
-// Works
-export default function MyComponent() {
-  return <div>Hello</div>;
-}
-
-// Also works
-const App = () => <div>Hello</div>;
-export default App;
-```
 
 ## License
 
