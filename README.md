@@ -23,24 +23,26 @@ There are three ways to get a component on screen:
 
 ```bash
 node bin/jsx-viewer.mjs path/to/Component.jsx
-# or, if installed globally (npm link):
+# optional, only after global install/link:
 jsx-viewer path/to/Component.jsx
 ```
 
 **Drag and drop** - start with no args (`npm start`), drag a `.jsx` file onto the browser window.
 
-**Paste source** - start with no args, click "paste jsx", paste code, click "load".
+**Paste source** - start with no args, focus the viewer window, and press `Ctrl+V` / `Cmd+V`. No extra paste button is required.
 
 An included example dashboard is available via `npm run demo`.
 
 ### Options
 
 ```bash
-jsx-viewer [options] [file.jsx]
+node bin/jsx-viewer.mjs [options] [file.jsx]
 
   -p, --port <n>   Dev server port (default: 3142)
   -h, --help       Show help
 ```
+
+If you globally install/link the package, the same command becomes `jsx-viewer [options] [file.jsx]`.
 
 WebSocket runs on port + 1 (default: 3143).
 

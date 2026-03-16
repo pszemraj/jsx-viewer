@@ -22,6 +22,9 @@ for (let i = 0; i < args.length; i++) {
   jsx-viewer - render .jsx files like .html
 
   Usage:
+    node bin/jsx-viewer.mjs [options] [file.jsx]
+
+  After global install/link:
     jsx-viewer [options] [file.jsx]
 
   Options:
@@ -29,9 +32,9 @@ for (let i = 0; i < args.length; i++) {
     -h, --help       Show this help
 
   Examples:
-    jsx-viewer                     # Start with the empty drop/paste UI
-    jsx-viewer dashboard.jsx       # Start with a file already loaded and watched
-    jsx-viewer -p 8080 app.jsx     # Custom port with a preloaded file
+    node bin/jsx-viewer.mjs                    # Start with the empty drop/paste UI
+    node bin/jsx-viewer.mjs dashboard.jsx      # Start with a file already loaded and watched
+    node bin/jsx-viewer.mjs -p 8080 app.jsx    # Custom port with a preloaded file
 `);
     process.exit(0);
   } else if (!args[i].startsWith("-")) {
@@ -134,7 +137,7 @@ if (inputFile) {
   );
 } else {
   console.log(
-    `  \x1b[2mDrop or paste .jsx in the browser, or pass a file via CLI.\x1b[0m`,
+    `  \x1b[2mDrop a .jsx file in the browser, press Ctrl/Cmd+V to paste, or pass a file via CLI.\x1b[0m`,
   );
 }
 console.log();

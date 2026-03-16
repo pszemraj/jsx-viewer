@@ -92,8 +92,7 @@ function useWebSocket(onMessage) {
 
 function DropZone({ onContent }) {
   const [isDragging, setIsDragging] = useState(false);
-  const [showPaste, setShowPaste] = useState(false);
-  const textareaRef = useRef(null);
+  const containerRef = useRef(null);
 
   const handleDrop = useCallback(
     (e) => {
@@ -111,16 +110,27 @@ function DropZone({ onContent }) {
     [onContent],
   );
 
-  const handlePaste = useCallback(() => {
-    const text = textareaRef.current?.value;
-    if (text?.trim()) {
-      onContent(text, "pasted.jsx");
-      setShowPaste(false);
-    }
+  useEffect(() => {
+    containerRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const handlePasteEvent = (event) => {
+      const text = event.clipboardData?.getData("text/plain");
+      if (text?.trim()) {
+        event.preventDefault();
+        onContent(text, "pasted.jsx");
+      }
+    };
+
+    window.addEventListener("paste", handlePasteEvent);
+    return () => window.removeEventListener("paste", handlePasteEvent);
   }, [onContent]);
 
   return (
     <div
+      ref={containerRef}
+      tabIndex={0}
       onDragOver={(e) => {
         e.preventDefault();
         setIsDragging(true);
@@ -137,6 +147,7 @@ function DropZone({ onContent }) {
         color: "#ededed",
         fontFamily: SANS,
         padding: "32px",
+        outline: "none",
       }}
     >
       <div
@@ -179,93 +190,10 @@ function DropZone({ onContent }) {
             lineHeight: 1.5,
           }}
         >
-          Or paste JSX source below. Supports React 18, Tailwind, recharts,
-          lucide-react, d3, three.js, chart.js, and more.
+          Drop a component, or press Ctrl+V / Cmd+V to paste it immediately.
+          Supports React 18, Tailwind, recharts, lucide-react, d3, three.js,
+          chart.js, and more.
         </p>
-
-        {!showPaste ? (
-          <button
-            onClick={() => setShowPaste(true)}
-            style={{
-              background: "#111",
-              color: "#ededed",
-              border: "1px solid #333",
-              borderRadius: "6px",
-              padding: "8px 20px",
-              fontSize: "13px",
-              fontFamily: MONO,
-              cursor: "pointer",
-              transition: "background 150ms ease",
-            }}
-            onMouseEnter={(e) => (e.target.style.background = "#1a1a1a")}
-            onMouseLeave={(e) => (e.target.style.background = "#111")}
-          >
-            paste jsx
-          </button>
-        ) : (
-          <div style={{ width: "100%", textAlign: "left" }}>
-            <textarea
-              ref={textareaRef}
-              autoFocus
-              placeholder={`import { useState } from "react";\n\nexport default function App() {\n  return <div>Hello</div>;\n}`}
-              style={{
-                width: "100%",
-                height: "200px",
-                background: "#111",
-                color: "#ededed",
-                border: "1px solid #333",
-                borderRadius: "8px",
-                padding: "16px",
-                fontSize: "13px",
-                fontFamily: MONO,
-                lineHeight: 1.6,
-                resize: "vertical",
-                outline: "none",
-              }}
-              onFocus={(e) => (e.target.style.borderColor = "#555")}
-              onBlur={(e) => (e.target.style.borderColor = "#333")}
-            />
-            <div
-              style={{
-                display: "flex",
-                gap: "8px",
-                marginTop: "12px",
-                justifyContent: "flex-end",
-              }}
-            >
-              <button
-                onClick={() => setShowPaste(false)}
-                style={{
-                  background: "transparent",
-                  color: "#888",
-                  border: "1px solid #333",
-                  borderRadius: "6px",
-                  padding: "6px 16px",
-                  fontSize: "13px",
-                  fontFamily: MONO,
-                  cursor: "pointer",
-                }}
-              >
-                cancel
-              </button>
-              <button
-                onClick={handlePaste}
-                style={{
-                  background: "#0070f3",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "6px",
-                  padding: "6px 16px",
-                  fontSize: "13px",
-                  fontFamily: MONO,
-                  cursor: "pointer",
-                }}
-              >
-                load
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       <div
@@ -278,9 +206,11 @@ function DropZone({ onContent }) {
           lineHeight: 1.8,
         }}
       >
-        <code>jsx-viewer file.jsx</code> &mdash; load via CLI
+        <code>Ctrl+V / Cmd+V</code> &mdash; paste from clipboard
         <br />
-        <code>jsx-viewer --port 8080</code> &mdash; custom port
+        <code>node bin/jsx-viewer.mjs file.jsx</code> &mdash; preload from CLI
+        <br />
+        <code>npm run dev -- --port 8080</code> &mdash; custom port
       </div>
     </div>
   );
