@@ -64,6 +64,9 @@ export default function MyComponent() {
 }
 ```
 
+Wrapped exports created with `React.memo(...)`, `forwardRef(...)`, or `lazy(...)`
+are supported too, as long as the default export is still renderable with no props.
+
 ## Reference
 
 ### How it works
@@ -106,6 +109,7 @@ If your artifact imports something not listed here, `npm install` it and restart
 | `npm run demo`              | Preload and watch `example/Dashboard.tsx`       |
 | `npm run slot:reset`        | Restore `component/View.tsx` to the placeholder |
 | `npm run guard:slot`        | Fail if the slot contains loaded artifact code  |
+| `npm test`                  | Run slot-component regression checks            |
 | `npm run lint`              | Run ESLint                                      |
 | `npm run typecheck`         | Run TypeScript type-checking                    |
 | `npm run build`             | Production build to `dist/`                     |

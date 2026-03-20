@@ -4,11 +4,11 @@ import {
   useRef,
   useState,
   type ChangeEvent,
-  type ComponentType,
   type DragEvent,
   type MouseEvent,
 } from "react";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { isSlotComponent, type SlotComponent } from "./slotComponent";
 import {
   isServerMessage,
   type ClientMessage,
@@ -17,10 +17,6 @@ import {
 
 const MONO = '"JetBrains Mono", "Fira Code", "SF Mono", monospace';
 const SANS = '"Inter", -apple-system, "Helvetica Neue", sans-serif';
-
-type SlotComponent = ComponentType<Record<string, never>> & {
-  __isPlaceholder?: boolean;
-};
 
 interface LoadedComponentState {
   Component: SlotComponent | null;
@@ -42,10 +38,6 @@ interface ToolbarProps {
 
 function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
-}
-
-function isSlotComponent(value: unknown): value is SlotComponent {
-  return typeof value === "function";
 }
 
 async function readTextFile(file: File): Promise<string> {
