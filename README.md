@@ -1,17 +1,17 @@
 # jsx-viewer
 
-Render `.jsx` files as easily as `.html`. One command, one file, rendered.
+Render `.jsx` and `.tsx` files as easily as `.html`. One command, one file, rendered.
 
 ![JSX Viewer Preview](assets/ui.png)
 
-You get a `.jsx` artifact from Claude, ChatGPT, or wherever. To actually *see* it, you'd normally scaffold a React app, install deps, wire up imports, run a dev server. That's 5 minutes of ceremony for 2 seconds of viewing. `jsx-viewer` skips all of it.
+You get a `.tsx` or `.jsx` artifact from Claude, ChatGPT, or wherever. To actually *see* it, you'd normally scaffold a React app, install deps, wire up imports, run a dev server. That's 5 minutes of ceremony for 2 seconds of viewing. `jsx-viewer` skips all of it.
 
 ```bash
 git clone https://github.com/pszemraj/jsx-viewer.git
 cd jsx-viewer
 npm install
 
-npm start        # empty drop/paste UI
+npm start        # empty drop/upload/paste UI
 # npm run demo     # preloads the example dashboard
 ```
 
@@ -24,39 +24,41 @@ There are four ways to get a component on screen:
 **Start with a file** (recommended) - pass it directly and it's watched for changes. Save in your editor, browser updates.
 
 ```bash
-node bin/jsx-viewer.mjs path/to/Component.jsx
+node bin/jsx-viewer.mjs path/to/Component.tsx
 # optional, only after global install/link:
-jsx-viewer path/to/Component.jsx
+jsx-viewer path/to/Component.tsx
 ```
 
-**Drag and drop** - start with no args (`npm start`), drag a `.jsx` file onto the browser window.
+`.tsx` is the preferred artifact format, but `.jsx` continues to work.
 
-**Upload a file** - start with no args (`npm start`), click `upload jsx`, and choose a local `.jsx` file.
+**Drag and drop** - start with no args (`npm start`), drag a `.jsx` or `.tsx` file onto the browser window.
+
+**Upload a file** - start with no args (`npm start`), click `upload artifact`, and choose a local `.jsx` or `.tsx` file.
 
 **Paste source** - start with no args, focus the viewer window, and press `Ctrl+V` / `Cmd+V`. No extra paste button is required.
 
-An included example dashboard is available via `npm run demo`.
+An included TSX example dashboard is available via `npm run demo`.
 
 When a file is already loaded, use the toolbar `clear` button to return to the empty drop/upload/paste state before loading the next one.
 
 ### Options
 
 ```bash
-node bin/jsx-viewer.mjs [options] [file.jsx]
+node bin/jsx-viewer.mjs [options] [file.tsx]
 
   -p, --port <n>   Dev server port (default: 3142)
   -h, --help       Show help
 ```
 
-If you globally install/link the package, the same command becomes `jsx-viewer [options] [file.jsx]`.
+If you globally install/link the package, the same command becomes `jsx-viewer [options] [file.tsx]`.
 
 WebSocket runs on port + 1 (default: 3143).
 
 ### Component requirements
 
-Your JSX file needs a **default export** of a React component:
+Your JSX/TSX file needs a **default export** of a React component:
 
-```jsx
+```tsx
 export default function MyComponent() {
   return <div>Hello</div>;
 }
@@ -66,8 +68,8 @@ export default function MyComponent() {
 
 ### How it works
 
-1. **Vite dev server** handles JSX transpilation and HMR
-2. Your file is copied to a **slot** (`component/View.jsx`) - the single render target
+1. **Vite dev server** handles JSX/TSX transpilation and HMR
+2. Your file is copied to a **slot** (`component/View.tsx`) - the single render target
 3. Vite picks up the change and hot-reloads the browser instantly
 4. A **WebSocket bridge** connects the browser UI to the CLI for drag-and-drop/paste
 5. On exit, the slot resets to a placeholder - your file is never committed, the repo stays clean
@@ -76,7 +78,7 @@ If the viewer still shows a previously loaded component after an abnormal stop, 
 
 ### Pre-installed libraries
 
-These are available for `import` in your JSX files with no setup:
+These are available for `import` in your JSX/TSX files with no setup:
 
 | Package      | Version | Notes              |
 | ------------ | ------- | ------------------ |
@@ -100,14 +102,15 @@ If your artifact imports something not listed here, `npm install` it and restart
 
 | Command                     | Purpose                                         |
 | --------------------------- | ----------------------------------------------- |
-| `npm start` / `npm run dev` | Launch the empty drop/paste UI                  |
-| `npm run demo`              | Preload and watch `example/Dashboard.jsx`       |
-| `npm run slot:reset`        | Restore `component/View.jsx` to the placeholder |
+| `npm start` / `npm run dev` | Launch the empty drop/upload/paste UI           |
+| `npm run demo`              | Preload and watch `example/Dashboard.tsx`       |
+| `npm run slot:reset`        | Restore `component/View.tsx` to the placeholder |
 | `npm run guard:slot`        | Fail if the slot contains loaded artifact code  |
 | `npm run lint`              | Run ESLint                                      |
+| `npm run typecheck`         | Run TypeScript type-checking                    |
 | `npm run build`             | Production build to `dist/`                     |
 
-`npm install` also configures a repo-local pre-commit hook that blocks commits when `component/View.jsx` contains loaded artifact code instead of the tracked placeholder.
+`npm install` also configures a repo-local pre-commit hook that blocks commits when `component/View.tsx` contains loaded artifact code instead of the tracked placeholder.
 
 ## License
 

@@ -1,7 +1,7 @@
 {
   "name": "jsx-viewer",
   "version": "1.0.0",
-  "description": "Drop-in viewer for JSX/React component files. Make .jsx as portable as .html.",
+  "description": "Drop-in viewer for JSX/TSX React component files. Make .jsx and .tsx as portable as .html.",
   "type": "module",
   "bin": {
     "jsx-viewer": "./bin/jsx-viewer.mjs"
