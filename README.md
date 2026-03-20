@@ -35,6 +35,8 @@ jsx-viewer path/to/Component.jsx
 
 An included example dashboard is available via `npm run demo`.
 
+When a file is already loaded, use the toolbar `clear` button to return to the empty drop/upload/paste state before loading the next one.
+
 ### Options
 
 ```bash

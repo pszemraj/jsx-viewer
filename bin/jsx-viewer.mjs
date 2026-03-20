@@ -54,9 +54,28 @@ function loadFileIntoSlot(filePath) {
 
 // ── Start ───────────────────────────────────────────────────
 let currentFilename = null;
+let watcher = null;
+
+function stopWatching() {
+  if (watcher) {
+    watcher.close();
+    watcher = null;
+  }
+}
+
+function startWatching(filePath) {
+  stopWatching();
+  watcher = watch(filePath, { ignoreInitial: true });
+  watcher.on("change", () => {
+    currentFilename = loadFileIntoSlot(filePath);
+    broadcast({ type: "file-updated", filename: currentFilename });
+    console.log(`\x1b[36m[jsx-viewer]\x1b[0m File changed, reloading...`);
+  });
+}
 
 if (inputFile) {
   currentFilename = loadFileIntoSlot(inputFile);
+  startWatching(inputFile);
 } else {
   resetSlot();
 }
@@ -83,9 +102,15 @@ wss.on("connection", (ws) => {
     try {
       const msg = JSON.parse(raw.toString());
       if (msg.type === "load-jsx" && msg.content) {
+        stopWatching();
         writeSlot(msg.content);
         currentFilename = msg.filename || "pasted.jsx";
         broadcast({ type: "file-updated", filename: currentFilename });
+      } else if (msg.type === "reset-slot") {
+        stopWatching();
+        resetSlot();
+        currentFilename = null;
+        broadcast({ type: "file-updated", filename: null });
       }
     } catch (err) {
       console.error(
@@ -95,16 +120,6 @@ wss.on("connection", (ws) => {
     }
   });
 });
-
-// ── Watch the input file for external edits ─────────────────
-if (inputFile) {
-  const watcher = watch(inputFile, { ignoreInitial: true });
-  watcher.on("change", () => {
-    currentFilename = loadFileIntoSlot(inputFile);
-    broadcast({ type: "file-updated", filename: currentFilename });
-    console.log(`\x1b[36m[jsx-viewer]\x1b[0m File changed, reloading...`);
-  });
-}
 
 // ── Start Vite ──────────────────────────────────────────────
 const server = await createServer({
@@ -151,6 +166,11 @@ function cleanup() {
     resetSlot();
   } catch (err) {
     console.error("[jsx-viewer] Failed to reset slot:", err.message);
+  }
+  try {
+    stopWatching();
+  } catch {
+    /* ignore */
   }
   try {
     wss.close();

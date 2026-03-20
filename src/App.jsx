@@ -259,7 +259,7 @@ function DropZone({ onContent }) {
   );
 }
 
-function Toolbar({ filename, connected, onSwap }) {
+function Toolbar({ filename, connected, onClear, onSwap }) {
   const fileInputRef = useRef(null);
 
   const handleFileSelect = (e) => {
@@ -305,6 +305,32 @@ function Toolbar({ filename, connected, onSwap }) {
         title={connected ? "WebSocket connected" : "WebSocket disconnected"}
       />
       <button
+        onClick={onClear}
+        disabled={!filename}
+        style={{
+          background: "transparent",
+          color: filename ? "#888" : "#444",
+          border: "1px solid #333",
+          borderRadius: "4px",
+          padding: "4px 10px",
+          fontSize: "11px",
+          fontFamily: MONO,
+          cursor: filename ? "pointer" : "default",
+        }}
+        onMouseEnter={(e) => {
+          if (!filename) return;
+          e.target.style.color = "#f5f5f5";
+          e.target.style.borderColor = "#666";
+        }}
+        onMouseLeave={(e) => {
+          e.target.style.color = filename ? "#888" : "#444";
+          e.target.style.borderColor = "#333";
+        }}
+        title={filename ? "Return to the empty drop/upload/paste state" : "No file loaded"}
+      >
+        clear
+      </button>
+      <button
         onClick={() => fileInputRef.current?.click()}
         style={{
           background: "#111",
@@ -346,7 +372,13 @@ export default function App() {
   const handleWsMessage = useCallback(
     (msg) => {
       if (msg.type === "file-updated") {
-        setFilename(msg.filename || "external");
+        const nextFilename = Object.prototype.hasOwnProperty.call(
+          msg,
+          "filename",
+        )
+          ? msg.filename
+          : "external";
+        setFilename(nextFilename);
         // Vite HMR will trigger reload automatically via afterUpdate
         // but force a reload after a short delay as fallback
         setTimeout(reload, 300);
@@ -365,6 +397,11 @@ export default function App() {
     [send],
   );
 
+  const handleClear = useCallback(() => {
+    send({ type: "reset-slot" });
+    setFilename(null);
+  }, [send]);
+
   return (
     <div
       style={{
@@ -377,6 +414,7 @@ export default function App() {
       <Toolbar
         filename={filename}
         connected={connected}
+        onClear={handleClear}
         onSwap={handleContent}
       />
       <div style={{ flex: 1, position: "relative" }}>
