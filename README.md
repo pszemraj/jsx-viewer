@@ -110,7 +110,9 @@ If your artifact imports something not listed here, `npm install` it and restart
 | `npm run typecheck`         | Run TypeScript type-checking                    |
 | `npm run build`             | Production build to `dist/`                     |
 
-`npm install` also configures a repo-local pre-commit hook that blocks commits when `component/View.tsx` contains loaded artifact code instead of the tracked placeholder.
+On non-Windows systems, `npm install` also configures a repo-local pre-commit hook that blocks commits when `component/View.tsx` contains loaded artifact code instead of the tracked placeholder.
+
+On Windows, hook installation is skipped by default because Git-for-Windows shell hooks can be flaky in some environments. The guard still exists as `npm run guard:slot`, and you can opt into the hook manually with `JSX_VIEWER_ENABLE_GIT_HOOKS=1 npm install`.
 
 ## License
 
