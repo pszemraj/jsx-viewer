@@ -2,6 +2,8 @@
 
 Render `.jsx` files as easily as `.html`. One command, one file, rendered.
 
+![JSX Viewer Preview](assets/ui.png)
+
 You get a `.jsx` artifact from Claude, ChatGPT, or wherever. To actually *see* it, you'd normally scaffold a React app, install deps, wire up imports, run a dev server. That's 5 minutes of ceremony for 2 seconds of viewing. `jsx-viewer` skips all of it.
 
 ```bash
