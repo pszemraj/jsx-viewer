@@ -1,2 +1,2 @@
 #!/bin/sh
-node bin/check-slot.mjs || exit 1
+node --import tsx ./bin/check-slot.ts || exit 1

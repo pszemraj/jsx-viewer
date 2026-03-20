@@ -9,13 +9,13 @@
   "scripts": {
     "dev": "node bin/jsx-viewer.mjs",
     "start": "node bin/jsx-viewer.mjs",
-    "demo": "node bin/jsx-viewer.mjs example/Dashboard.jsx",
-    "guard:slot": "node bin/check-slot.mjs",
-    "slot:reset": "node bin/check-slot.mjs --fix",
+    "demo": "node bin/jsx-viewer.mjs example/Dashboard.tsx",
+    "guard:slot": "node --import tsx ./bin/check-slot.ts",
+    "slot:reset": "node --import tsx ./bin/check-slot.ts --fix",
     "build": "vite build",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "prepare": "node bin/setup-hooks.mjs"
+    "prepare": "node --import tsx ./bin/setup-hooks.ts"
   },
   "keywords": [
     "jsx",
@@ -49,8 +49,9 @@
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@types/node": "^25.5.0",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
+    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.57.1",
     "@typescript-eslint/parser": "^8.57.1",
     "@vitejs/plugin-react": "^4.3.1",

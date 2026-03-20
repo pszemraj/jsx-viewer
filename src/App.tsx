@@ -1,11 +1,59 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { ErrorBoundary } from "./ErrorBoundary.jsx";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ComponentType,
+  type DragEvent,
+  type MouseEvent,
+} from "react";
+import { ErrorBoundary } from "./ErrorBoundary";
+import {
+  isServerMessage,
+  type ClientMessage,
+  type ServerMessage,
+} from "../shared/protocol";
 
 const MONO = '"JetBrains Mono", "Fira Code", "SF Mono", monospace';
 const SANS = '"Inter", -apple-system, "Helvetica Neue", sans-serif';
 
+type SlotComponent = ComponentType<Record<string, never>> & {
+  __isPlaceholder?: boolean;
+};
+
+interface LoadedComponentState {
+  Component: SlotComponent | null;
+  isPlaceholder: boolean;
+  error: Error | null;
+  version: number;
+}
+
+interface DropZoneProps {
+  onContent: (content: string, name: string) => void;
+}
+
+interface ToolbarProps {
+  filename: string | null;
+  connected: boolean;
+  onClear: () => void;
+  onSwap: (content: string, name: string) => void;
+}
+
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
+}
+
+function isSlotComponent(value: unknown): value is SlotComponent {
+  return typeof value === "function";
+}
+
+async function readTextFile(file: File): Promise<string> {
+  return file.text();
+}
+
 function useLoadedComponent() {
-  const [state, setState] = useState({
+  const [state, setState] = useState<LoadedComponentState>({
     Component: null,
     isPlaceholder: true,
     error: null,
@@ -14,36 +62,38 @@ function useLoadedComponent() {
 
   const load = useCallback(async () => {
     try {
-      // Cache-bust via timestamp query to force re-evaluation
-      const mod = await import(
-        /* @vite-ignore */ `../component/View.jsx?t=${Date.now()}`
-      );
-      const Comp = mod.default;
-      const isPlaceholder = Comp?.__isPlaceholder === true;
-      setState((s) => ({
-        Component: Comp,
-        isPlaceholder,
+      const mod = (await import(
+        /* @vite-ignore */ `../component/View.tsx?t=${Date.now()}`
+      )) as { default?: unknown };
+      const component = mod.default;
+
+      if (!isSlotComponent(component)) {
+        throw new Error("Loaded artifact must default-export a React component.");
+      }
+
+      setState((current) => ({
+        Component: component,
+        isPlaceholder: component.__isPlaceholder === true,
         error: null,
-        version: s.version + 1,
+        version: current.version + 1,
       }));
-    } catch (err) {
-      setState((s) => ({
-        ...s,
-        error: err,
-        version: s.version + 1,
+    } catch (error) {
+      setState((current) => ({
+        ...current,
+        error: toError(error),
+        version: current.version + 1,
       }));
     }
   }, []);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
-  // Listen for HMR updates on the component file
   useEffect(() => {
     if (import.meta.hot) {
       import.meta.hot.on("vite:afterUpdate", () => {
-        load();
+        void load();
       });
     }
   }, [load]);
@@ -51,79 +101,110 @@ function useLoadedComponent() {
   return { ...state, reload: load };
 }
 
-function useWebSocket(onMessage) {
-  const wsRef = useRef(null);
+function useWebSocket(onMessage: (message: ServerMessage) => void) {
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimerRef = useRef<number | null>(null);
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    function connect() {
-      const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-      const ws = new WebSocket(`${protocol}//${location.hostname}:3143`);
+    let isMounted = true;
+
+    const connect = () => {
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const ws = new WebSocket(
+        `${protocol}//${window.location.hostname}:3143`,
+      );
       wsRef.current = ws;
 
-      ws.onopen = () => setConnected(true);
-      ws.onclose = () => {
-        setConnected(false);
-        // Reconnect after 2s
-        setTimeout(connect, 2000);
-      };
-      ws.onmessage = (evt) => {
-        try {
-          const msg = JSON.parse(evt.data);
-          onMessage(msg);
-        } catch (err) {
-          console.warn("[jsx-viewer] Bad WS message:", err.message);
+      ws.onopen = () => {
+        if (isMounted) {
+          setConnected(true);
         }
       };
-      ws.onerror = () => ws.close();
-    }
+
+      ws.onclose = () => {
+        if (!isMounted) {
+          return;
+        }
+
+        setConnected(false);
+        reconnectTimerRef.current = window.setTimeout(connect, 2000);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const message: unknown = JSON.parse(event.data);
+          if (isServerMessage(message)) {
+            onMessage(message);
+            return;
+          }
+
+          console.warn("[jsx-viewer] Ignoring malformed WS message.");
+        } catch (error) {
+          console.warn("[jsx-viewer] Bad WS message:", toError(error).message);
+        }
+      };
+
+      ws.onerror = () => {
+        ws.close();
+      };
+    };
+
     connect();
-    return () => wsRef.current?.close();
+
+    return () => {
+      isMounted = false;
+      if (reconnectTimerRef.current !== null) {
+        window.clearTimeout(reconnectTimerRef.current);
+      }
+      wsRef.current?.close();
+    };
   }, [onMessage]);
 
-  const send = useCallback((data) => {
+  const send = useCallback((message: ClientMessage) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(data));
+      wsRef.current.send(JSON.stringify(message));
     }
   }, []);
 
   return { send, connected };
 }
 
-function DropZone({ onContent }) {
+function DropZone({ onContent }: DropZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const containerRef = useRef(null);
-  const fileInputRef = useRef(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const handleDrop = useCallback(
-    (e) => {
-      e.preventDefault();
-      setIsDragging(false);
-      const file = e.dataTransfer.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (evt) => {
-          onContent(evt.target.result, file.name);
-        };
-        reader.readAsText(file);
-      }
+  const handleFile = useCallback(
+    async (file: File) => {
+      const content = await readTextFile(file);
+      onContent(content, file.name);
     },
     [onContent],
   );
 
-  const handleFileSelect = useCallback(
-    (event) => {
-      const file = event.target.files[0];
+  const handleDrop = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      setIsDragging(false);
+
+      const file = event.dataTransfer.files.item(0);
       if (file) {
-        const reader = new FileReader();
-        reader.onload = (evt) => {
-          onContent(evt.target.result, file.name);
-        };
-        reader.readAsText(file);
+        void handleFile(file);
+      }
+    },
+    [handleFile],
+  );
+
+  const handleFileSelect = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.item(0);
+      if (file) {
+        void handleFile(file);
       }
       event.target.value = "";
     },
-    [onContent],
+    [handleFile],
   );
 
   useEffect(() => {
@@ -131,11 +212,11 @@ function DropZone({ onContent }) {
   }, []);
 
   useEffect(() => {
-    const handlePasteEvent = (event) => {
+    const handlePasteEvent = (event: ClipboardEvent) => {
       const text = event.clipboardData?.getData("text/plain");
       if (text?.trim()) {
         event.preventDefault();
-        onContent(text, "pasted.jsx");
+        onContent(text, "pasted.tsx");
       }
     };
 
@@ -147,8 +228,8 @@ function DropZone({ onContent }) {
     <div
       ref={containerRef}
       tabIndex={0}
-      onDragOver={(e) => {
-        e.preventDefault();
+      onDragOver={(event) => {
+        event.preventDefault();
         setIsDragging(true);
       }}
       onDragLeave={() => setIsDragging(false)}
@@ -196,7 +277,7 @@ function DropZone({ onContent }) {
             letterSpacing: "-0.02em",
           }}
         >
-          Drop, upload, or paste JSX
+          Drop, upload, or paste JSX/TSX
         </h2>
         <p
           style={{
@@ -223,10 +304,14 @@ function DropZone({ onContent }) {
             cursor: "pointer",
             transition: "background 150ms ease",
           }}
-          onMouseEnter={(e) => (e.target.style.background = "#1a1a1a")}
-          onMouseLeave={(e) => (e.target.style.background = "#111")}
+          onMouseEnter={(event: MouseEvent<HTMLButtonElement>) => {
+            event.currentTarget.style.background = "#1a1a1a";
+          }}
+          onMouseLeave={(event: MouseEvent<HTMLButtonElement>) => {
+            event.currentTarget.style.background = "#111";
+          }}
         >
-          upload jsx
+          upload artifact
         </button>
         <input
           ref={fileInputRef}
@@ -247,11 +332,11 @@ function DropZone({ onContent }) {
           lineHeight: 1.8,
         }}
       >
-        <code>Upload JSX</code> &mdash; choose a local file
+        <code>Upload JSX/TSX</code> &mdash; choose a local file
         <br />
         <code>Ctrl+V / Cmd+V</code> &mdash; paste from clipboard
         <br />
-        <code>node bin/jsx-viewer.mjs file.jsx</code> &mdash; preload from CLI
+        <code>node bin/jsx-viewer.mjs file.tsx</code> &mdash; preload from CLI
         <br />
         <code>npm run dev -- --port 8080</code> &mdash; custom port
       </div>
@@ -259,17 +344,20 @@ function DropZone({ onContent }) {
   );
 }
 
-function Toolbar({ filename, connected, onClear, onSwap }) {
-  const fileInputRef = useRef(null);
+function Toolbar({ filename, connected, onClear, onSwap }: ToolbarProps) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (evt) => onSwap(evt.target.result, file.name);
-      reader.readAsText(file);
-    }
-  };
+  const handleFileSelect = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.item(0);
+      if (file) {
+        const content = await readTextFile(file);
+        onSwap(content, file.name);
+      }
+      event.target.value = "";
+    },
+    [onSwap],
+  );
 
   return (
     <div
@@ -292,7 +380,7 @@ function Toolbar({ filename, connected, onClear, onSwap }) {
       </span>
       <span style={{ color: "#333" }}>|</span>
       <span style={{ color: filename ? "#ededed" : "#555" }}>
-        {filename || "no file loaded"}
+        {filename ?? "no file loaded"}
       </span>
       <div style={{ flex: 1 }} />
       <div
@@ -317,16 +405,22 @@ function Toolbar({ filename, connected, onClear, onSwap }) {
           fontFamily: MONO,
           cursor: filename ? "pointer" : "default",
         }}
-        onMouseEnter={(e) => {
-          if (!filename) return;
-          e.target.style.color = "#f5f5f5";
-          e.target.style.borderColor = "#666";
+        onMouseEnter={(event: MouseEvent<HTMLButtonElement>) => {
+          if (!filename) {
+            return;
+          }
+          event.currentTarget.style.color = "#f5f5f5";
+          event.currentTarget.style.borderColor = "#666";
         }}
-        onMouseLeave={(e) => {
-          e.target.style.color = filename ? "#888" : "#444";
-          e.target.style.borderColor = "#333";
+        onMouseLeave={(event: MouseEvent<HTMLButtonElement>) => {
+          event.currentTarget.style.color = filename ? "#888" : "#444";
+          event.currentTarget.style.borderColor = "#333";
         }}
-        title={filename ? "Return to the empty drop/upload/paste state" : "No file loaded"}
+        title={
+          filename
+            ? "Return to the empty drop/upload/paste state"
+            : "No file loaded"
+        }
       >
         clear
       </button>
@@ -342,13 +436,13 @@ function Toolbar({ filename, connected, onClear, onSwap }) {
           fontFamily: MONO,
           cursor: "pointer",
         }}
-        onMouseEnter={(e) => {
-          e.target.style.color = "#ededed";
-          e.target.style.borderColor = "#555";
+        onMouseEnter={(event: MouseEvent<HTMLButtonElement>) => {
+          event.currentTarget.style.color = "#ededed";
+          event.currentTarget.style.borderColor = "#555";
         }}
-        onMouseLeave={(e) => {
-          e.target.style.color = "#888";
-          e.target.style.borderColor = "#333";
+        onMouseLeave={(event: MouseEvent<HTMLButtonElement>) => {
+          event.currentTarget.style.color = "#888";
+          event.currentTarget.style.borderColor = "#333";
         }}
       >
         swap file
@@ -367,22 +461,18 @@ function Toolbar({ filename, connected, onClear, onSwap }) {
 export default function App() {
   const { Component, isPlaceholder, error, version, reload } =
     useLoadedComponent();
-  const [filename, setFilename] = useState(null);
+  const [filename, setFilename] = useState<string | null>(null);
 
   const handleWsMessage = useCallback(
-    (msg) => {
-      if (msg.type === "file-updated") {
-        const nextFilename = Object.prototype.hasOwnProperty.call(
-          msg,
-          "filename",
-        )
-          ? msg.filename
-          : "external";
-        setFilename(nextFilename);
-        // Vite HMR will trigger reload automatically via afterUpdate
-        // but force a reload after a short delay as fallback
-        setTimeout(reload, 300);
+    (message: ServerMessage) => {
+      if (message.type !== "file-updated") {
+        return;
       }
+
+      setFilename(message.filename);
+      window.setTimeout(() => {
+        void reload();
+      }, 300);
     },
     [reload],
   );
@@ -390,8 +480,8 @@ export default function App() {
   const { send, connected } = useWebSocket(handleWsMessage);
 
   const handleContent = useCallback(
-    (content, name) => {
-      send({ type: "load-jsx", content, filename: name });
+    (content: string, name: string) => {
+      send({ type: "load-artifact", content, filename: name });
       setFilename(name);
     },
     [send],
@@ -469,7 +559,7 @@ export default function App() {
                   wordBreak: "break-word",
                 }}
               >
-                {error.message || String(error)}
+                {error.message}
               </pre>
               <p
                 style={{
@@ -479,7 +569,7 @@ export default function App() {
                   lineHeight: 1.5,
                 }}
               >
-                Fix the JSX file and save. Vite HMR will reload automatically.
+                Fix the JSX/TSX file and save. Vite HMR will reload automatically.
               </p>
             </div>
           </div>

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { execFileSync } from "child_process";
+import { execFileSync } from "node:child_process";
 
 try {
   execFileSync("git", ["rev-parse", "--is-inside-work-tree"], {

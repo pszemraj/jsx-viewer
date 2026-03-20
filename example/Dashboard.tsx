@@ -1,16 +1,32 @@
 import { useState } from "react";
 import {
-  AreaChart,
   Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
 } from "recharts";
-import { Activity, TrendingUp, TrendingDown, Zap } from "lucide-react";
+import { Activity, TrendingDown, TrendingUp, Zap } from "lucide-react";
 
-const data = [
+type Range = "24h" | "7d" | "30d" | "90d";
+
+interface DataPoint {
+  month: string;
+  value: number;
+  prev: number;
+}
+
+interface StatCardProps {
+  icon: typeof Activity;
+  label: string;
+  value: string;
+  change: string;
+  positive: boolean;
+}
+
+const data: DataPoint[] = [
   { month: "Jan", value: 2400, prev: 1800 },
   { month: "Feb", value: 1398, prev: 2200 },
   { month: "Mar", value: 4800, prev: 3200 },
@@ -20,7 +36,13 @@ const data = [
   { month: "Jul", value: 5300, prev: 4300 },
 ];
 
-function StatCard({ icon: Icon, label, value, change, positive }) {
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  change,
+  positive,
+}: StatCardProps) {
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
       <div className="flex items-center justify-between mb-3">
@@ -45,7 +67,7 @@ function StatCard({ icon: Icon, label, value, change, positive }) {
 }
 
 export default function Dashboard() {
-  const [range, setRange] = useState("7d");
+  const [range, setRange] = useState<Range>("7d");
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 p-8">
@@ -60,17 +82,17 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex gap-1 bg-zinc-900 rounded-lg p-1 border border-zinc-800">
-            {["24h", "7d", "30d", "90d"].map((r) => (
+            {(["24h", "7d", "30d", "90d"] as const).map((value) => (
               <button
-                key={r}
-                onClick={() => setRange(r)}
+                key={value}
+                onClick={() => setRange(value)}
                 className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                  range === r
+                  range === value
                     ? "bg-zinc-700 text-zinc-100"
                     : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
-                {r}
+                {value}
               </button>
             ))}
           </div>

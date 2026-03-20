@@ -44,6 +44,7 @@ export default [
     rules: {
       ...reactHooksPlugin.configs.recommended.rules,
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "no-undef": "off",
       "no-unused-vars": "off",
       "react/jsx-uses-vars": "error",
     },
@@ -64,6 +65,7 @@ export default [
     },
     rules: {
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "no-undef": "off",
       "no-unused-vars": "off",
     },
   },
