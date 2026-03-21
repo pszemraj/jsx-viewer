@@ -9,13 +9,3 @@ try {
   console.error(`\x1b[31m${message}\x1b[0m`);
   process.exit(1);
 }
-
-const { register } = await import("tsx/esm/api");
-
-const unregister = register();
-
-try {
-  await import("./jsx-viewer.ts");
-} finally {
-  await unregister();
-}

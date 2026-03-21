@@ -7,13 +7,14 @@
     "jsx-viewer": "./bin/jsx-viewer.mjs"
   },
   "scripts": {
+    "prebuild": "node ./bin/check-node-version.mjs",
     "dev": "node bin/jsx-viewer.mjs",
     "start": "node bin/jsx-viewer.mjs",
     "demo": "node bin/jsx-viewer.mjs example/Dashboard.tsx",
     "guard:slot": "node --import tsx ./bin/check-slot.ts",
     "slot:reset": "node --import tsx ./bin/check-slot.ts --fix",
     "build": "vite build",
-    "test": "node --import tsx --test src/slotComponent.test.ts src/SlotPreview.test.tsx",
+    "test": "node --import tsx --test bin/node-version.test.mjs src/slotComponent.test.ts src/SlotPreview.test.tsx",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "prepare": "node --import tsx ./bin/setup-hooks.ts"
@@ -33,6 +34,9 @@
   },
   "overrides": {
     "flatted": "^3.4.2"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
   },
   "license": "MIT",
   "dependencies": {

@@ -17,6 +17,16 @@ npm start        # empty drop/upload/paste UI
 
 The viewer opens in your browser. You're done.
 
+## Requirements
+
+`jsx-viewer` currently requires **Node 20.19.0+ or 22.12.0+** because the
+repo now builds and serves through **Vite 8**.
+
+Node `18.x`, `21.x`, `20.0.0` through `20.18.x`, and `22.0.0` through
+`22.11.x` are not supported. The package advertises that floor via
+`package.json#engines`, and the CLI/build scripts fail early with a direct
+message when the runtime is too old.
+
 ## Usage
 
 There are four ways to get a component on screen:
