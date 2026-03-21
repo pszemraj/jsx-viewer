@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { PLACEHOLDER, resetSlot, slotMatchesPlaceholder } from "./slot";
+import { PLACEHOLDER, resetSlot, slotMatchesPlaceholder } from "./slot.mjs";
 
 const shouldFix = process.argv.includes("--fix");
 

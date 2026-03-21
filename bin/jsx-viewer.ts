@@ -14,7 +14,7 @@ import {
   isClientMessage,
   type FileUpdatedMessage,
 } from "../shared/protocol";
-import { ROOT, resetSlot, writeSlot } from "./slot";
+import { ROOT, resetSlot, writeSlot } from "./slot.mjs";
 
 const VERSION = "1.0.0";
 

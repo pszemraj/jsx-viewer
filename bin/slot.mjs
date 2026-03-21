@@ -24,7 +24,7 @@ export function ensureSlotDir() {
   }
 }
 
-export function writeSlot(content: string) {
+export function writeSlot(content) {
   ensureSlotDir();
   fs.writeFileSync(SLOT, content, "utf-8");
 }

@@ -11,13 +11,13 @@
     "dev": "node bin/jsx-viewer.mjs",
     "start": "node bin/jsx-viewer.mjs",
     "demo": "node bin/jsx-viewer.mjs example/Dashboard.tsx",
-    "guard:slot": "node --import tsx ./bin/check-slot.ts",
-    "slot:reset": "node --import tsx ./bin/check-slot.ts --fix",
+    "guard:slot": "node ./bin/check-slot.mjs",
+    "slot:reset": "node ./bin/check-slot.mjs --fix",
     "build": "vite build",
     "test": "node --import tsx --test bin/node-version.test.mjs src/slotComponent.test.ts src/SlotPreview.test.tsx",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "prepare": "node --import tsx ./bin/setup-hooks.ts"
+    "prepare": "node ./bin/setup-hooks.mjs"
   },
   "keywords": [
     "jsx",
