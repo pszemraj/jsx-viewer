@@ -1,2 +1,2 @@
 #!/bin/sh
-node --import tsx ./bin/check-slot.ts || exit 1
+npm run --silent guard:slot || exit 1
