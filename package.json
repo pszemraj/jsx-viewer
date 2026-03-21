@@ -13,7 +13,7 @@
     "guard:slot": "node --import tsx ./bin/check-slot.ts",
     "slot:reset": "node --import tsx ./bin/check-slot.ts --fix",
     "build": "vite build",
-    "test": "node --import tsx --test src/slotComponent.test.ts",
+    "test": "node --import tsx --test src/slotComponent.test.ts src/SlotPreview.test.tsx",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "prepare": "node --import tsx ./bin/setup-hooks.ts"

@@ -66,6 +66,8 @@ export default function MyComponent() {
 
 Wrapped exports created with `React.memo(...)`, `forwardRef(...)`, or `lazy(...)`
 are supported too, as long as the default export is still renderable with no props.
+`lazy(...)` exports render behind the viewer's built-in `Suspense` boundary while
+their module resolves.
 
 ## Reference
 

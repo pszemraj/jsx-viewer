@@ -27,6 +27,7 @@ export function isSlotComponent(value: unknown): value is SlotComponent {
     (typeof value === "object" &&
       value !== null &&
       // React wrappers like memo/forwardRef/lazy are objects at runtime.
+      // lazy exports are rendered behind a Suspense boundary in SlotPreview.
       hasSupportedWrapperType(value))
   );
 }

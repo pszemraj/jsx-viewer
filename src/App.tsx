@@ -7,8 +7,8 @@ import {
   type DragEvent,
   type MouseEvent,
 } from "react";
-import { ErrorBoundary } from "./ErrorBoundary";
 import { isSlotComponent, type SlotComponent } from "./slotComponent";
+import { SlotPreview } from "./SlotPreview";
 import {
   isServerMessage,
   type ClientMessage,
@@ -568,9 +568,7 @@ export default function App() {
         ) : isPlaceholder || !Component ? (
           <DropZone onContent={handleContent} />
         ) : (
-          <ErrorBoundary key={version} resetKey={version}>
-            <Component />
-          </ErrorBoundary>
+          <SlotPreview Component={Component} version={version} />
         )}
       </div>
     </div>
