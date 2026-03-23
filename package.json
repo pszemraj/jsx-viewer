@@ -14,7 +14,7 @@
     "guard:slot": "node ./bin/check-slot.mjs",
     "slot:reset": "node ./bin/check-slot.mjs --fix",
     "build": "vite build",
-    "test": "node --import tsx --test bin/node-version.test.mjs bin/setup-hooks.test.mjs src/slotComponent.test.ts src/SlotPreview.test.tsx",
+    "test": "node --import tsx --test bin/jsx-viewer.test.mjs bin/node-version.test.mjs bin/setup-hooks.test.mjs src/slotComponent.test.ts src/SlotPreview.test.tsx",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "prepare": "node ./bin/setup-hooks.mjs"
@@ -40,6 +40,8 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@vitejs/plugin-react": "^6.0.1",
+    "autoprefixer": "^10.4.27",
     "chart.js": "^4.4.3",
     "chokidar": "^3.6.0",
     "d3": "^7.9.0",
@@ -47,11 +49,14 @@
     "lucide-react": "^0.383.0",
     "mathjs": "^13.0.3",
     "papaparse": "^5.4.1",
+    "postcss": "^8.5.8",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "recharts": "^2.12.7",
+    "tailwindcss": "^3.4.19",
     "three": "^0.164.1",
     "tone": "^15.0.4",
+    "vite": "^8.0.1",
     "ws": "^8.17.0"
   },
   "devDependencies": {
@@ -62,17 +67,12 @@
     "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.57.1",
     "@typescript-eslint/parser": "^8.57.1",
-    "@vitejs/plugin-react": "^6.0.1",
-    "autoprefixer": "^10.4.27",
     "eslint": "^9.39.4",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "jiti": "^2.6.1",
-    "postcss": "^8.5.8",
     "prettier": "^3.8.1",
-    "tailwindcss": "^3.4.19",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3",
-    "vite": "^8.0.1"
+    "typescript": "^5.9.3"
   }
 }
