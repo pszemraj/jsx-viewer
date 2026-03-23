@@ -53,7 +53,7 @@ export default [
     },
   },
   {
-    files: ["bin/**/*.{mjs,ts}", "*.config.ts"],
+    files: ["bin/**/*.{mjs,ts}", "shared/**/*.mjs", "*.config.ts"],
     plugins: {
       "@typescript-eslint": tsPlugin,
     },

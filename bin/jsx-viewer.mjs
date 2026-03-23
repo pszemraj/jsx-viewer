@@ -10,6 +10,7 @@ import {
   getHelpText,
   parseCliArgs,
 } from "./jsx-viewer-cli.mjs";
+import { isClientMessage } from "../shared/protocol.mjs";
 import { assertSupportedNodeVersion } from "./node-version.mjs";
 import { ROOT, resetSlot, writeSlot } from "./slot.mjs";
 
@@ -45,29 +46,6 @@ function loadFileIntoSlot(filePath) {
 
 function toError(error) {
   return error instanceof Error ? error : new Error(String(error));
-}
-
-function isRecord(value) {
-  return typeof value === "object" && value !== null;
-}
-
-function isClientMessage(value) {
-  if (!isRecord(value) || typeof value.type !== "string") {
-    return false;
-  }
-
-  if (value.type === "reset-slot") {
-    return true;
-  }
-
-  if (value.type === "load-artifact" || value.type === "load-jsx") {
-    return (
-      typeof value.content === "string" &&
-      (value.filename === undefined || typeof value.filename === "string")
-    );
-  }
-
-  return false;
 }
 
 let currentFilename = null;

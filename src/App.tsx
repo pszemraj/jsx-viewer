@@ -13,7 +13,7 @@ import {
   isServerMessage,
   type ClientMessage,
   type ServerMessage,
-} from "../shared/protocol";
+} from "../shared/protocol.mjs";
 import { getWebSocketUrl } from "./runtimeConfig";
 
 const MONO = '"JetBrains Mono", "Fira Code", "SF Mono", monospace';

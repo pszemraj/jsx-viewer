@@ -15,7 +15,8 @@
     "component/View.tsx",
     "example/Dashboard.tsx",
     "index.html",
-    "shared/protocol.ts",
+    "shared/protocol.d.mts",
+    "shared/protocol.mjs",
     "shared/runtime-config.json",
     "src/App.tsx",
     "src/ErrorBoundary.tsx",
@@ -39,7 +40,7 @@
     "guard:slot": "node ./bin/check-slot.mjs",
     "slot:reset": "node ./bin/check-slot.mjs --fix",
     "build": "vite build",
-    "test": "node --import tsx --test bin/jsx-viewer.test.mjs bin/node-version.test.mjs bin/setup-hooks.test.mjs src/runtimeConfig.test.ts src/slotComponent.test.ts src/SlotPreview.test.tsx",
+    "test": "node --import tsx --test bin/jsx-viewer.test.mjs bin/node-version.test.mjs bin/setup-hooks.test.mjs shared/protocol.test.ts src/runtimeConfig.test.ts src/slotComponent.test.ts src/SlotPreview.test.tsx",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "prepare": "node ./bin/setup-hooks.mjs"
