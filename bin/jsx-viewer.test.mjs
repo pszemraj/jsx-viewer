@@ -17,6 +17,7 @@ import test from "node:test";
 import {
   CliUsageError,
   DEFAULT_VIEWER_PORT,
+  MAX_VIEWER_PORT,
   SUPPORTED_INPUT_EXTENSIONS,
   WEB_SOCKET_PORT_OFFSET,
   getHelpText,
@@ -190,6 +191,7 @@ test("package metadata points to the public project URLs", () => {
 test("help text documents the actual default port behavior", () => {
   const helpText = getHelpText();
   assert.match(helpText, new RegExp(`default: ${DEFAULT_VIEWER_PORT}`));
+  assert.match(helpText, new RegExp(`max: ${MAX_VIEWER_PORT}`));
   assert.match(helpText, new RegExp(`port \\+ ${WEB_SOCKET_PORT_OFFSET}`));
   assert.match(helpText, /Pass zero or one \.jsx\/\.tsx file\./);
 });
@@ -392,6 +394,15 @@ test("parseCliArgs returns the documented default workflow", () => {
   });
 });
 
+test("parseCliArgs accepts the highest viewer port that leaves room for the WebSocket port", () => {
+  assert.deepEqual(parseCliArgs(["--port", String(MAX_VIEWER_PORT)]), {
+    mode: "run",
+    inputFile: null,
+    port: MAX_VIEWER_PORT,
+    wsPort: getWebSocketPort(MAX_VIEWER_PORT),
+  });
+});
+
 for (const [name, args, message] of [
   [
     "parseCliArgs rejects unknown options loudly",
@@ -413,6 +424,11 @@ for (const [name, args, message] of [
     ["artifact.js"],
     `Unsupported input file "artifact.js". Pass a ${SUPPORTED_INPUT_EXTENSIONS.join(" or ")} file.`,
   ],
+  [
+    "parseCliArgs rejects viewer ports that overflow the WebSocket port range",
+    ["--port", String(MAX_VIEWER_PORT + 1)],
+    `Invalid value for --port: "${MAX_VIEWER_PORT + 1}". Expected an integer between 1 and ${MAX_VIEWER_PORT} so the WebSocket can listen on port + ${WEB_SOCKET_PORT_OFFSET}.`,
+  ],
 ]) {
   test(name, () => {
     assert.throws(() => parseCliArgs(args), new CliUsageError(message));
@@ -425,6 +441,16 @@ test("cli surfaces usage errors without silently falling back to another workflo
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Unknown option "--wat"/);
   assert.match(result.stderr, /--help/);
+  assert.equal(result.stdout, "");
+});
+
+test("cli rejects ports that would overflow the WebSocket listener before runtime startup", () => {
+  const invalidPort = String(MAX_VIEWER_PORT + 1);
+  const result = runCli(["--port", invalidPort]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, new RegExp(`Invalid value for --port: "${invalidPort}"`));
+  assert.doesNotMatch(result.stderr, /Failed to start/);
   assert.equal(result.stdout, "");
 });
 

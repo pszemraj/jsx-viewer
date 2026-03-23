@@ -4,6 +4,8 @@ import runtimeConfig from "../shared/runtime-config.json" with { type: "json" };
 export const DEFAULT_VIEWER_PORT = runtimeConfig.defaultViewerPort;
 export const WEB_SOCKET_PORT_OFFSET = runtimeConfig.webSocketPortOffset;
 export const SUPPORTED_INPUT_EXTENSIONS = runtimeConfig.supportedInputExtensions;
+export const MAX_SOCKET_PORT = 65_535;
+export const MAX_VIEWER_PORT = MAX_SOCKET_PORT - WEB_SOCKET_PORT_OFFSET;
 
 export class CliUsageError extends Error {
   constructor(message) {
@@ -40,6 +42,12 @@ function parsePortValue(value) {
     );
   }
 
+  if (port > MAX_VIEWER_PORT) {
+    throw new CliUsageError(
+      `Invalid value for --port: "${value}". Expected an integer between 1 and ${MAX_VIEWER_PORT} so the WebSocket can listen on port + ${WEB_SOCKET_PORT_OFFSET}.`,
+    );
+  }
+
   return port;
 }
 
@@ -60,7 +68,7 @@ export function getHelpText() {
     node bin/jsx-viewer.mjs [options] [file.jsx|file.tsx]
 
   Options:
-    -p, --port <n>   Viewer HTTP port (default: ${DEFAULT_VIEWER_PORT})
+    -p, --port <n>   Viewer HTTP port (default: ${DEFAULT_VIEWER_PORT}, max: ${MAX_VIEWER_PORT})
                      WebSocket listens on port + ${WEB_SOCKET_PORT_OFFSET}
     -h, --help       Show this help
     -v, --version    Show version

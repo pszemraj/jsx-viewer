@@ -56,7 +56,7 @@ When a file is already loaded, use the toolbar `swap file` button to replace it 
 ```bash
 node bin/jsx-viewer.mjs [options] [file.jsx|file.tsx]
 
-  -p, --port <n>   Viewer HTTP port (default: 3142)
+  -p, --port <n>   Viewer HTTP port (default: 3142, max: 65534)
                    WebSocket listens on port + 1
   -v, --version    Show version
   -h, --help       Show help
@@ -70,6 +70,8 @@ fast with a usage error instead of silently falling back to another workflow.
 
 WebSocket runs on port + 1 (default: 3143). The browser auto-opens on startup
 unless `CI` is already set.
+Because the WebSocket reserves the next port, the highest supported viewer
+port is `65534`.
 
 ### Component requirements
 
