@@ -24,8 +24,10 @@ import {
   parseCliArgs,
 } from "./jsx-viewer-cli.mjs";
 import {
+  clearRuntimeSlots,
   PLACEHOLDER,
   TRACKED_SLOT_PATH,
+  getRuntimeSlotsRoot,
   getRuntimeSlotModuleUrl,
   getRuntimeSlotPath,
   readSlot,
@@ -85,8 +87,22 @@ test("cli entrypoint does not depend on the tsx loader", () => {
   assert.doesNotMatch(cliEntrypoint, /jsx-viewer\.ts/);
   assert.doesNotMatch(cliEntrypoint, /from "vite"/);
   assert.doesNotMatch(cliEntrypoint, /from "ws"/);
+  assert.doesNotMatch(cliEntrypoint, /from "\.\/jsx-viewer-cli\.mjs"/);
+  assert.match(cliEntrypoint, /await import\(\s*"\.\/jsx-viewer-cli\.mjs"\s*\)/);
   assert.match(cliEntrypoint, /await import\("\.\/jsx-viewer-runtime\.mjs"\)/);
   assert.equal(existsSync(new URL("./jsx-viewer.ts", import.meta.url)), false);
+});
+
+test("cli module loading stays behind the Node version gate", () => {
+  const versionGateIndex = cliEntrypoint.indexOf(
+    "assertSupportedNodeVersion(process.versions.node)",
+  );
+  const cliImportIndex = cliEntrypoint.search(
+    /await import\(\s*"\.\/jsx-viewer-cli\.mjs"\s*\)/,
+  );
+
+  assert.ok(versionGateIndex >= 0);
+  assert.ok(cliImportIndex > versionGateIndex);
 });
 
 test("cli runtime packages are published as production dependencies", () => {
@@ -166,21 +182,58 @@ test("help text documents the actual default port behavior", () => {
   assert.match(helpText, /Pass zero or one \.jsx\/\.tsx file\./);
 });
 
-test("runtime slots live outside the tracked package tree", () => {
-  const runtimeSlotsDir = mkdtempSync(path.join(os.tmpdir(), "jsx-viewer-slots-"));
+test("runtime slots live in a viewer-owned root outside the tracked package tree", () => {
+  const runtimeSlotsBase = mkdtempSync(path.join(os.tmpdir(), "jsx-viewer-slots-"));
 
   try {
-    withRuntimeSlotsDir(runtimeSlotsDir, () => {
+    withRuntimeSlotsDir(runtimeSlotsBase, () => {
+      const runtimeSlotsRoot = getRuntimeSlotsRoot();
       const runtimeSlotPath = getRuntimeSlotPath(DEFAULT_VIEWER_PORT);
       const runtimeSlotUrl = getRuntimeSlotModuleUrl(DEFAULT_VIEWER_PORT);
 
       assert.equal(path.relative(REPO_ROOT, runtimeSlotPath).startsWith(".."), true);
+      assert.equal(path.dirname(runtimeSlotsRoot), runtimeSlotsBase);
+      assert.equal(
+        path.dirname(path.dirname(path.dirname(runtimeSlotPath))),
+        runtimeSlotsRoot,
+      );
       assert.equal(path.normalize(TRACKED_SLOT_PATH), path.join(REPO_ROOT, "component", "View.tsx"));
       assert.match(runtimeSlotUrl, /^\/@fs\//);
       assert.match(runtimeSlotUrl.replace(/\\/g, "/"), /\/component\/View\.tsx$/);
     });
   } finally {
-    rmSync(runtimeSlotsDir, { recursive: true, force: true });
+    rmSync(runtimeSlotsBase, { recursive: true, force: true });
+  }
+});
+
+test("clearRuntimeSlots removes only viewer-managed port directories", () => {
+  const runtimeSlotsBase = mkdtempSync(path.join(os.tmpdir(), "jsx-viewer-slots-"));
+  const siblingPath = path.join(runtimeSlotsBase, "keep.txt");
+  writeFileSync(siblingPath, "keep", "utf8");
+
+  try {
+    withRuntimeSlotsDir(runtimeSlotsBase, () => {
+      const runtimeSlotsRoot = getRuntimeSlotsRoot();
+      const managedSlotDir = path.join(runtimeSlotsRoot, "port-3142");
+      const unmanagedDir = path.join(runtimeSlotsRoot, "notes");
+      const lookalikeDir = path.join(runtimeSlotsRoot, "port-not-a-number");
+
+      mkdirSync(path.join(managedSlotDir, "component"), { recursive: true });
+      writeFileSync(path.join(managedSlotDir, "component", "View.tsx"), PLACEHOLDER, "utf8");
+      mkdirSync(unmanagedDir, { recursive: true });
+      writeFileSync(path.join(unmanagedDir, "keep.txt"), "keep", "utf8");
+      mkdirSync(lookalikeDir, { recursive: true });
+      writeFileSync(path.join(lookalikeDir, "keep.txt"), "keep", "utf8");
+
+      clearRuntimeSlots();
+
+      assert.equal(existsSync(managedSlotDir), false);
+      assert.equal(existsSync(unmanagedDir), true);
+      assert.equal(existsSync(lookalikeDir), true);
+      assert.equal(readFileSync(siblingPath, "utf8"), "keep");
+    });
+  } finally {
+    rmSync(runtimeSlotsBase, { recursive: true, force: true });
   }
 });
 

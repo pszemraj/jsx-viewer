@@ -8,6 +8,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.resolve(__dirname, "..");
 export const TRACKED_SLOT_PATH = path.join(ROOT, "component", "View.tsx");
 const RUNTIME_SLOTS_ENV = "JSX_VIEWER_RUNTIME_DIR";
+const RUNTIME_SLOTS_DIRNAME = "jsx-viewer";
+const RUNTIME_SLOT_DIR_PATTERN = /^port-\d+$/;
 export const PLACEHOLDER = `type PlaceholderComponent = (() => null) & {
   __isPlaceholder: true;
 };
@@ -19,13 +21,24 @@ const Placeholder: PlaceholderComponent = Object.assign(() => null, {
 export default Placeholder;
 `;
 
-function getRuntimeSlotsRoot() {
+function getRuntimeSlotsBase() {
   const configuredRoot = process.env[RUNTIME_SLOTS_ENV]?.trim();
   if (configuredRoot) {
     return path.resolve(configuredRoot);
   }
 
-  return path.join(os.tmpdir(), "jsx-viewer");
+  return os.tmpdir();
+}
+
+export function getRuntimeSlotsRoot() {
+  const runtimeSlotsBase = getRuntimeSlotsBase();
+  return path.basename(runtimeSlotsBase) === RUNTIME_SLOTS_DIRNAME
+    ? runtimeSlotsBase
+    : path.join(runtimeSlotsBase, RUNTIME_SLOTS_DIRNAME);
+}
+
+function isRuntimeSlotDirName(name) {
+  return RUNTIME_SLOT_DIR_PATTERN.test(name);
 }
 
 export function getRuntimeRoot(port) {
@@ -77,8 +90,19 @@ export function clearRuntimeSlot(port) {
 }
 
 export function clearRuntimeSlots() {
-  fs.rmSync(getRuntimeSlotsRoot(), {
-    recursive: true,
-    force: true,
-  });
+  const runtimeSlotsRoot = getRuntimeSlotsRoot();
+  if (!fs.existsSync(runtimeSlotsRoot)) {
+    return;
+  }
+
+  for (const entry of fs.readdirSync(runtimeSlotsRoot, { withFileTypes: true })) {
+    if (!entry.isDirectory() || !isRuntimeSlotDirName(entry.name)) {
+      continue;
+    }
+
+    fs.rmSync(path.join(runtimeSlotsRoot, entry.name), {
+      recursive: true,
+      force: true,
+    });
+  }
 }

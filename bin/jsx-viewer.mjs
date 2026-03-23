@@ -1,11 +1,6 @@
 #!/usr/bin/env node
 
 import fs from "node:fs";
-import {
-  CliUsageError,
-  getHelpText,
-  parseCliArgs,
-} from "./jsx-viewer-cli.mjs";
 import { assertSupportedNodeVersion } from "./node-version.mjs";
 
 function readPackageVersion() {
@@ -23,6 +18,10 @@ async function run() {
     console.error(`\x1b[31m${message}\x1b[0m`);
     process.exit(1);
   }
+
+  const { CliUsageError, getHelpText, parseCliArgs } = await import(
+    "./jsx-viewer-cli.mjs"
+  );
 
   let cliArgs;
 
