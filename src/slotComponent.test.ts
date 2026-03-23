@@ -17,18 +17,18 @@ const ForwardRefComponent = forwardRef<HTMLDivElement, Record<string, never>>(
 
 const LazyComponent = lazy(async () => ({ default: PlainComponent }));
 
-test("accepts plain function components", () => {
-  assert.equal(isSlotComponent(PlainComponent), true);
-});
+type SlotComponentCase = readonly [name: string, value: unknown, expected: boolean];
 
-test("accepts supported wrapped component exports", () => {
-  assert.equal(isSlotComponent(MemoComponent), true);
-  assert.equal(isSlotComponent(ForwardRefComponent), true);
-  assert.equal(isSlotComponent(LazyComponent), true);
-});
-
-test("rejects values that React cannot render as component exports here", () => {
-  assert.equal(isSlotComponent(null), false);
-  assert.equal(isSlotComponent({}), false);
-  assert.equal(isSlotComponent("div"), false);
-});
+for (const [name, value, expected] of [
+  ["accepts plain function components", PlainComponent, true],
+  ["accepts memo component exports", MemoComponent, true],
+  ["accepts forwardRef component exports", ForwardRefComponent, true],
+  ["accepts lazy component exports", LazyComponent, true],
+  ["rejects null exports", null, false],
+  ["rejects plain object exports", {}, false],
+  ['rejects string tag exports', "div", false],
+] as SlotComponentCase[]) {
+  test(name, () => {
+    assert.equal(isSlotComponent(value), expected);
+  });
+}

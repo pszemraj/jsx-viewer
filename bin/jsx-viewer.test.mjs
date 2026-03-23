@@ -96,37 +96,32 @@ test("parseCliArgs returns the documented default workflow", () => {
   });
 });
 
-test("parseCliArgs rejects unknown options loudly", () => {
-  assert.throws(
-    () => parseCliArgs(["--wat"]),
-    new CliUsageError('Unknown option "--wat". Run with "--help" for usage.'),
-  );
-});
-
-test("parseCliArgs rejects duplicate port flags", () => {
-  assert.throws(
-    () => parseCliArgs(["--port", "8080", "-p", "9090"]),
-    new CliUsageError("--port can only be provided once."),
-  );
-});
-
-test("parseCliArgs rejects multiple positional files", () => {
-  assert.throws(
-    () => parseCliArgs(["one.tsx", "two.tsx"]),
-    new CliUsageError(
-      "Received multiple input files. Pass zero or one .jsx/.tsx file.",
-    ),
-  );
-});
-
-test("parseCliArgs rejects unsupported file extensions", () => {
-  assert.throws(
-    () => parseCliArgs(["artifact.js"]),
-    new CliUsageError(
-      `Unsupported input file "artifact.js". Pass a ${SUPPORTED_INPUT_EXTENSIONS.join(" or ")} file.`,
-    ),
-  );
-});
+for (const [name, args, message] of [
+  [
+    "parseCliArgs rejects unknown options loudly",
+    ["--wat"],
+    'Unknown option "--wat". Run with "--help" for usage.',
+  ],
+  [
+    "parseCliArgs rejects duplicate port flags",
+    ["--port", "8080", "-p", "9090"],
+    "--port can only be provided once.",
+  ],
+  [
+    "parseCliArgs rejects multiple positional files",
+    ["one.tsx", "two.tsx"],
+    "Received multiple input files. Pass zero or one .jsx/.tsx file.",
+  ],
+  [
+    "parseCliArgs rejects unsupported file extensions",
+    ["artifact.js"],
+    `Unsupported input file "artifact.js". Pass a ${SUPPORTED_INPUT_EXTENSIONS.join(" or ")} file.`,
+  ],
+]) {
+  test(name, () => {
+    assert.throws(() => parseCliArgs(args), new CliUsageError(message));
+  });
+}
 
 test("cli surfaces usage errors without silently falling back to another workflow", () => {
   const result = runCli(["--wat"]);
