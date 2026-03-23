@@ -458,18 +458,16 @@ function Toolbar({ filename, connected, onClear, onSwap }: ToolbarProps) {
 }
 
 export default function App() {
-  const { Component, isPlaceholder, error, version, reload } =
-    useLoadedComponent();
+  const { Component, isPlaceholder, error, version } = useLoadedComponent();
   const [filename, setFilename] = useState<string | null>(null);
 
   const handleWsMessage = useCallback(
     (message: ServerMessage) => {
+      // The WebSocket echo updates the toolbar state; Vite's afterUpdate hook
+      // performs the actual module reload once the slot write has been processed.
       setFilename(message.filename);
-      window.setTimeout(() => {
-        void reload();
-      }, 300);
     },
-    [reload],
+    [],
   );
 
   const { send, connected } = useWebSocket(handleWsMessage);
