@@ -49,7 +49,7 @@ jsx-viewer path/to/Component.tsx
 
 An included TSX example dashboard is available via `npm run demo`.
 
-When a file is already loaded, use the toolbar `clear` button to return to the empty drop/upload/paste state before loading the next one.
+When a file is already loaded, use the toolbar `swap file` button to replace it directly, or `clear` to return to the empty drop/upload/paste state.
 
 ### Options
 
@@ -130,7 +130,7 @@ If your artifact imports something not listed here, `npm install` it and restart
 | `npm run demo`              | Preload and watch `example/Dashboard.tsx`       |
 | `npm run slot:reset`        | Restore `component/View.tsx` to the placeholder |
 | `npm run guard:slot`        | Fail if the slot contains loaded artifact code  |
-| `npm test`                  | Run slot-component regression checks            |
+| `npm test`                  | Run the CLI, protocol, runtime, and UI test suite |
 | `npm run lint`              | Run ESLint                                      |
 | `npm run typecheck`         | Run TypeScript type-checking                    |
 | `npm run build`             | Production build to `dist/`                     |
