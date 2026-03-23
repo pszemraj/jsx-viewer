@@ -12,7 +12,7 @@ import {
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 import {
   CliUsageError,
@@ -223,6 +223,25 @@ test("runtime workspace keeps slots and Vite cache outside the tracked package t
   } finally {
     rmSync(runtimeSlotsBase, { recursive: true, force: true });
   }
+});
+
+test("runtime slot module URLs encode URL-significant path characters", () => {
+  const runtimeSlotsBase = path.join(os.tmpdir(), "jsx-viewer#hash?query");
+
+  withRuntimeSlotsDir(runtimeSlotsBase, () => {
+    const runtimeSlotPath = getRuntimeSlotPath(DEFAULT_VIEWER_PORT);
+    const runtimeSlotUrl = getRuntimeSlotModuleUrl(DEFAULT_VIEWER_PORT);
+    const parsedUrl = new URL(runtimeSlotUrl, "http://localhost");
+
+    assert.equal(
+      parsedUrl.pathname,
+      `/@fs${pathToFileURL(runtimeSlotPath).pathname}`,
+    );
+    assert.equal(parsedUrl.search, "");
+    assert.equal(parsedUrl.hash, "");
+    assert.match(runtimeSlotUrl, /%23/);
+    assert.match(runtimeSlotUrl, /%3F/);
+  });
 });
 
 test("clearRuntimeSlots removes only viewer-managed port directories", () => {

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -59,8 +59,7 @@ export function getRuntimeCacheDir(port) {
 }
 
 export function getRuntimeSlotModuleUrl(port) {
-  const normalizedPath = getRuntimeSlotPath(port).replace(/\\/g, "/");
-  return `/@fs/${normalizedPath}`;
+  return `/@fs${pathToFileURL(getRuntimeSlotPath(port)).pathname}`;
 }
 
 function ensureSlotDir(slotPath) {
