@@ -36,11 +36,11 @@ export function isSupportedNodeVersion(versionText) {
   }
 
   if (version.major === 20) {
-    return version.minor > 19 || (version.minor === 19 && version.patch >= 0);
+    return version.minor >= 19;
   }
 
   if (version.major === 22) {
-    return version.minor > 12 || (version.minor === 12 && version.patch >= 0);
+    return version.minor >= 12;
   }
 
   return version.major >= 23;

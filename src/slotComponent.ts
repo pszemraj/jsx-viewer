@@ -6,6 +6,9 @@ export type SlotComponent = (ComponentType<SlotProps> | ExoticComponent<SlotProp
   __isPlaceholder?: boolean;
 };
 
+// React does not expose a public runtime predicate for memo/forwardRef/lazy.
+// These marker symbols are stable across React 18, which is the supported floor
+// for jsx-viewer. Re-check this guard if the React major version changes.
 const REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref");
 const REACT_LAZY_TYPE = Symbol.for("react.lazy");
 const REACT_MEMO_TYPE = Symbol.for("react.memo");

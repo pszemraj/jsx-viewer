@@ -1,3 +1,6 @@
+// Keep this declaration in sync with shared/protocol.mjs until the runtime
+// protocol source generates its own .d.mts file.
+
 export interface FileUpdatedMessage {
   type: "file-updated";
   filename: string | null;

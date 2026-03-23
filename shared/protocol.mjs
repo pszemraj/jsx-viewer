@@ -5,6 +5,8 @@
  * @typedef {LoadArtifactMessage | ResetSlotMessage} ClientMessage
  * @typedef {FileUpdatedMessage} ServerMessage
  */
+// Keep this runtime shape in sync with shared/protocol.d.mts until the
+// declarations are generated from source instead of maintained by hand.
 
 /**
  * @param {unknown} value
