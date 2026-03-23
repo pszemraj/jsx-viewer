@@ -1,7 +1,23 @@
+/**
+ * @typedef {{type: "file-updated", filename: string | null}} FileUpdatedMessage
+ * @typedef {{type: "load-artifact", content: string, filename?: string}} LoadArtifactMessage
+ * @typedef {{type: "reset-slot"}} ResetSlotMessage
+ * @typedef {LoadArtifactMessage | ResetSlotMessage} ClientMessage
+ * @typedef {FileUpdatedMessage} ServerMessage
+ */
+
+/**
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
 function isRecord(value) {
   return typeof value === "object" && value !== null;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {value is ClientMessage}
+ */
 export function isClientMessage(value) {
   if (!isRecord(value) || typeof value.type !== "string") {
     return false;
@@ -21,6 +37,10 @@ export function isClientMessage(value) {
   return false;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {value is ServerMessage}
+ */
 export function isServerMessage(value) {
   return (
     isRecord(value) &&

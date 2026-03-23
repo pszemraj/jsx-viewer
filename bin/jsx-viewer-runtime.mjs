@@ -16,10 +16,27 @@ import {
   writeSlot,
 } from "./slot.mjs";
 
+/**
+ * @typedef {import("chokidar").FSWatcher} FSWatcher
+ * @typedef {import("vite").InlineConfig} ViteServerConfig
+ * @typedef {import("vite").ViteDevServer} ViteDevServer
+ * @typedef {import("ws").RawData} WebSocketRawData
+ * @typedef {import("ws").WebSocket} RuntimeWebSocket
+ * @typedef {import("ws").WebSocketServer} RuntimeWebSocketServer
+ * @typedef {import("../shared/protocol.mjs").ClientMessage} ClientMessage
+ * @typedef {import("../shared/protocol.mjs").ServerMessage} ServerMessage
+ * @typedef {{mode: "run", inputFile: string | null, port: number, wsPort: number}} RunCliArgs
+ */
+
 const { version: VERSION } = JSON.parse(
   fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"),
 );
 
+/**
+ * @param {string} filePath
+ * @param {string} slotPath
+ * @returns {string}
+ */
 function loadFileIntoSlot(filePath, slotPath) {
   let stats;
 
@@ -38,18 +55,31 @@ function loadFileIntoSlot(filePath, slotPath) {
   return path.basename(filePath);
 }
 
+/**
+ * @param {unknown} error
+ * @returns {Error}
+ */
 function toError(error) {
   return error instanceof Error ? error : new Error(String(error));
 }
 
+/** @type {string | null} */
 let currentFilename = null;
+/** @type {FSWatcher | null} */
 let watcher = null;
+/** @type {ViteDevServer | null} */
 let server = null;
+/** @type {RuntimeWebSocketServer | null} */
 let wss = null;
 let slotWasTouched = false;
 let cleaningUp = false;
+/** @type {number | null} */
 let runtimePort = null;
 
+/**
+ * @param {ServerMessage} message
+ * @returns {void}
+ */
 function broadcast(message) {
   if (!wss) {
     return;
@@ -63,6 +93,28 @@ function broadcast(message) {
   });
 }
 
+/**
+ * @returns {number}
+ */
+function requireRuntimePort() {
+  if (runtimePort === null) {
+    throw new Error("[jsx-viewer] Runtime port is not initialized.");
+  }
+
+  return runtimePort;
+}
+
+/**
+ * @returns {RuntimeWebSocketServer}
+ */
+function requireWebSocketServer() {
+  if (!wss) {
+    throw new Error("[jsx-viewer] WebSocket server is not initialized.");
+  }
+
+  return wss;
+}
+
 function stopWatching() {
   if (watcher) {
     void watcher.close();
@@ -70,12 +122,17 @@ function stopWatching() {
   }
 }
 
+/**
+ * @param {string} filePath
+ * @returns {void}
+ */
 function startWatching(filePath) {
+  const port = requireRuntimePort();
   stopWatching();
   watcher = watch(filePath, { ignoreInitial: true });
   watcher.on("change", () => {
     try {
-      currentFilename = loadFileIntoSlot(filePath, getRuntimeSlotPath(runtimePort));
+      currentFilename = loadFileIntoSlot(filePath, getRuntimeSlotPath(port));
       broadcast({ type: "file-updated", filename: currentFilename });
       console.log("\x1b[36m[jsx-viewer]\x1b[0m File changed, reloading...");
     } catch (error) {
@@ -87,6 +144,10 @@ function startWatching(filePath) {
   });
 }
 
+/**
+ * @param {number} [exitCode]
+ * @returns {void}
+ */
 function cleanup(exitCode = 0) {
   if (cleaningUp) {
     return;
@@ -127,7 +188,10 @@ function cleanup(exitCode = 0) {
 }
 
 function registerWebSocketHandlers() {
-  wss.on("connection", (ws) => {
+  const wsServer = requireWebSocketServer();
+  const port = requireRuntimePort();
+
+  wsServer.on("connection", (ws) => {
     ws.send(
       JSON.stringify({
         type: "file-updated",
@@ -135,8 +199,13 @@ function registerWebSocketHandlers() {
       }),
     );
 
+    /**
+     * @param {WebSocketRawData} raw
+     * @returns {void}
+     */
     ws.on("message", (raw) => {
       try {
+        /** @type {unknown} */
         const message = JSON.parse(raw.toString());
         if (!isClientMessage(message)) {
           throw new Error("Unsupported WebSocket payload.");
@@ -144,14 +213,14 @@ function registerWebSocketHandlers() {
 
         if (message.type === "reset-slot") {
           stopWatching();
-          resetSlot(getRuntimeSlotPath(runtimePort));
+          resetSlot(getRuntimeSlotPath(port));
           currentFilename = null;
           broadcast({ type: "file-updated", filename: null });
           return;
         }
 
         stopWatching();
-        writeSlot(message.content, getRuntimeSlotPath(runtimePort));
+        writeSlot(message.content, getRuntimeSlotPath(port));
         currentFilename = message.filename || "pasted.tsx";
         broadcast({ type: "file-updated", filename: currentFilename });
       } catch (error) {
@@ -164,6 +233,10 @@ function registerWebSocketHandlers() {
   });
 }
 
+/**
+ * @param {number} port
+ * @returns {Promise<RuntimeWebSocketServer>}
+ */
 function listenWebSocketServer(port) {
   return new Promise((resolve, reject) => {
     const wsServer = new WebSocketServer({ port }, () => {
@@ -171,6 +244,10 @@ function listenWebSocketServer(port) {
       resolve(wsServer);
     });
 
+    /**
+     * @param {Error} error
+     * @returns {void}
+     */
     function handleError(error) {
       wsServer.off("error", handleError);
       reject(error);
@@ -180,9 +257,14 @@ function listenWebSocketServer(port) {
   });
 }
 
+/**
+ * @param {string | null} inputFile
+ * @returns {void}
+ */
 function initializeSlot(inputFile) {
-  const slotPath = getRuntimeSlotPath(runtimePort);
-  markRuntimePortActive(runtimePort);
+  const port = requireRuntimePort();
+  const slotPath = getRuntimeSlotPath(port);
+  markRuntimePortActive(port);
   resetSlot(slotPath);
   slotWasTouched = true;
   currentFilename = null;
@@ -192,6 +274,11 @@ function initializeSlot(inputFile) {
   }
 }
 
+/**
+ * @param {number} port
+ * @param {number} wsPort
+ * @returns {ViteServerConfig}
+ */
 export function getViteServerConfig(port, wsPort) {
   return {
     root: ROOT,
@@ -214,6 +301,10 @@ export function getViteServerConfig(port, wsPort) {
   };
 }
 
+/**
+ * @param {RunCliArgs} cliArgs
+ * @returns {Promise<void>}
+ */
 export async function main(cliArgs) {
   if (cliArgs?.mode !== "run") {
     throw new TypeError(
@@ -228,6 +319,7 @@ export async function main(cliArgs) {
     initializeSlot(inputFile);
 
     wss = await listenWebSocketServer(wsPort);
+    /** @param {Error} error */
     wss.on("error", (error) => {
       console.error(
         "\x1b[31m[jsx-viewer]\x1b[0m WebSocket server error:",

@@ -4,6 +4,12 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+/**
+ * @typedef {{ pid: number, root: string }} RuntimeOwnerRecord
+ * @typedef {{ state: "missing" } | { state: "invalid" } | { state: "present", pid: number }} RuntimeOwnerState
+ * @typedef {(entryPath: string, entryName: string) => boolean} RuntimePortDirPredicate
+ */
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const ROOT = path.resolve(__dirname, "..");
@@ -41,6 +47,10 @@ function getRuntimeSharedRoot() {
     : path.join(runtimeSlotsBase, RUNTIME_SLOTS_DIRNAME);
 }
 
+/**
+ * @param {string} [rootPath]
+ * @returns {string}
+ */
 function getWorkspaceFingerprint(rootPath = ROOT) {
   const resolvedRoot =
     typeof fs.realpathSync.native === "function"
@@ -49,6 +59,10 @@ function getWorkspaceFingerprint(rootPath = ROOT) {
   return process.platform === "win32" ? resolvedRoot.toLowerCase() : resolvedRoot;
 }
 
+/**
+ * @param {string} [rootPath]
+ * @returns {string}
+ */
 export function getRuntimeWorkspaceName(rootPath = ROOT) {
   const digest = crypto
     .createHash("sha256")
@@ -71,35 +85,67 @@ export function getRuntimeCacheRoot() {
   return path.join(getRuntimeSlotsRoot(), RUNTIME_CACHE_DIRNAME);
 }
 
+/**
+ * @param {string} name
+ * @returns {boolean}
+ */
 function isRuntimePortDirName(name) {
   return RUNTIME_PORT_DIR_PATTERN.test(name);
 }
 
+/**
+ * @param {number} port
+ * @returns {string}
+ */
 export function getRuntimeRoot(port) {
   return path.join(getRuntimeSlotsRoot(), `port-${port}`);
 }
 
+/**
+ * @param {number} port
+ * @returns {string}
+ */
 export function getRuntimeSlotPath(port) {
   return path.join(getRuntimeRoot(port), "component", "View.tsx");
 }
 
+/**
+ * @param {number} port
+ * @returns {string}
+ */
 export function getRuntimeCacheDir(port) {
   return path.join(getRuntimeCacheRoot(), `port-${port}`);
 }
 
+/**
+ * @param {number} port
+ * @returns {string}
+ */
 export function getRuntimeOwnerPath(port) {
   return path.join(getRuntimeRoot(port), RUNTIME_OWNER_FILENAME);
 }
 
+/**
+ * @param {URL} fileUrl
+ * @returns {string}
+ */
 function toViteFsPath(fileUrl) {
   // Vite's /@fs prefix expects UNC hosts to remain in the request path.
   return fileUrl.host ? `//${fileUrl.host}${fileUrl.pathname}` : fileUrl.pathname;
 }
 
+/**
+ * @param {number} port
+ * @returns {string}
+ */
 export function getRuntimeSlotModuleUrl(port) {
   return `/@fs${toViteFsPath(pathToFileURL(getRuntimeSlotPath(port)))}`;
 }
 
+/**
+ * @param {string} slotPath
+ * @returns {void}
+ */
 function ensureSlotDir(slotPath) {
   const dir = path.dirname(slotPath);
   if (!fs.existsSync(dir)) {
@@ -107,15 +153,28 @@ function ensureSlotDir(slotPath) {
   }
 }
 
+/**
+ * @param {string} content
+ * @param {string} [slotPath]
+ * @returns {void}
+ */
 export function writeSlot(content, slotPath = TRACKED_SLOT_PATH) {
   ensureSlotDir(slotPath);
   fs.writeFileSync(slotPath, content, "utf-8");
 }
 
+/**
+ * @param {string} [slotPath]
+ * @returns {void}
+ */
 export function resetSlot(slotPath = TRACKED_SLOT_PATH) {
   writeSlot(PLACEHOLDER, slotPath);
 }
 
+/**
+ * @param {string} [slotPath]
+ * @returns {string | null}
+ */
 export function readSlot(slotPath = TRACKED_SLOT_PATH) {
   if (!fs.existsSync(slotPath)) {
     return null;
@@ -124,10 +183,18 @@ export function readSlot(slotPath = TRACKED_SLOT_PATH) {
   return fs.readFileSync(slotPath, "utf-8");
 }
 
+/**
+ * @param {string} [slotPath]
+ * @returns {boolean}
+ */
 export function slotMatchesPlaceholder(slotPath = TRACKED_SLOT_PATH) {
   return readSlot(slotPath) === PLACEHOLDER;
 }
 
+/**
+ * @param {number} port
+ * @returns {void}
+ */
 export function clearRuntimeSlot(port) {
   fs.rmSync(getRuntimeRoot(port), {
     recursive: true,
@@ -135,6 +202,11 @@ export function clearRuntimeSlot(port) {
   });
 }
 
+/**
+ * @param {number} port
+ * @param {number} [pid]
+ * @returns {void}
+ */
 export function markRuntimePortActive(port, pid = process.pid) {
   const runtimeRoot = getRuntimeRoot(port);
   fs.mkdirSync(runtimeRoot, { recursive: true });
@@ -145,7 +217,15 @@ export function markRuntimePortActive(port, pid = process.pid) {
   );
 }
 
-function clearManagedRuntimePortDirs(rootPath, shouldRemove = () => true) {
+/**
+ * @param {string} rootPath
+ * @param {RuntimePortDirPredicate} [shouldRemove]
+ * @returns {void}
+ */
+function clearManagedRuntimePortDirs(
+  rootPath,
+  shouldRemove = (_entryPath, _entryName) => true,
+) {
   if (!fs.existsSync(rootPath)) {
     return;
   }
@@ -175,6 +255,26 @@ export function clearRuntimeCaches() {
   clearManagedRuntimePortDirs(getRuntimeCacheRoot());
 }
 
+/**
+ * @param {unknown} value
+ * @returns {value is RuntimeOwnerRecord}
+ */
+function isRuntimeOwnerRecord(value) {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const record = /** @type {Record<string, unknown>} */ (value);
+  return (
+    Number.isInteger(record.pid) &&
+    typeof record.root === "string"
+  );
+}
+
+/**
+ * @param {string} runtimeRoot
+ * @returns {RuntimeOwnerState}
+ */
 function readRuntimeOwner(runtimeRoot) {
   const ownerPath = path.join(runtimeRoot, RUNTIME_OWNER_FILENAME);
   if (!fs.existsSync(ownerPath)) {
@@ -183,7 +283,7 @@ function readRuntimeOwner(runtimeRoot) {
 
   try {
     const parsed = JSON.parse(fs.readFileSync(ownerPath, "utf8"));
-    return Number.isInteger(parsed.pid)
+    return isRuntimeOwnerRecord(parsed)
       ? { state: "present", pid: parsed.pid }
       : { state: "invalid" };
   } catch {
@@ -191,6 +291,10 @@ function readRuntimeOwner(runtimeRoot) {
   }
 }
 
+/**
+ * @param {number} pid
+ * @returns {boolean}
+ */
 function isProcessAlive(pid) {
   if (!Number.isInteger(pid) || pid <= 0) {
     return false;
@@ -200,10 +304,14 @@ function isProcessAlive(pid) {
     process.kill(pid, 0);
     return true;
   } catch (error) {
-    return error?.code === "EPERM";
+    return /** @type {NodeJS.ErrnoException} */ (error).code === "EPERM";
   }
 }
 
+/**
+ * @param {string} runtimeRoot
+ * @returns {boolean}
+ */
 function hasActiveRuntimeOwner(runtimeRoot) {
   const owner = readRuntimeOwner(runtimeRoot);
 
@@ -222,6 +330,7 @@ function hasActiveRuntimeOwner(runtimeRoot) {
 export function clearRuntimeArtifacts() {
   const runtimeSlotsRoot = getRuntimeSlotsRoot();
   const runtimeCacheRoot = getRuntimeCacheRoot();
+  /** @type {Set<string>} */
   const activePortDirs = new Set();
 
   clearManagedRuntimePortDirs(runtimeSlotsRoot, (runtimeRoot, portDirName) => {

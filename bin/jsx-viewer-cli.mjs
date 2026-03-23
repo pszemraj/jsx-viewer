@@ -1,6 +1,13 @@
 import path from "node:path";
 import runtimeConfig from "../shared/runtime-config.json" with { type: "json" };
 
+/**
+ * @typedef {{mode: "help"}} HelpCliArgs
+ * @typedef {{mode: "version"}} VersionCliArgs
+ * @typedef {{mode: "run", inputFile: string | null, port: number, wsPort: number}} RunCliArgs
+ * @typedef {HelpCliArgs | VersionCliArgs | RunCliArgs} CliArgs
+ */
+
 export const DEFAULT_VIEWER_PORT = runtimeConfig.defaultViewerPort;
 export const WEB_SOCKET_PORT_OFFSET = runtimeConfig.webSocketPortOffset;
 export const SUPPORTED_INPUT_EXTENSIONS = runtimeConfig.supportedInputExtensions;
@@ -8,12 +15,19 @@ export const MAX_SOCKET_PORT = 65_535;
 export const MAX_VIEWER_PORT = MAX_SOCKET_PORT - WEB_SOCKET_PORT_OFFSET;
 
 export class CliUsageError extends Error {
+  /**
+   * @param {string} message
+   */
   constructor(message) {
     super(message);
     this.name = "CliUsageError";
   }
 }
 
+/**
+ * @param {number} viewerPort
+ * @returns {number}
+ */
 export function getWebSocketPort(viewerPort) {
   return viewerPort + WEB_SOCKET_PORT_OFFSET;
 }
@@ -22,6 +36,10 @@ function formatSupportedInputExtensions() {
   return SUPPORTED_INPUT_EXTENSIONS.join(" or ");
 }
 
+/**
+ * @param {string | undefined} value
+ * @returns {number}
+ */
 function parsePortValue(value) {
   if (value === undefined) {
     throw new CliUsageError(
@@ -51,6 +69,10 @@ function parsePortValue(value) {
   return port;
 }
 
+/**
+ * @param {string} inputPath
+ * @returns {void}
+ */
 function assertSupportedInputFile(inputPath) {
   const extension = path.extname(inputPath).toLowerCase();
   if (!SUPPORTED_INPUT_EXTENSIONS.includes(extension)) {
@@ -84,8 +106,14 @@ export function getHelpText() {
 `;
 }
 
+/**
+ * @param {string[]} args
+ * @returns {CliArgs}
+ */
 export function parseCliArgs(args) {
+  /** @type {string | null} */
   let inputFile = null;
+  /** @type {number} */
   let port = DEFAULT_VIEWER_PORT;
   let hasExplicitPort = false;
 

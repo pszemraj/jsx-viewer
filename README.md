@@ -135,7 +135,7 @@ If your artifact imports something not listed here, `npm install` it and restart
 | `npm run guard:slot`        | Fail if `component/View.tsx` differs from the placeholder |
 | `npm test`                  | Run the CLI, protocol, runtime, and UI test suite |
 | `npm run lint`              | Run ESLint                                      |
-| `npm run typecheck`         | Run TypeScript type-checking                    |
+| `npm run typecheck`         | Run TypeScript and checked-JS type-checking     |
 | `npm run build`             | Production build to `dist/`                     |
 
 On non-Windows systems, `npm install` also configures a repo-local pre-commit hook that blocks commits when `component/View.tsx` has been changed away from the tracked placeholder.

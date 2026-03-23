@@ -44,7 +44,7 @@
     "build": "vite build",
     "test": "node --import tsx --test bin/jsx-viewer.test.mjs bin/node-version.test.mjs bin/setup-hooks.test.mjs shared/protocol.test.ts src/hotReload.test.ts src/runtimeConfig.test.ts src/slotComponent.test.ts src/SlotPreview.test.tsx",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.runtime.json",
     "prepare": "node ./bin/setup-hooks.mjs"
   },
   "keywords": [

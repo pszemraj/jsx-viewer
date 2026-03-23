@@ -26,7 +26,6 @@
     "src/**/*.tsx",
     "component/**/*.tsx",
     "example/**/*.tsx",
-    "bin/**/*.ts",
     "shared/**/*.ts",
     "vite.config.ts",
     "tailwind.config.ts",

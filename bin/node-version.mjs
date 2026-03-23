@@ -1,5 +1,13 @@
 export const NODE_VERSION_REQUIREMENT = "Node 20.19.0+ or 22.12.0+";
 
+/**
+ * @typedef {{major: number, minor: number, patch: number}} NodeVersion
+ */
+
+/**
+ * @param {string} versionText
+ * @returns {NodeVersion | null}
+ */
 function parseNodeVersion(versionText) {
   const match = /^v?(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)$/.exec(
     versionText,
@@ -16,6 +24,10 @@ function parseNodeVersion(versionText) {
   };
 }
 
+/**
+ * @param {string} versionText
+ * @returns {boolean}
+ */
 export function isSupportedNodeVersion(versionText) {
   const version = parseNodeVersion(versionText);
 
@@ -34,10 +46,18 @@ export function isSupportedNodeVersion(versionText) {
   return version.major >= 23;
 }
 
+/**
+ * @param {string} versionText
+ * @returns {string}
+ */
 export function getUnsupportedNodeVersionMessage(versionText) {
   return `[jsx-viewer] Node ${versionText} is not supported. ${NODE_VERSION_REQUIREMENT} is required because Vite 8 sets that runtime floor.`;
 }
 
+/**
+ * @param {string} versionText
+ * @returns {void}
+ */
 export function assertSupportedNodeVersion(versionText) {
   if (!isSupportedNodeVersion(versionText)) {
     throw new Error(getUnsupportedNodeVersionMessage(versionText));
