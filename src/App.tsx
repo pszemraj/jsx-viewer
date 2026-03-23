@@ -16,6 +16,7 @@ import {
 } from "../shared/protocol.mjs";
 import { getWebSocketUrl } from "./runtimeConfig";
 import { registerAfterUpdateReload } from "./hotReload";
+import { createLoadTracker } from "./loadTracker";
 
 // The viewer shell uses inline styles on purpose so its chrome stays isolated
 // from the loaded artifact's Tailwind classes and any class-name collisions.
@@ -57,6 +58,7 @@ async function readArtifactFile(file: File) {
 }
 
 function useLoadedComponent() {
+  const loadTrackerRef = useRef(createLoadTracker());
   const [state, setState] = useState<LoadedComponentState>({
     Component: null,
     isPlaceholder: true,
@@ -65,6 +67,8 @@ function useLoadedComponent() {
   });
 
   const load = useCallback(async () => {
+    const loadToken = loadTrackerRef.current.begin();
+
     try {
       const mod = (await import(
         /* @vite-ignore */ `${__JSX_VIEWER_SLOT_MODULE_URL__}?t=${Date.now()}`
@@ -75,6 +79,12 @@ function useLoadedComponent() {
         throw new Error("Loaded artifact must default-export a React component.");
       }
 
+      // Ignore stale async completions so overlapping HMR reloads or StrictMode
+      // effect replays cannot overwrite newer artifact state.
+      if (!loadTrackerRef.current.isCurrent(loadToken)) {
+        return;
+      }
+
       setState((current) => ({
         Component: component,
         isPlaceholder: component.__isPlaceholder === true,
@@ -82,6 +92,10 @@ function useLoadedComponent() {
         version: current.version + 1,
       }));
     } catch (error) {
+      if (!loadTrackerRef.current.isCurrent(loadToken)) {
+        return;
+      }
+
       setState((current) => ({
         ...current,
         error: toError(error),
