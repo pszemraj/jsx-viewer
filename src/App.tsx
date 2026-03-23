@@ -95,7 +95,11 @@ function useLoadedComponent() {
   }, [load]);
 
   useEffect(() => {
-    return registerAfterUpdateReload(import.meta.hot, load);
+    return registerAfterUpdateReload(
+      import.meta.hot,
+      load,
+      __JSX_VIEWER_SLOT_MODULE_URL__,
+    );
   }, [load]);
 
   return { ...state, reload: load };
