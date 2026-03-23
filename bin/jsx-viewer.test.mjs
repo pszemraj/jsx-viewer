@@ -8,6 +8,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  utimesSync,
   writeFileSync,
 } from "node:fs";
 import os from "node:os";
@@ -42,7 +43,7 @@ import {
   resetSlot,
   writeSlot,
 } from "./slot.mjs";
-import { getViteServerConfig } from "./jsx-viewer-runtime.mjs";
+import { getViteServerConfig, waitForCloseOperation } from "./jsx-viewer-runtime.mjs";
 
 const REPO_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const CLI_PATH = fileURLToPath(new URL("./jsx-viewer.mjs", import.meta.url));
@@ -337,12 +338,15 @@ test("clearRuntimeArtifacts removes inactive artifacts in the current workspace 
       const stalePort = 3143;
       const legacyPort = 3144;
       const orphanCachePort = 3145;
+      const staleLegacyPort = 3146;
       const managedSlotDir = path.join(runtimeSlotsRoot, `port-${activePort}`);
       const staleSlotDir = path.join(runtimeSlotsRoot, `port-${stalePort}`);
       const legacySlotDir = path.join(runtimeSlotsRoot, `port-${legacyPort}`);
+      const staleLegacySlotDir = path.join(runtimeSlotsRoot, `port-${staleLegacyPort}`);
       const managedCacheDir = getRuntimeCacheDir(activePort);
       const staleCacheDir = getRuntimeCacheDir(stalePort);
       const legacyCacheDir = getRuntimeCacheDir(legacyPort);
+      const staleLegacyCacheDir = getRuntimeCacheDir(staleLegacyPort);
       const orphanCacheDir = getRuntimeCacheDir(orphanCachePort);
       const unmanagedCacheDir = path.join(getRuntimeCacheRoot(), "notes");
       const lookalikeCacheDir = path.join(getRuntimeCacheRoot(), "port-not-a-number");
@@ -372,6 +376,10 @@ test("clearRuntimeArtifacts removes inactive artifacts in the current workspace 
       writeFileSync(path.join(legacySlotDir, "component", "View.tsx"), PLACEHOLDER, "utf8");
       mkdirSync(legacyCacheDir, { recursive: true });
       writeFileSync(path.join(legacyCacheDir, "deps.json"), "{}", "utf8");
+      mkdirSync(path.join(staleLegacySlotDir, "component"), { recursive: true });
+      writeFileSync(path.join(staleLegacySlotDir, "component", "View.tsx"), PLACEHOLDER, "utf8");
+      mkdirSync(staleLegacyCacheDir, { recursive: true });
+      writeFileSync(path.join(staleLegacyCacheDir, "deps.json"), "{}", "utf8");
       mkdirSync(orphanCacheDir, { recursive: true });
       writeFileSync(path.join(orphanCacheDir, "deps.json"), "{}", "utf8");
       mkdirSync(unmanagedCacheDir, { recursive: true });
@@ -387,6 +395,9 @@ test("clearRuntimeArtifacts removes inactive artifacts in the current workspace 
       mkdirSync(siblingWorkspaceCacheDir, { recursive: true });
       writeFileSync(path.join(siblingWorkspaceCacheDir, "deps.json"), "{}", "utf8");
 
+      const staleLegacyTime = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+      utimesSync(staleLegacySlotDir, staleLegacyTime, staleLegacyTime);
+
       clearRuntimeArtifacts();
 
       assert.equal(existsSync(managedSlotDir), true);
@@ -395,6 +406,8 @@ test("clearRuntimeArtifacts removes inactive artifacts in the current workspace 
       assert.equal(existsSync(staleCacheDir), false);
       assert.equal(existsSync(legacySlotDir), true);
       assert.equal(existsSync(legacyCacheDir), true);
+      assert.equal(existsSync(staleLegacySlotDir), false);
+      assert.equal(existsSync(staleLegacyCacheDir), false);
       assert.equal(existsSync(orphanCacheDir), false);
       assert.equal(existsSync(unmanagedCacheDir), true);
       assert.equal(existsSync(lookalikeCacheDir), true);
@@ -404,6 +417,27 @@ test("clearRuntimeArtifacts removes inactive artifacts in the current workspace 
   } finally {
     rmSync(runtimeSlotsBase, { recursive: true, force: true });
   }
+});
+
+test("waitForCloseOperation waits for close completion but caps hanging shutdowns", async () => {
+  let closed = false;
+  await waitForCloseOperation(
+    new Promise((resolve) => {
+      setTimeout(() => {
+        closed = true;
+        resolve(undefined);
+      }, 10);
+    }),
+    100,
+  );
+  assert.equal(closed, true);
+
+  const start = Date.now();
+  await waitForCloseOperation(new Promise(() => {}), 10);
+  const elapsedMs = Date.now() - start;
+
+  assert.ok(elapsedMs >= 10);
+  assert.ok(elapsedMs < 200);
 });
 
 test("parseCliArgs returns the documented default workflow", () => {

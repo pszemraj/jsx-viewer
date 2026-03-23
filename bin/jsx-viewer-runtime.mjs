@@ -72,9 +72,10 @@ let server = null;
 /** @type {RuntimeWebSocketServer | null} */
 let wss = null;
 let slotWasTouched = false;
-let cleaningUp = false;
 /** @type {number | null} */
 let runtimePort = null;
+/** @type {Promise<void> | null} */
+let cleanupPromise = null;
 
 /**
  * @param {ServerMessage} message
@@ -123,6 +124,33 @@ function stopWatching() {
 }
 
 /**
+ * @param {PromiseLike<unknown> | undefined | null} pendingClose
+ * @param {number} [timeoutMs]
+ * @returns {Promise<void>}
+ */
+export async function waitForCloseOperation(pendingClose, timeoutMs = 500) {
+  if (!pendingClose) {
+    return;
+  }
+
+  /** @type {ReturnType<typeof setTimeout> | undefined} */
+  let timer;
+
+  try {
+    await Promise.race([
+      Promise.resolve(pendingClose),
+      new Promise((resolve) => {
+        timer = setTimeout(resolve, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) {
+      clearTimeout(timer);
+    }
+  }
+}
+
+/**
  * @param {string} filePath
  * @returns {void}
  */
@@ -146,45 +174,53 @@ function startWatching(filePath) {
 
 /**
  * @param {number} [exitCode]
- * @returns {void}
+ * @returns {Promise<void>}
  */
-function cleanup(exitCode = 0) {
-  if (cleaningUp) {
-    return;
+async function cleanup(exitCode = 0) {
+  if (cleanupPromise) {
+    return cleanupPromise;
   }
 
-  cleaningUp = true;
-
-  if (slotWasTouched && runtimePort !== null) {
-    try {
-      clearRuntimeSlot(runtimePort);
-    } catch (error) {
-      console.error(
-        "[jsx-viewer] Failed to clear runtime slot:",
-        toError(error).message,
-      );
+  cleanupPromise = (async () => {
+    if (slotWasTouched && runtimePort !== null) {
+      try {
+        clearRuntimeSlot(runtimePort);
+      } catch (error) {
+        console.error(
+          "[jsx-viewer] Failed to clear runtime slot:",
+          toError(error).message,
+        );
+      }
     }
-  }
 
-  try {
-    stopWatching();
-  } catch {
-    // Ignore watcher shutdown failures.
-  }
+    const watcherToClose = watcher;
+    watcher = null;
 
-  try {
-    wss?.close();
-  } catch {
-    // Ignore WebSocket shutdown failures.
-  }
+    try {
+      await waitForCloseOperation(watcherToClose?.close());
+    } catch {
+      // Ignore watcher shutdown failures.
+    }
 
-  try {
-    void server?.close();
-  } catch {
-    // Ignore Vite shutdown failures.
-  }
+    try {
+      wss?.close();
+    } catch {
+      // Ignore WebSocket shutdown failures.
+    }
 
-  process.exit(exitCode);
+    const serverToClose = server;
+    server = null;
+
+    try {
+      await waitForCloseOperation(serverToClose?.close());
+    } catch {
+      // Ignore Vite shutdown failures.
+    }
+
+    process.exit(exitCode);
+  })();
+
+  return cleanupPromise;
 }
 
 function registerWebSocketHandlers() {
@@ -325,7 +361,7 @@ export async function main(cliArgs) {
         "\x1b[31m[jsx-viewer]\x1b[0m WebSocket server error:",
         toError(error).message,
       );
-      cleanup(1);
+      void cleanup(1);
     });
     registerWebSocketHandlers();
 
@@ -361,13 +397,17 @@ export async function main(cliArgs) {
     }
     console.log();
 
-    process.on("SIGINT", cleanup);
-    process.on("SIGTERM", cleanup);
+    process.on("SIGINT", () => {
+      void cleanup();
+    });
+    process.on("SIGTERM", () => {
+      void cleanup();
+    });
   } catch (error) {
     console.error(
       "\x1b[31m[jsx-viewer]\x1b[0m Failed to start:",
       toError(error).message,
     );
-    cleanup(1);
+    await cleanup(1);
   }
 }

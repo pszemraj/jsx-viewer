@@ -20,6 +20,7 @@ const RUNTIME_WORKSPACE_PREFIX = "workspace-";
 const RUNTIME_CACHE_DIRNAME = "vite-cache";
 const RUNTIME_OWNER_FILENAME = "runtime-owner.json";
 const RUNTIME_PORT_DIR_PATTERN = /^port-\d+$/;
+const LEGACY_RUNTIME_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
 export const PLACEHOLDER = `type PlaceholderComponent = (() => null) & {
   __isPlaceholder: true;
 };
@@ -316,8 +317,14 @@ function hasActiveRuntimeOwner(runtimeRoot) {
   const owner = readRuntimeOwner(runtimeRoot);
 
   if (owner.state === "missing") {
-    // Preserve legacy runtime dirs created before ownership tracking existed.
-    return true;
+    try {
+      const runtimeAgeMs = Date.now() - fs.statSync(runtimeRoot).mtimeMs;
+      // Preserve recent legacy runtime dirs created before ownership tracking
+      // existed, but let slot:reset eventually reclaim stale temp artifacts.
+      return runtimeAgeMs < LEGACY_RUNTIME_GRACE_MS;
+    } catch {
+      return true;
+    }
   }
 
   if (owner.state === "invalid") {
