@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { createServer } from "node:net";
-import { mkdtempSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,8 +36,8 @@ const cliEntrypoint = readFileSync(
 );
 
 function runCli(args, options = {}) {
-  return spawnSync(process.execPath, [CLI_PATH, ...args], {
-    cwd: REPO_ROOT,
+  return spawnSync(process.execPath, [options.cliPath ?? CLI_PATH, ...args], {
+    cwd: options.cwd ?? REPO_ROOT,
     encoding: "utf8",
     env: {
       ...process.env,
@@ -37,6 +45,15 @@ function runCli(args, options = {}) {
       ...options.env,
     },
   });
+}
+
+function copyRepoFiles(targetDir, relativePaths) {
+  for (const relativePath of relativePaths) {
+    const sourcePath = path.join(REPO_ROOT, relativePath);
+    const targetPath = path.join(targetDir, relativePath);
+    mkdirSync(path.dirname(targetPath), { recursive: true });
+    copyFileSync(sourcePath, targetPath);
+  }
 }
 
 test("cli entrypoint does not depend on the tsx loader", () => {
@@ -70,6 +87,41 @@ test("cli reports the package version from package metadata", () => {
   }).trim();
 
   assert.equal(stdout, packageJson.version);
+});
+
+test("metadata-only modes do not load the runtime module", () => {
+  const tempDir = mkdtempSync(path.join(os.tmpdir(), "jsx-viewer-metadata-"));
+
+  try {
+    copyRepoFiles(tempDir, [
+      "package.json",
+      "bin/jsx-viewer.mjs",
+      "bin/jsx-viewer-cli.mjs",
+      "bin/node-version.mjs",
+      "shared/runtime-config.json",
+    ]);
+
+    const tempCliPath = path.join(tempDir, "bin", "jsx-viewer.mjs");
+
+    const versionResult = runCli(["--version"], {
+      cliPath: tempCliPath,
+      cwd: tempDir,
+    });
+    assert.equal(versionResult.status, 0);
+    assert.equal(versionResult.stderr, "");
+    assert.equal(versionResult.stdout.trim(), packageJson.version);
+
+    const helpResult = runCli(["--help"], {
+      cliPath: tempCliPath,
+      cwd: tempDir,
+    });
+    assert.equal(helpResult.status, 0);
+    assert.equal(helpResult.stderr, "");
+    assert.match(helpResult.stdout, /jsx-viewer - render \.jsx\/\.tsx files like \.html/);
+    assert.match(helpResult.stdout, /Usage:/);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("package metadata points to the public project URLs", () => {

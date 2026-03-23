@@ -3,11 +3,6 @@ import path from "node:path";
 import { watch } from "chokidar";
 import { createServer } from "vite";
 import { WebSocket, WebSocketServer } from "ws";
-import {
-  CliUsageError,
-  getHelpText,
-  parseCliArgs,
-} from "./jsx-viewer-cli.mjs";
 import { isClientMessage } from "../shared/protocol.mjs";
 import { ROOT, resetSlot, writeSlot } from "./slot.mjs";
 
@@ -181,28 +176,11 @@ function initializeSlot(inputFile) {
   }
 }
 
-export async function main() {
-  let cliArgs;
-
-  try {
-    cliArgs = parseCliArgs(process.argv.slice(2));
-  } catch (error) {
-    if (error instanceof CliUsageError) {
-      console.error(`\x1b[31m[jsx-viewer]\x1b[0m ${error.message}`);
-      process.exit(1);
-    }
-
-    throw error;
-  }
-
-  if (cliArgs.mode === "help") {
-    console.log(getHelpText());
-    return;
-  }
-
-  if (cliArgs.mode === "version") {
-    console.log(VERSION);
-    return;
+export async function main(cliArgs) {
+  if (cliArgs?.mode !== "run") {
+    throw new TypeError(
+      '[jsx-viewer] Expected parsed CLI args with mode "run".',
+    );
   }
 
   const { inputFile, port, wsPort } = cliArgs;
