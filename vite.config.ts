@@ -7,6 +7,12 @@ import runtimeConfig from "./shared/runtime-config.json";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  define: {
+    __JSX_VIEWER_SLOT_MODULE_URL__: JSON.stringify("/component/View.tsx"),
+    __JSX_VIEWER_WS_PORT__: JSON.stringify(
+      String(runtimeConfig.defaultViewerPort + runtimeConfig.webSocketPortOffset),
+    ),
+  },
   plugins: [react()],
   resolve: {
     alias: {

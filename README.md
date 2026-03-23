@@ -91,14 +91,15 @@ their module resolves.
 ### How it works
 
 1. **Vite dev server** handles JSX/TSX transpilation and HMR
-2. Your file is copied to a **slot** (`component/View.tsx`) - the single render target
+2. Your file is copied to a **transient runtime slot** in a user-writable temp directory
 3. Vite picks up the change and hot-reloads the browser instantly
 4. A **WebSocket bridge** connects the browser UI to the CLI for drag-and-drop/paste
-5. On exit, the slot resets to a placeholder - your file is never committed, the repo stays clean
+5. On exit, the transient slot is cleared - your file is never committed, and the packaged install directory stays untouched
 
-If the viewer still shows a previously loaded component after an abnormal stop, run `npm run slot:reset` before starting again.
+`component/View.tsx` remains a tracked placeholder file for the repo and package.
+`npm run slot:reset` restores that placeholder and clears any transient runtime slots.
 If startup fails after a file was requested (for example, a port conflict),
-`jsx-viewer` rolls the slot back to the tracked placeholder before exiting.
+`jsx-viewer` clears the transient runtime slot before exiting.
 
 ### Pre-installed libraries
 
@@ -128,14 +129,14 @@ If your artifact imports something not listed here, `npm install` it and restart
 | --------------------------- | ----------------------------------------------- |
 | `npm start` / `npm run dev` | Launch the empty drop/upload/paste UI           |
 | `npm run demo`              | Preload and watch `example/Dashboard.tsx`       |
-| `npm run slot:reset`        | Restore `component/View.tsx` to the placeholder |
-| `npm run guard:slot`        | Fail if the slot contains loaded artifact code  |
+| `npm run slot:reset`        | Restore `component/View.tsx` and clear runtime slots |
+| `npm run guard:slot`        | Fail if `component/View.tsx` differs from the placeholder |
 | `npm test`                  | Run the CLI, protocol, runtime, and UI test suite |
 | `npm run lint`              | Run ESLint                                      |
 | `npm run typecheck`         | Run TypeScript type-checking                    |
 | `npm run build`             | Production build to `dist/`                     |
 
-On non-Windows systems, `npm install` also configures a repo-local pre-commit hook that blocks commits when `component/View.tsx` contains loaded artifact code instead of the tracked placeholder.
+On non-Windows systems, `npm install` also configures a repo-local pre-commit hook that blocks commits when `component/View.tsx` has been changed away from the tracked placeholder.
 
 On Windows, hook installation is skipped by default because Git-for-Windows shell hooks can be flaky in some environments. The guard still exists as `npm run guard:slot`.
 

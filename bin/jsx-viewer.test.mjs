@@ -23,10 +23,19 @@ import {
   getWebSocketPort,
   parseCliArgs,
 } from "./jsx-viewer-cli.mjs";
-import { PLACEHOLDER, readSlot, resetSlot, writeSlot } from "./slot.mjs";
+import {
+  PLACEHOLDER,
+  TRACKED_SLOT_PATH,
+  getRuntimeSlotModuleUrl,
+  getRuntimeSlotPath,
+  readSlot,
+  resetSlot,
+  writeSlot,
+} from "./slot.mjs";
 
 const REPO_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const CLI_PATH = fileURLToPath(new URL("./jsx-viewer.mjs", import.meta.url));
+const RUNTIME_SLOTS_ENV = "JSX_VIEWER_RUNTIME_DIR";
 const packageJson = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
 );
@@ -53,6 +62,21 @@ function copyRepoFiles(targetDir, relativePaths) {
     const targetPath = path.join(targetDir, relativePath);
     mkdirSync(path.dirname(targetPath), { recursive: true });
     copyFileSync(sourcePath, targetPath);
+  }
+}
+
+function withRuntimeSlotsDir(runtimeSlotsDir, callback) {
+  const previousValue = process.env[RUNTIME_SLOTS_ENV];
+  process.env[RUNTIME_SLOTS_ENV] = runtimeSlotsDir;
+
+  try {
+    return callback();
+  } finally {
+    if (previousValue === undefined) {
+      delete process.env[RUNTIME_SLOTS_ENV];
+    } else {
+      process.env[RUNTIME_SLOTS_ENV] = previousValue;
+    }
   }
 }
 
@@ -142,6 +166,24 @@ test("help text documents the actual default port behavior", () => {
   assert.match(helpText, /Pass zero or one \.jsx\/\.tsx file\./);
 });
 
+test("runtime slots live outside the tracked package tree", () => {
+  const runtimeSlotsDir = mkdtempSync(path.join(os.tmpdir(), "jsx-viewer-slots-"));
+
+  try {
+    withRuntimeSlotsDir(runtimeSlotsDir, () => {
+      const runtimeSlotPath = getRuntimeSlotPath(DEFAULT_VIEWER_PORT);
+      const runtimeSlotUrl = getRuntimeSlotModuleUrl(DEFAULT_VIEWER_PORT);
+
+      assert.equal(path.relative(REPO_ROOT, runtimeSlotPath).startsWith(".."), true);
+      assert.equal(path.normalize(TRACKED_SLOT_PATH), path.join(REPO_ROOT, "component", "View.tsx"));
+      assert.match(runtimeSlotUrl, /^\/@fs\//);
+      assert.match(runtimeSlotUrl.replace(/\\/g, "/"), /\/component\/View\.tsx$/);
+    });
+  } finally {
+    rmSync(runtimeSlotsDir, { recursive: true, force: true });
+  }
+});
+
 test("parseCliArgs returns the documented default workflow", () => {
   assert.deepEqual(parseCliArgs([]), {
     mode: "run",
@@ -187,8 +229,9 @@ test("cli surfaces usage errors without silently falling back to another workflo
   assert.equal(result.stdout, "");
 });
 
-test("startup failures roll the transient slot back to the placeholder", async () => {
-  const originalSlot = readSlot();
+test("startup failures clear the runtime slot without touching the tracked placeholder", async () => {
+  const originalTrackedSlot = readSlot();
+  const runtimeSlotsDir = mkdtempSync(path.join(os.tmpdir(), "jsx-viewer-runtime-"));
   const tempDir = mkdtempSync(path.join(os.tmpdir(), "jsx-viewer-cli-"));
   const fixturePath = path.join(tempDir, "Fixture.tsx");
   writeFileSync(
@@ -211,27 +254,39 @@ test("startup failures roll the transient slot back to the placeholder", async (
     assert.notEqual(address, null);
     assert.equal(typeof address, "object");
 
-    const result = runCli(["--port", String(address.port), fixturePath]);
+    const result = runCli(["--port", String(address.port), fixturePath], {
+      env: {
+        [RUNTIME_SLOTS_ENV]: runtimeSlotsDir,
+      },
+    });
 
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /Failed to start:/);
     assert.equal(readSlot(), PLACEHOLDER);
+    withRuntimeSlotsDir(runtimeSlotsDir, () => {
+      assert.equal(readSlot(getRuntimeSlotPath(address.port)), null);
+    });
   } finally {
     await new Promise((resolve) => blocker.close(resolve));
-    if (originalSlot === null) {
+    rmSync(runtimeSlotsDir, { recursive: true, force: true });
+    rmSync(tempDir, { recursive: true, force: true });
+    if (originalTrackedSlot === null) {
       resetSlot();
     } else {
-      writeSlot(originalSlot);
+      writeSlot(originalTrackedSlot);
     }
   }
 });
 
-test("WebSocket port conflicts still restore the tracked placeholder", async () => {
-  const originalSlot = readSlot();
+test("WebSocket port conflicts leave the tracked placeholder untouched", async () => {
+  const originalTrackedSlot = readSlot();
+  const runtimeSlotsDir = mkdtempSync(path.join(os.tmpdir(), "jsx-viewer-runtime-"));
   const blocker = createServer();
+  const dirtyTrackedSlot =
+    "export default function Dirty() { return <div>dirty</div>; }\n";
 
   try {
-    writeSlot("export default function Dirty() { return <div>dirty</div>; }\n");
+    writeSlot(dirtyTrackedSlot);
 
     await new Promise((resolve, reject) => {
       blocker.once("error", reject);
@@ -245,17 +300,25 @@ test("WebSocket port conflicts still restore the tracked placeholder", async () 
     const viewerPort = address.port - WEB_SOCKET_PORT_OFFSET;
     assert.ok(viewerPort > 0);
 
-    const result = runCli(["--port", String(viewerPort)]);
+    const result = runCli(["--port", String(viewerPort)], {
+      env: {
+        [RUNTIME_SLOTS_ENV]: runtimeSlotsDir,
+      },
+    });
 
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /Failed to start:/);
-    assert.equal(readSlot(), PLACEHOLDER);
+    assert.equal(readSlot(), dirtyTrackedSlot);
+    withRuntimeSlotsDir(runtimeSlotsDir, () => {
+      assert.equal(readSlot(getRuntimeSlotPath(viewerPort)), null);
+    });
   } finally {
     await new Promise((resolve) => blocker.close(resolve));
-    if (originalSlot === null) {
+    rmSync(runtimeSlotsDir, { recursive: true, force: true });
+    if (originalTrackedSlot === null) {
       resetSlot();
     } else {
-      writeSlot(originalSlot);
+      writeSlot(originalTrackedSlot);
     }
   }
 });

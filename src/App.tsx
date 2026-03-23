@@ -18,6 +18,7 @@ import { getWebSocketUrl } from "./runtimeConfig";
 
 const MONO = '"JetBrains Mono", "Fira Code", "SF Mono", monospace';
 const SANS = '"Inter", -apple-system, "Helvetica Neue", sans-serif';
+declare const __JSX_VIEWER_SLOT_MODULE_URL__: string;
 
 interface LoadedComponentState {
   Component: SlotComponent | null;
@@ -63,7 +64,7 @@ function useLoadedComponent() {
   const load = useCallback(async () => {
     try {
       const mod = (await import(
-        /* @vite-ignore */ `../component/View.tsx?t=${Date.now()}`
+        /* @vite-ignore */ `${__JSX_VIEWER_SLOT_MODULE_URL__}?t=${Date.now()}`
       )) as { default?: unknown };
       const component = mod.default;
 

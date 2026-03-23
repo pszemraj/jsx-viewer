@@ -4,13 +4,21 @@ import { watch } from "chokidar";
 import { createServer } from "vite";
 import { WebSocket, WebSocketServer } from "ws";
 import { isClientMessage } from "../shared/protocol.mjs";
-import { ROOT, resetSlot, writeSlot } from "./slot.mjs";
+import {
+  ROOT,
+  clearRuntimeSlot,
+  getRuntimeRoot,
+  getRuntimeSlotModuleUrl,
+  getRuntimeSlotPath,
+  resetSlot,
+  writeSlot,
+} from "./slot.mjs";
 
 const { version: VERSION } = JSON.parse(
   fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"),
 );
 
-function loadFileIntoSlot(filePath) {
+function loadFileIntoSlot(filePath, slotPath) {
   let stats;
 
   try {
@@ -24,7 +32,7 @@ function loadFileIntoSlot(filePath) {
   }
 
   const content = fs.readFileSync(filePath, "utf-8");
-  writeSlot(content);
+  writeSlot(content, slotPath);
   return path.basename(filePath);
 }
 
@@ -38,6 +46,7 @@ let server = null;
 let wss = null;
 let slotWasTouched = false;
 let cleaningUp = false;
+let runtimePort = null;
 
 function broadcast(message) {
   if (!wss) {
@@ -64,7 +73,7 @@ function startWatching(filePath) {
   watcher = watch(filePath, { ignoreInitial: true });
   watcher.on("change", () => {
     try {
-      currentFilename = loadFileIntoSlot(filePath);
+      currentFilename = loadFileIntoSlot(filePath, getRuntimeSlotPath(runtimePort));
       broadcast({ type: "file-updated", filename: currentFilename });
       console.log("\x1b[36m[jsx-viewer]\x1b[0m File changed, reloading...");
     } catch (error) {
@@ -83,11 +92,14 @@ function cleanup(exitCode = 0) {
 
   cleaningUp = true;
 
-  if (slotWasTouched) {
+  if (slotWasTouched && runtimePort !== null) {
     try {
-      resetSlot();
+      clearRuntimeSlot(runtimePort);
     } catch (error) {
-      console.error("[jsx-viewer] Failed to reset slot:", toError(error).message);
+      console.error(
+        "[jsx-viewer] Failed to clear runtime slot:",
+        toError(error).message,
+      );
     }
   }
 
@@ -130,14 +142,14 @@ function registerWebSocketHandlers() {
 
         if (message.type === "reset-slot") {
           stopWatching();
-          resetSlot();
+          resetSlot(getRuntimeSlotPath(runtimePort));
           currentFilename = null;
           broadcast({ type: "file-updated", filename: null });
           return;
         }
 
         stopWatching();
-        writeSlot(message.content);
+        writeSlot(message.content, getRuntimeSlotPath(runtimePort));
         currentFilename = message.filename || "pasted.tsx";
         broadcast({ type: "file-updated", filename: currentFilename });
       } catch (error) {
@@ -167,12 +179,13 @@ function listenWebSocketServer(port) {
 }
 
 function initializeSlot(inputFile) {
-  resetSlot();
+  const slotPath = getRuntimeSlotPath(runtimePort);
+  resetSlot(slotPath);
   slotWasTouched = true;
   currentFilename = null;
 
   if (inputFile) {
-    currentFilename = loadFileIntoSlot(inputFile);
+    currentFilename = loadFileIntoSlot(inputFile, slotPath);
   }
 }
 
@@ -184,6 +197,7 @@ export async function main(cliArgs) {
   }
 
   const { inputFile, port, wsPort } = cliArgs;
+  runtimePort = port;
 
   try {
     initializeSlot(inputFile);
@@ -206,9 +220,15 @@ export async function main(cliArgs) {
       root: ROOT,
       configFile: path.join(ROOT, "vite.config.ts"),
       define: {
+        __JSX_VIEWER_SLOT_MODULE_URL__: JSON.stringify(
+          getRuntimeSlotModuleUrl(port),
+        ),
         __JSX_VIEWER_WS_PORT__: JSON.stringify(String(wsPort)),
       },
       server: {
+        fs: {
+          allow: [ROOT, getRuntimeRoot(port)],
+        },
         port,
         open: !process.env.CI,
         strictPort: true,
