@@ -35,6 +35,7 @@ export default defineConfig({
       "mathjs",
       "papaparse",
       "chart.js",
+      "tone",
     ],
   },
 });

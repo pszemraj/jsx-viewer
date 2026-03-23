@@ -14,6 +14,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
+import viteConfig from "../vite.config.ts";
 import {
   CliUsageError,
   DEFAULT_VIEWER_PORT,
@@ -186,6 +187,26 @@ test("package metadata points to the public project URLs", () => {
   assert.deepEqual(packageJson.bugs, {
     url: "https://github.com/pszemraj/jsx-viewer/issues",
   });
+});
+
+test("vite optimizeDeps prebundles every documented built-in artifact library", () => {
+  const optimizeDepsInclude = new Set(viteConfig.optimizeDeps?.include ?? []);
+
+  for (const dependency of [
+    "react",
+    "react-dom",
+    "recharts",
+    "lucide-react",
+    "d3",
+    "three",
+    "lodash",
+    "mathjs",
+    "papaparse",
+    "chart.js",
+    "tone",
+  ]) {
+    assert.equal(optimizeDepsInclude.has(dependency), true);
+  }
 });
 
 test("help text documents the actual default port behavior", () => {
