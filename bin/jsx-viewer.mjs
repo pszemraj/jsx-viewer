@@ -235,6 +235,9 @@ async function main() {
     server = await createServer({
       root: ROOT,
       configFile: path.join(ROOT, "vite.config.ts"),
+      define: {
+        __JSX_VIEWER_WS_PORT__: JSON.stringify(String(wsPort)),
+      },
       server: {
         port,
         open: !process.env.CI,

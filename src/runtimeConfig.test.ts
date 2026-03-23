@@ -4,6 +4,7 @@ import {
   DEFAULT_VIEWER_PORT,
   WEB_SOCKET_PORT_OFFSET,
   getWebSocketUrl,
+  parseConfiguredWebSocketPort,
 } from "./runtimeConfig";
 
 test("derives the WebSocket port from the active viewer port", () => {
@@ -37,4 +38,25 @@ test("preserves secure websocket protocol when the viewer is served over https",
     }),
     "wss://viewer.local:9444",
   );
+});
+
+test("uses the injected WebSocket port when the viewer runs on a standard port", () => {
+  assert.equal(
+    getWebSocketUrl(
+      {
+        protocol: "https:",
+        hostname: "viewer.local",
+        port: "",
+      },
+      444,
+    ),
+    "wss://viewer.local:444",
+  );
+});
+
+test("ignores invalid injected WebSocket ports", () => {
+  assert.equal(parseConfiguredWebSocketPort(undefined), null);
+  assert.equal(parseConfiguredWebSocketPort(""), null);
+  assert.equal(parseConfiguredWebSocketPort("abc"), null);
+  assert.equal(parseConfiguredWebSocketPort("0"), null);
 });
