@@ -16,7 +16,9 @@ try {
   process.exit(1);
 }
 
-const VERSION = "1.0.0";
+const { version: VERSION } = JSON.parse(
+  fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+);
 
 function printHelp() {
   console.log(`
@@ -31,6 +33,7 @@ function printHelp() {
   Options:
     -p, --port <n>   Dev server port (default: 3142)
     -h, --help       Show this help
+    -v, --version    Show version
 
   Examples:
     node bin/jsx-viewer.mjs                     # Start with the empty drop/upload/paste UI
@@ -63,6 +66,11 @@ function parseArgs(args) {
 
     if (arg === "--help" || arg === "-h") {
       printHelp();
+      process.exit(0);
+    }
+
+    if (arg === "--version" || arg === "-v") {
+      console.log(VERSION);
       process.exit(0);
     }
 

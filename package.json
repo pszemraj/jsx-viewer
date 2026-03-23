@@ -3,6 +3,28 @@
   "version": "1.0.0",
   "description": "Drop-in viewer for JSX/TSX React component files. Make .jsx and .tsx as portable as .html.",
   "type": "module",
+  "files": [
+    "assets/ui.png",
+    "bin/check-node-version.mjs",
+    "bin/check-slot.mjs",
+    "bin/jsx-viewer.mjs",
+    "bin/node-version.mjs",
+    "bin/setup-hooks.mjs",
+    "bin/slot.mjs",
+    "component/View.tsx",
+    "example/Dashboard.tsx",
+    "index.html",
+    "shared/protocol.ts",
+    "src/App.tsx",
+    "src/ErrorBoundary.tsx",
+    "src/index.css",
+    "src/main.tsx",
+    "src/slotComponent.ts",
+    "src/SlotPreview.tsx",
+    "tailwind.config.ts",
+    "tsconfig.json",
+    "vite.config.ts"
+  ],
   "bin": {
     "jsx-viewer": "./bin/jsx-viewer.mjs"
   },
@@ -34,6 +56,14 @@
   },
   "overrides": {
     "flatted": "^3.4.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pszemraj/jsx-viewer.git"
+  },
+  "homepage": "https://github.com/pszemraj/jsx-viewer#readme",
+  "bugs": {
+    "url": "https://github.com/pszemraj/jsx-viewer/issues"
   },
   "engines": {
     "node": "^20.19.0 || >=22.12.0"

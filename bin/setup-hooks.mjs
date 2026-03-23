@@ -1,9 +1,14 @@
 #!/usr/bin/env node
 
 import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const HOOKS_PATH = ".githooks";
 const HOOKS_ENV = "JSX_VIEWER_ENABLE_GIT_HOOKS";
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PRE_COMMIT_HOOK = path.resolve(__dirname, "..", HOOKS_PATH, "pre-commit");
 
 function getLocalHooksPath() {
   try {
@@ -20,6 +25,15 @@ try {
   execFileSync("git", ["rev-parse", "--is-inside-work-tree"], {
     stdio: "ignore",
   });
+
+  if (!fs.existsSync(PRE_COMMIT_HOOK)) {
+    if (getLocalHooksPath() === HOOKS_PATH) {
+      execFileSync("git", ["config", "--local", "--unset", "core.hooksPath"], {
+        stdio: "ignore",
+      });
+    }
+    process.exit(0);
+  }
 
   const shouldEnableHooks =
     process.platform !== "win32" || process.env[HOOKS_ENV] === "1";

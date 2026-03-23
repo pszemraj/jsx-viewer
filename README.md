@@ -57,6 +57,7 @@ When a file is already loaded, use the toolbar `clear` button to return to the e
 node bin/jsx-viewer.mjs [options] [file.tsx]
 
   -p, --port <n>   Dev server port (default: 3142)
+  -v, --version    Show version
   -h, --help       Show help
 ```
 
