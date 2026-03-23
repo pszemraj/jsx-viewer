@@ -9,6 +9,7 @@ import {
   clearRuntimeSlot,
   getRuntimeCacheDir,
   getRuntimeRoot,
+  markRuntimePortActive,
   getRuntimeSlotModuleUrl,
   getRuntimeSlotPath,
   resetSlot,
@@ -181,6 +182,7 @@ function listenWebSocketServer(port) {
 
 function initializeSlot(inputFile) {
   const slotPath = getRuntimeSlotPath(runtimePort);
+  markRuntimePortActive(runtimePort);
   resetSlot(slotPath);
   slotWasTouched = true;
   currentFilename = null;

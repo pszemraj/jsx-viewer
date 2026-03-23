@@ -30,10 +30,12 @@ import {
   TRACKED_SLOT_PATH,
   getRuntimeCacheDir,
   getRuntimeCacheRoot,
+  getRuntimeOwnerPath,
   getRuntimeRoot,
   getRuntimeSlotsRoot,
   getRuntimeSlotModuleUrl,
   getRuntimeSlotPath,
+  markRuntimePortActive,
   readSlot,
   resetSlot,
   writeSlot,
@@ -206,10 +208,12 @@ test("runtime workspace keeps slots and Vite cache outside the tracked package t
         DEFAULT_VIEWER_PORT,
         getWebSocketPort(DEFAULT_VIEWER_PORT),
       );
+      const sharedRuntimeRoot = path.join(runtimeSlotsBase, "jsx-viewer");
 
       assert.equal(path.relative(REPO_ROOT, runtimeSlotPath).startsWith(".."), true);
       assert.equal(path.relative(REPO_ROOT, runtimeCacheDir).startsWith(".."), true);
-      assert.equal(path.dirname(runtimeSlotsRoot), runtimeSlotsBase);
+      assert.equal(path.dirname(runtimeSlotsRoot), sharedRuntimeRoot);
+      assert.match(path.basename(runtimeSlotsRoot), /^workspace-[0-9a-f]{12}$/);
       assert.equal(path.dirname(runtimeCacheRoot), runtimeSlotsRoot);
       assert.equal(
         path.dirname(path.dirname(path.dirname(runtimeSlotPath))),
@@ -299,31 +303,80 @@ test("clearRuntimeSlots removes only viewer-managed port directories", () => {
   }
 });
 
-test("clearRuntimeArtifacts removes viewer-managed slot and cache directories only", () => {
+test("clearRuntimeArtifacts removes inactive artifacts in the current workspace only", () => {
   const runtimeSlotsBase = mkdtempSync(path.join(os.tmpdir(), "jsx-viewer-slots-"));
 
   try {
     withRuntimeSlotsDir(runtimeSlotsBase, () => {
-      const managedSlotDir = path.join(getRuntimeSlotsRoot(), "port-3142");
-      const managedCacheDir = path.join(getRuntimeCacheRoot(), "port-3142");
+      const runtimeSlotsRoot = getRuntimeSlotsRoot();
+      const sharedRuntimeRoot = path.dirname(runtimeSlotsRoot);
+      const activePort = 3142;
+      const stalePort = 3143;
+      const legacyPort = 3144;
+      const orphanCachePort = 3145;
+      const managedSlotDir = path.join(runtimeSlotsRoot, `port-${activePort}`);
+      const staleSlotDir = path.join(runtimeSlotsRoot, `port-${stalePort}`);
+      const legacySlotDir = path.join(runtimeSlotsRoot, `port-${legacyPort}`);
+      const managedCacheDir = getRuntimeCacheDir(activePort);
+      const staleCacheDir = getRuntimeCacheDir(stalePort);
+      const legacyCacheDir = getRuntimeCacheDir(legacyPort);
+      const orphanCacheDir = getRuntimeCacheDir(orphanCachePort);
       const unmanagedCacheDir = path.join(getRuntimeCacheRoot(), "notes");
       const lookalikeCacheDir = path.join(getRuntimeCacheRoot(), "port-not-a-number");
+      const siblingWorkspaceSlotDir = path.join(
+        sharedRuntimeRoot,
+        "workspace-sibling",
+        "port-4000",
+      );
+      const siblingWorkspaceCacheDir = path.join(
+        sharedRuntimeRoot,
+        "workspace-sibling",
+        "vite-cache",
+        "port-4000",
+      );
 
       mkdirSync(path.join(managedSlotDir, "component"), { recursive: true });
       writeFileSync(path.join(managedSlotDir, "component", "View.tsx"), PLACEHOLDER, "utf8");
+      markRuntimePortActive(activePort);
       mkdirSync(managedCacheDir, { recursive: true });
       writeFileSync(path.join(managedCacheDir, "deps.json"), "{}", "utf8");
+      mkdirSync(path.join(staleSlotDir, "component"), { recursive: true });
+      writeFileSync(path.join(staleSlotDir, "component", "View.tsx"), PLACEHOLDER, "utf8");
+      writeFileSync(getRuntimeOwnerPath(stalePort), `${JSON.stringify({ pid: 0 })}\n`, "utf8");
+      mkdirSync(staleCacheDir, { recursive: true });
+      writeFileSync(path.join(staleCacheDir, "deps.json"), "{}", "utf8");
+      mkdirSync(path.join(legacySlotDir, "component"), { recursive: true });
+      writeFileSync(path.join(legacySlotDir, "component", "View.tsx"), PLACEHOLDER, "utf8");
+      mkdirSync(legacyCacheDir, { recursive: true });
+      writeFileSync(path.join(legacyCacheDir, "deps.json"), "{}", "utf8");
+      mkdirSync(orphanCacheDir, { recursive: true });
+      writeFileSync(path.join(orphanCacheDir, "deps.json"), "{}", "utf8");
       mkdirSync(unmanagedCacheDir, { recursive: true });
       writeFileSync(path.join(unmanagedCacheDir, "keep.txt"), "keep", "utf8");
       mkdirSync(lookalikeCacheDir, { recursive: true });
       writeFileSync(path.join(lookalikeCacheDir, "keep.txt"), "keep", "utf8");
+      mkdirSync(path.join(siblingWorkspaceSlotDir, "component"), { recursive: true });
+      writeFileSync(
+        path.join(siblingWorkspaceSlotDir, "component", "View.tsx"),
+        PLACEHOLDER,
+        "utf8",
+      );
+      mkdirSync(siblingWorkspaceCacheDir, { recursive: true });
+      writeFileSync(path.join(siblingWorkspaceCacheDir, "deps.json"), "{}", "utf8");
 
       clearRuntimeArtifacts();
 
-      assert.equal(existsSync(managedSlotDir), false);
-      assert.equal(existsSync(managedCacheDir), false);
+      assert.equal(existsSync(managedSlotDir), true);
+      assert.equal(existsSync(managedCacheDir), true);
+      assert.equal(existsSync(staleSlotDir), false);
+      assert.equal(existsSync(staleCacheDir), false);
+      assert.equal(existsSync(legacySlotDir), true);
+      assert.equal(existsSync(legacyCacheDir), true);
+      assert.equal(existsSync(orphanCacheDir), false);
       assert.equal(existsSync(unmanagedCacheDir), true);
       assert.equal(existsSync(lookalikeCacheDir), true);
+      assert.equal(existsSync(siblingWorkspaceSlotDir), true);
+      assert.equal(existsSync(siblingWorkspaceCacheDir), true);
     });
   } finally {
     rmSync(runtimeSlotsBase, { recursive: true, force: true });

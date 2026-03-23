@@ -12,7 +12,7 @@ if (shouldFix) {
   resetSlot();
   clearRuntimeArtifacts();
   console.log(
-    "[jsx-viewer] Reset component/View.tsx and cleared transient runtime slots and Vite cache.",
+    "[jsx-viewer] Reset component/View.tsx and cleared inactive transient runtime slots and Vite cache for this checkout.",
   );
   process.exit(0);
 }
