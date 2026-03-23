@@ -9,7 +9,8 @@ export const ROOT = path.resolve(__dirname, "..");
 export const TRACKED_SLOT_PATH = path.join(ROOT, "component", "View.tsx");
 const RUNTIME_SLOTS_ENV = "JSX_VIEWER_RUNTIME_DIR";
 const RUNTIME_SLOTS_DIRNAME = "jsx-viewer";
-const RUNTIME_SLOT_DIR_PATTERN = /^port-\d+$/;
+const RUNTIME_CACHE_DIRNAME = "vite-cache";
+const RUNTIME_PORT_DIR_PATTERN = /^port-\d+$/;
 export const PLACEHOLDER = `type PlaceholderComponent = (() => null) & {
   __isPlaceholder: true;
 };
@@ -37,8 +38,12 @@ export function getRuntimeSlotsRoot() {
     : path.join(runtimeSlotsBase, RUNTIME_SLOTS_DIRNAME);
 }
 
-function isRuntimeSlotDirName(name) {
-  return RUNTIME_SLOT_DIR_PATTERN.test(name);
+export function getRuntimeCacheRoot() {
+  return path.join(getRuntimeSlotsRoot(), RUNTIME_CACHE_DIRNAME);
+}
+
+function isRuntimePortDirName(name) {
+  return RUNTIME_PORT_DIR_PATTERN.test(name);
 }
 
 export function getRuntimeRoot(port) {
@@ -47,6 +52,10 @@ export function getRuntimeRoot(port) {
 
 export function getRuntimeSlotPath(port) {
   return path.join(getRuntimeRoot(port), "component", "View.tsx");
+}
+
+export function getRuntimeCacheDir(port) {
+  return path.join(getRuntimeCacheRoot(), `port-${port}`);
 }
 
 export function getRuntimeSlotModuleUrl(port) {
@@ -89,20 +98,32 @@ export function clearRuntimeSlot(port) {
   });
 }
 
-export function clearRuntimeSlots() {
-  const runtimeSlotsRoot = getRuntimeSlotsRoot();
-  if (!fs.existsSync(runtimeSlotsRoot)) {
+function clearManagedRuntimePortDirs(rootPath) {
+  if (!fs.existsSync(rootPath)) {
     return;
   }
 
-  for (const entry of fs.readdirSync(runtimeSlotsRoot, { withFileTypes: true })) {
-    if (!entry.isDirectory() || !isRuntimeSlotDirName(entry.name)) {
+  for (const entry of fs.readdirSync(rootPath, { withFileTypes: true })) {
+    if (!entry.isDirectory() || !isRuntimePortDirName(entry.name)) {
       continue;
     }
 
-    fs.rmSync(path.join(runtimeSlotsRoot, entry.name), {
+    fs.rmSync(path.join(rootPath, entry.name), {
       recursive: true,
       force: true,
     });
   }
+}
+
+export function clearRuntimeSlots() {
+  clearManagedRuntimePortDirs(getRuntimeSlotsRoot());
+}
+
+export function clearRuntimeCaches() {
+  clearManagedRuntimePortDirs(getRuntimeCacheRoot());
+}
+
+export function clearRuntimeArtifacts() {
+  clearRuntimeSlots();
+  clearRuntimeCaches();
 }

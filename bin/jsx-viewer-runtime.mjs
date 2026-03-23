@@ -7,6 +7,7 @@ import { isClientMessage } from "../shared/protocol.mjs";
 import {
   ROOT,
   clearRuntimeSlot,
+  getRuntimeCacheDir,
   getRuntimeRoot,
   getRuntimeSlotModuleUrl,
   getRuntimeSlotPath,
@@ -189,6 +190,28 @@ function initializeSlot(inputFile) {
   }
 }
 
+export function getViteServerConfig(port, wsPort) {
+  return {
+    root: ROOT,
+    cacheDir: getRuntimeCacheDir(port),
+    configFile: path.join(ROOT, "vite.config.ts"),
+    define: {
+      __JSX_VIEWER_SLOT_MODULE_URL__: JSON.stringify(
+        getRuntimeSlotModuleUrl(port),
+      ),
+      __JSX_VIEWER_WS_PORT__: JSON.stringify(String(wsPort)),
+    },
+    server: {
+      fs: {
+        allow: [ROOT, getRuntimeRoot(port)],
+      },
+      port,
+      open: !process.env.CI,
+      strictPort: true,
+    },
+  };
+}
+
 export async function main(cliArgs) {
   if (cliArgs?.mode !== "run") {
     throw new TypeError(
@@ -216,24 +239,7 @@ export async function main(cliArgs) {
       startWatching(inputFile);
     }
 
-    server = await createServer({
-      root: ROOT,
-      configFile: path.join(ROOT, "vite.config.ts"),
-      define: {
-        __JSX_VIEWER_SLOT_MODULE_URL__: JSON.stringify(
-          getRuntimeSlotModuleUrl(port),
-        ),
-        __JSX_VIEWER_WS_PORT__: JSON.stringify(String(wsPort)),
-      },
-      server: {
-        fs: {
-          allow: [ROOT, getRuntimeRoot(port)],
-        },
-        port,
-        open: !process.env.CI,
-        strictPort: true,
-      },
-    });
+    server = await createServer(getViteServerConfig(port, wsPort));
 
     await server.listen();
 

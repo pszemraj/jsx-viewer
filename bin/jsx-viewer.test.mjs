@@ -24,9 +24,13 @@ import {
   parseCliArgs,
 } from "./jsx-viewer-cli.mjs";
 import {
+  clearRuntimeArtifacts,
   clearRuntimeSlots,
   PLACEHOLDER,
   TRACKED_SLOT_PATH,
+  getRuntimeCacheDir,
+  getRuntimeCacheRoot,
+  getRuntimeRoot,
   getRuntimeSlotsRoot,
   getRuntimeSlotModuleUrl,
   getRuntimeSlotPath,
@@ -34,6 +38,7 @@ import {
   resetSlot,
   writeSlot,
 } from "./slot.mjs";
+import { getViteServerConfig } from "./jsx-viewer-runtime.mjs";
 
 const REPO_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const CLI_PATH = fileURLToPath(new URL("./jsx-viewer.mjs", import.meta.url));
@@ -182,24 +187,38 @@ test("help text documents the actual default port behavior", () => {
   assert.match(helpText, /Pass zero or one \.jsx\/\.tsx file\./);
 });
 
-test("runtime slots live in a viewer-owned root outside the tracked package tree", () => {
+test("runtime workspace keeps slots and Vite cache outside the tracked package tree", () => {
   const runtimeSlotsBase = mkdtempSync(path.join(os.tmpdir(), "jsx-viewer-slots-"));
 
   try {
     withRuntimeSlotsDir(runtimeSlotsBase, () => {
       const runtimeSlotsRoot = getRuntimeSlotsRoot();
+      const runtimeCacheRoot = getRuntimeCacheRoot();
       const runtimeSlotPath = getRuntimeSlotPath(DEFAULT_VIEWER_PORT);
+      const runtimeCacheDir = getRuntimeCacheDir(DEFAULT_VIEWER_PORT);
       const runtimeSlotUrl = getRuntimeSlotModuleUrl(DEFAULT_VIEWER_PORT);
+      const viteServerConfig = getViteServerConfig(
+        DEFAULT_VIEWER_PORT,
+        getWebSocketPort(DEFAULT_VIEWER_PORT),
+      );
 
       assert.equal(path.relative(REPO_ROOT, runtimeSlotPath).startsWith(".."), true);
+      assert.equal(path.relative(REPO_ROOT, runtimeCacheDir).startsWith(".."), true);
       assert.equal(path.dirname(runtimeSlotsRoot), runtimeSlotsBase);
+      assert.equal(path.dirname(runtimeCacheRoot), runtimeSlotsRoot);
       assert.equal(
         path.dirname(path.dirname(path.dirname(runtimeSlotPath))),
         runtimeSlotsRoot,
       );
+      assert.equal(path.dirname(runtimeCacheDir), runtimeCacheRoot);
       assert.equal(path.normalize(TRACKED_SLOT_PATH), path.join(REPO_ROOT, "component", "View.tsx"));
       assert.match(runtimeSlotUrl, /^\/@fs\//);
       assert.match(runtimeSlotUrl.replace(/\\/g, "/"), /\/component\/View\.tsx$/);
+      assert.equal(viteServerConfig.cacheDir, runtimeCacheDir);
+      assert.deepEqual(viteServerConfig.server.fs.allow, [
+        path.resolve(REPO_ROOT),
+        getRuntimeRoot(DEFAULT_VIEWER_PORT),
+      ]);
     });
   } finally {
     rmSync(runtimeSlotsBase, { recursive: true, force: true });
@@ -231,6 +250,37 @@ test("clearRuntimeSlots removes only viewer-managed port directories", () => {
       assert.equal(existsSync(unmanagedDir), true);
       assert.equal(existsSync(lookalikeDir), true);
       assert.equal(readFileSync(siblingPath, "utf8"), "keep");
+    });
+  } finally {
+    rmSync(runtimeSlotsBase, { recursive: true, force: true });
+  }
+});
+
+test("clearRuntimeArtifacts removes viewer-managed slot and cache directories only", () => {
+  const runtimeSlotsBase = mkdtempSync(path.join(os.tmpdir(), "jsx-viewer-slots-"));
+
+  try {
+    withRuntimeSlotsDir(runtimeSlotsBase, () => {
+      const managedSlotDir = path.join(getRuntimeSlotsRoot(), "port-3142");
+      const managedCacheDir = path.join(getRuntimeCacheRoot(), "port-3142");
+      const unmanagedCacheDir = path.join(getRuntimeCacheRoot(), "notes");
+      const lookalikeCacheDir = path.join(getRuntimeCacheRoot(), "port-not-a-number");
+
+      mkdirSync(path.join(managedSlotDir, "component"), { recursive: true });
+      writeFileSync(path.join(managedSlotDir, "component", "View.tsx"), PLACEHOLDER, "utf8");
+      mkdirSync(managedCacheDir, { recursive: true });
+      writeFileSync(path.join(managedCacheDir, "deps.json"), "{}", "utf8");
+      mkdirSync(unmanagedCacheDir, { recursive: true });
+      writeFileSync(path.join(unmanagedCacheDir, "keep.txt"), "keep", "utf8");
+      mkdirSync(lookalikeCacheDir, { recursive: true });
+      writeFileSync(path.join(lookalikeCacheDir, "keep.txt"), "keep", "utf8");
+
+      clearRuntimeArtifacts();
+
+      assert.equal(existsSync(managedSlotDir), false);
+      assert.equal(existsSync(managedCacheDir), false);
+      assert.equal(existsSync(unmanagedCacheDir), true);
+      assert.equal(existsSync(lookalikeCacheDir), true);
     });
   } finally {
     rmSync(runtimeSlotsBase, { recursive: true, force: true });

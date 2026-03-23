@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import {
-  clearRuntimeSlots,
+  clearRuntimeArtifacts,
   resetSlot,
   slotMatchesPlaceholder,
 } from "./slot.mjs";
@@ -10,9 +10,9 @@ const shouldFix = process.argv.includes("--fix");
 
 if (shouldFix) {
   resetSlot();
-  clearRuntimeSlots();
+  clearRuntimeArtifacts();
   console.log(
-    "[jsx-viewer] Reset component/View.tsx and cleared transient runtime slots.",
+    "[jsx-viewer] Reset component/View.tsx and cleared transient runtime slots and Vite cache.",
   );
   process.exit(0);
 }

@@ -90,14 +90,14 @@ their module resolves.
 
 ### How it works
 
-1. **Vite dev server** handles JSX/TSX transpilation and HMR
-2. Your file is copied to a **transient runtime slot** in a user-writable temp directory
+1. **Vite dev server** handles JSX/TSX transpilation and HMR, with its dependency cache redirected into a viewer-owned temp workspace
+2. Your file is copied to a **transient runtime slot** in that same user-writable temp directory
 3. Vite picks up the change and hot-reloads the browser instantly
 4. A **WebSocket bridge** connects the browser UI to the CLI for drag-and-drop/paste
-5. On exit, the transient slot is cleared - your file is never committed, and the packaged install directory stays untouched
+5. On exit, the transient slot is cleared - your file is never committed, and packaged/global installs never need to write into their install prefix
 
 `component/View.tsx` remains a tracked placeholder file for the repo and package.
-`npm run slot:reset` restores that placeholder and clears any transient runtime slots.
+`npm run slot:reset` restores that placeholder and clears any transient runtime slots plus the temp Vite cache.
 If startup fails after a file was requested (for example, a port conflict),
 `jsx-viewer` clears the transient runtime slot before exiting.
 
@@ -129,7 +129,7 @@ If your artifact imports something not listed here, `npm install` it and restart
 | --------------------------- | ----------------------------------------------- |
 | `npm start` / `npm run dev` | Launch the empty drop/upload/paste UI           |
 | `npm run demo`              | Preload and watch `example/Dashboard.tsx`       |
-| `npm run slot:reset`        | Restore `component/View.tsx` and clear runtime slots |
+| `npm run slot:reset`        | Restore `component/View.tsx` and clear runtime slots/cache |
 | `npm run guard:slot`        | Fail if `component/View.tsx` differs from the placeholder |
 | `npm test`                  | Run the CLI, protocol, runtime, and UI test suite |
 | `npm run lint`              | Run ESLint                                      |
