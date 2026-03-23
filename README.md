@@ -17,6 +17,10 @@ npm start        # empty drop/upload/paste UI
 
 The viewer opens in your browser. You're done.
 
+The browser UI is authored in TypeScript. The shipped Node CLI/runtime stays as
+native `.mjs` for direct execution and is type-checked via checked-JS during
+`npm run typecheck`.
+
 ## Requirements
 
 `jsx-viewer` currently requires **Node 20.19.0+ or 22.12.0+** because the

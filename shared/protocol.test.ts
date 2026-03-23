@@ -1,10 +1,18 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
+import type { ClientMessage, ServerMessage } from "./protocol.d.mts";
 import { isClientMessage, isServerMessage } from "./protocol.mjs";
 
 type MessageCase = readonly [name: string, message: unknown, expected: boolean];
+type TypedMessageCase<TMessage> = readonly [name: string, message: TMessage];
 
-const clientMessageCases: MessageCase[] = [
+const declarationSource = readFileSync(
+  new URL("./protocol.d.mts", import.meta.url),
+  "utf8",
+);
+
+const validClientMessageCases = [
   [
     "accepts load-artifact client messages",
     {
@@ -12,9 +20,17 @@ const clientMessageCases: MessageCase[] = [
       content: "export default function Example() { return null; }",
       filename: "Example.tsx",
     },
-    true,
   ],
-  ["accepts reset-slot client messages", { type: "reset-slot" }, true],
+  ["accepts reset-slot client messages", { type: "reset-slot" }],
+] as const satisfies readonly TypedMessageCase<ClientMessage>[];
+
+const validServerMessageCases = [
+  ["accepts file-updated payloads with a filename", { type: "file-updated", filename: "Example.tsx" }],
+  ["accepts file-updated payloads without a filename", { type: "file-updated", filename: null }],
+] as const satisfies readonly TypedMessageCase<ServerMessage>[];
+
+const clientMessageCases: MessageCase[] = [
+  ...validClientMessageCases.map(([name, message]) => [name, message, true] as const),
   [
     "rejects the removed load-jsx client alias",
     {
@@ -34,8 +50,7 @@ for (const [name, message, expected] of clientMessageCases) {
 }
 
 const serverMessageCases: MessageCase[] = [
-  ["accepts file-updated payloads with a filename", { type: "file-updated", filename: "Example.tsx" }, true],
-  ["accepts file-updated payloads without a filename", { type: "file-updated", filename: null }, true],
+  ...validServerMessageCases.map(([name, message]) => [name, message, true] as const),
   ["rejects file-updated payloads with an invalid filename", { type: "file-updated", filename: 3 }, false],
   ["rejects unknown server payload types", { type: "unknown", filename: null }, false],
 ];
@@ -45,3 +60,23 @@ for (const [name, message, expected] of serverMessageCases) {
     assert.equal(isServerMessage(message), expected);
   });
 }
+
+test("shipped protocol declaration stays aligned with the current runtime surface", () => {
+  for (const pattern of [
+    /export interface FileUpdatedMessage/,
+    /type:\s*"file-updated";/,
+    /filename:\s*string \| null;/,
+    /export interface LoadArtifactMessage/,
+    /type:\s*"load-artifact";/,
+    /content:\s*string;/,
+    /filename\?:\s*string;/,
+    /export interface ResetSlotMessage/,
+    /type:\s*"reset-slot";/,
+    /export type ClientMessage = LoadArtifactMessage \| ResetSlotMessage;/,
+    /export type ServerMessage = FileUpdatedMessage;/,
+    /export function isClientMessage\(value: unknown\): value is ClientMessage;/,
+    /export function isServerMessage\(value: unknown\): value is ServerMessage;/,
+  ]) {
+    assert.match(declarationSource, pattern);
+  }
+});
