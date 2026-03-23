@@ -490,4 +490,5 @@ test("npm pack only ships runtime package files", () => {
   assert.equal(packedPaths.includes("bin/jsx-viewer.mjs"), true);
   assert.equal(packedPaths.includes("bin/jsx-viewer-runtime.mjs"), true);
   assert.equal(packedPaths.includes("src/App.tsx"), true);
+  assert.equal(packedPaths.includes("src/hotReload.ts"), true);
 });

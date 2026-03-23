@@ -15,6 +15,7 @@ import {
   type ServerMessage,
 } from "../shared/protocol.mjs";
 import { getWebSocketUrl } from "./runtimeConfig";
+import { registerAfterUpdateReload } from "./hotReload";
 
 const MONO = '"JetBrains Mono", "Fira Code", "SF Mono", monospace';
 const SANS = '"Inter", -apple-system, "Helvetica Neue", sans-serif';
@@ -92,11 +93,7 @@ function useLoadedComponent() {
   }, [load]);
 
   useEffect(() => {
-    if (import.meta.hot) {
-      import.meta.hot.on("vite:afterUpdate", () => {
-        void load();
-      });
-    }
+    return registerAfterUpdateReload(import.meta.hot, load);
   }, [load]);
 
   return { ...state, reload: load };
