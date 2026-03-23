@@ -106,6 +106,12 @@ their module resolves.
 `npm run slot:reset` restores that placeholder and clears inactive transient runtime slots plus stale temp Vite cache entries for the current checkout/install without interrupting live viewers.
 If startup fails after a file was requested (for example, a port conflict),
 `jsx-viewer` clears the transient runtime slot before exiting.
+The shared temp parent (`os.tmpdir()/jsx-viewer` by default, or
+`JSX_VIEWER_RUNTIME_DIR` if you override it) can still accumulate older sibling
+`workspace-*` directories from past checkouts/installations, because
+`slot:reset` intentionally scopes cleanup to the current workspace only. If no
+viewer processes are running anywhere, removing that shared temp parent is a
+safe way to reclaim old runtime artifacts across installs.
 
 ### Pre-installed libraries
 

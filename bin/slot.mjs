@@ -20,6 +20,8 @@ const RUNTIME_WORKSPACE_PREFIX = "workspace-";
 const RUNTIME_CACHE_DIRNAME = "vite-cache";
 const RUNTIME_OWNER_FILENAME = "runtime-owner.json";
 const RUNTIME_PORT_DIR_PATTERN = /^port-\d+$/;
+// Conservative compatibility window for temp dirs created before ownership
+// tracking existed. Tighten or remove this once the migration window has aged out.
 const LEGACY_RUNTIME_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
 export const PLACEHOLDER = `type PlaceholderComponent = (() => null) & {
   __isPlaceholder: true;

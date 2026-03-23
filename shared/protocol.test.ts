@@ -23,7 +23,8 @@ type IsExactly<TLeft, TRight> = (<TValue>() => TValue extends TLeft ? 1 : 2) ext
 type Assert<TValue extends true> = TValue;
 
 // Keep the shipped declaration file and the JSDoc-exposed runtime guard
-// surface in lockstep. If either side drifts, typecheck fails in CI.
+// surface in lockstep. If either side drifts, typecheck fails in CI. This
+// still does not replace a single typed source of truth for the protocol.
 type RuntimeClientMessage = GuardedType<typeof isClientMessage>;
 type RuntimeServerMessage = GuardedType<typeof isServerMessage>;
 type _ClientMessageContractMatches = Assert<
@@ -87,7 +88,7 @@ for (const [name, message, expected] of serverMessageCases) {
   });
 }
 
-test("shipped protocol declaration stays aligned with the current runtime surface", () => {
+test("shipped protocol declaration exposes the expected public surface", () => {
   for (const pattern of [
     /export interface FileUpdatedMessage/,
     /type:\s*"file-updated";/,
