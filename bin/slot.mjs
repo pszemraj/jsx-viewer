@@ -34,6 +34,14 @@ const Placeholder: PlaceholderComponent = Object.assign(() => null, {
 export default Placeholder;
 `;
 
+/**
+ * @param {string} content
+ * @returns {string}
+ */
+function normalizeLineEndings(content) {
+  return content.replace(/\r\n/g, "\n");
+}
+
 function getRuntimeSlotsBase() {
   const configuredRoot = process.env[RUNTIME_SLOTS_ENV]?.trim();
   if (configuredRoot) {
@@ -191,7 +199,8 @@ export function readSlot(slotPath = TRACKED_SLOT_PATH) {
  * @returns {boolean}
  */
 export function slotMatchesPlaceholder(slotPath = TRACKED_SLOT_PATH) {
-  return readSlot(slotPath) === PLACEHOLDER;
+  const content = readSlot(slotPath);
+  return content !== null && normalizeLineEndings(content) === PLACEHOLDER;
 }
 
 /**

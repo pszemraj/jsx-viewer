@@ -41,6 +41,7 @@ import {
   markRuntimePortActive,
   readSlot,
   resetSlot,
+  slotMatchesPlaceholder,
   writeSlot,
 } from "./slot.mjs";
 import {
@@ -331,6 +332,18 @@ test("clearRuntimeSlots removes only viewer-managed port directories", () => {
     });
   } finally {
     rmSync(runtimeSlotsBase, { recursive: true, force: true });
+  }
+});
+
+test("slotMatchesPlaceholder accepts the tracked placeholder with CRLF line endings", () => {
+  const tempDir = mkdtempSync(path.join(os.tmpdir(), "jsx-viewer-slot-"));
+  const slotPath = path.join(tempDir, "View.tsx");
+
+  try {
+    writeFileSync(slotPath, PLACEHOLDER.replace(/\n/g, "\r\n"), "utf8");
+    assert.equal(slotMatchesPlaceholder(slotPath), true);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
