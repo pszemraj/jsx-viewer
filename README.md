@@ -54,16 +54,22 @@ When a file is already loaded, use the toolbar `clear` button to return to the e
 ### Options
 
 ```bash
-node bin/jsx-viewer.mjs [options] [file.tsx]
+node bin/jsx-viewer.mjs [options] [file.jsx|file.tsx]
 
-  -p, --port <n>   Dev server port (default: 3142)
+  -p, --port <n>   Viewer HTTP port (default: 3142)
+                   WebSocket listens on port + 1
   -v, --version    Show version
   -h, --help       Show help
 ```
 
-If you globally install/link the package, the same command becomes `jsx-viewer [options] [file.tsx]`.
+If you globally install/link the package, the same command becomes `jsx-viewer [options] [file.jsx|file.tsx]`.
 
-WebSocket runs on port + 1 (default: 3143).
+Pass zero or one `.jsx` / `.tsx` file. Unknown flags, duplicate `--port`
+arguments, unsupported input extensions, and extra positional arguments fail
+fast with a usage error instead of silently falling back to another workflow.
+
+WebSocket runs on port + 1 (default: 3143). The browser auto-opens on startup
+unless `CI` is already set.
 
 ### Component requirements
 
@@ -91,6 +97,8 @@ their module resolves.
 5. On exit, the slot resets to a placeholder - your file is never committed, the repo stays clean
 
 If the viewer still shows a previously loaded component after an abnormal stop, run `npm run slot:reset` before starting again.
+If startup fails after a file was requested (for example, a port conflict),
+`jsx-viewer` rolls the slot back to the tracked placeholder before exiting.
 
 ### Pre-installed libraries
 

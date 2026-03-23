@@ -14,6 +14,7 @@ import {
   type ClientMessage,
   type ServerMessage,
 } from "../shared/protocol";
+import { getWebSocketUrl } from "./runtimeConfig";
 
 const MONO = '"JetBrains Mono", "Fira Code", "SF Mono", monospace';
 const SANS = '"Inter", -apple-system, "Helvetica Neue", sans-serif';
@@ -102,10 +103,7 @@ function useWebSocket(onMessage: (message: ServerMessage) => void) {
     let isMounted = true;
 
     const connect = () => {
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const ws = new WebSocket(
-        `${protocol}//${window.location.hostname}:3143`,
-      );
+      const ws = new WebSocket(getWebSocketUrl(window.location));
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -156,7 +154,11 @@ function useWebSocket(onMessage: (message: ServerMessage) => void) {
   const send = useCallback((message: ClientMessage) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(message));
+      return true;
     }
+
+    console.warn("[jsx-viewer] Cannot send message while WebSocket is disconnected.");
+    return false;
   }, []);
 
   return { send, connected };
@@ -473,15 +475,17 @@ export default function App() {
 
   const handleContent = useCallback(
     (content: string, name: string) => {
-      send({ type: "load-artifact", content, filename: name });
-      setFilename(name);
+      if (send({ type: "load-artifact", content, filename: name })) {
+        setFilename(name);
+      }
     },
     [send],
   );
 
   const handleClear = useCallback(() => {
-    send({ type: "reset-slot" });
-    setFilename(null);
+    if (send({ type: "reset-slot" })) {
+      setFilename(null);
+    }
   }, [send]);
 
   return (

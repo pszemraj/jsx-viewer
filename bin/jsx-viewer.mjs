@@ -5,6 +5,11 @@ import path from "node:path";
 import { watch } from "chokidar";
 import { createServer } from "vite";
 import { WebSocket, WebSocketServer } from "ws";
+import {
+  CliUsageError,
+  getHelpText,
+  parseCliArgs,
+} from "./jsx-viewer-cli.mjs";
 import { assertSupportedNodeVersion } from "./node-version.mjs";
 import { ROOT, resetSlot, writeSlot } from "./slot.mjs";
 
@@ -20,72 +25,17 @@ const { version: VERSION } = JSON.parse(
   fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"),
 );
 
-function printHelp() {
-  console.log(`
-  jsx-viewer - render .jsx/.tsx files like .html
+function loadFileIntoSlot(filePath) {
+  let stats;
 
-  Usage:
-    node bin/jsx-viewer.mjs [options] [file.tsx]
-
-  After global install/link:
-    jsx-viewer [options] [file.tsx]
-
-  Options:
-    -p, --port <n>   Dev server port (default: 3142)
-    -h, --help       Show this help
-    -v, --version    Show version
-
-  Examples:
-    node bin/jsx-viewer.mjs                     # Start with the empty drop/upload/paste UI
-    node bin/jsx-viewer.mjs dashboard.tsx       # Start with a file already loaded and watched
-    node bin/jsx-viewer.mjs -p 8080 app.jsx     # Custom port with a preloaded file
-`);
-}
-
-function parseArgs(args) {
-  let inputFile = null;
-  let port = 3142;
-  let wsPort = 3143;
-
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-
-    if (arg === "--port" || arg === "-p") {
-      const next = args[index + 1];
-      const parsedPort = Number.parseInt(next ?? "", 10);
-      if (!Number.isInteger(parsedPort) || parsedPort <= 0) {
-        console.error("\x1b[31m[jsx-viewer]\x1b[0m Invalid port value.");
-        process.exit(1);
-      }
-
-      port = parsedPort;
-      wsPort = parsedPort + 1;
-      index += 1;
-      continue;
-    }
-
-    if (arg === "--help" || arg === "-h") {
-      printHelp();
-      process.exit(0);
-    }
-
-    if (arg === "--version" || arg === "-v") {
-      console.log(VERSION);
-      process.exit(0);
-    }
-
-    if (!arg.startsWith("-")) {
-      inputFile = path.resolve(arg);
-    }
+  try {
+    stats = fs.statSync(filePath);
+  } catch {
+    throw new Error(`File not found: ${filePath}`);
   }
 
-  return { inputFile, port, wsPort };
-}
-
-function loadFileIntoSlot(filePath) {
-  if (!fs.existsSync(filePath)) {
-    console.error(`\x1b[31mFile not found: ${filePath}\x1b[0m`);
-    process.exit(1);
+  if (!stats.isFile()) {
+    throw new Error(`Input path is not a file: ${filePath}`);
   }
 
   const content = fs.readFileSync(filePath, "utf-8");
@@ -120,21 +70,27 @@ function isClientMessage(value) {
   return false;
 }
 
-const { inputFile, port, wsPort } = parseArgs(process.argv.slice(2));
-
 let currentFilename = null;
 let watcher = null;
 let server = null;
-
-const wss = new WebSocketServer({ port: wsPort });
+let wss = null;
+let slotWasTouched = false;
 
 function broadcast(message) {
+  if (!wss) {
+    return;
+  }
+
   const serialized = JSON.stringify(message);
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(serialized);
     }
   });
+}
+
+function markSlotAsTouched() {
+  slotWasTouched = true;
 }
 
 function stopWatching() {
@@ -148,103 +104,34 @@ function startWatching(filePath) {
   stopWatching();
   watcher = watch(filePath, { ignoreInitial: true });
   watcher.on("change", () => {
-    currentFilename = loadFileIntoSlot(filePath);
-    broadcast({ type: "file-updated", filename: currentFilename });
-    console.log("\x1b[36m[jsx-viewer]\x1b[0m File changed, reloading...");
-  });
-}
-
-if (inputFile) {
-  currentFilename = loadFileIntoSlot(inputFile);
-  startWatching(inputFile);
-} else {
-  resetSlot();
-}
-
-wss.on("connection", (ws) => {
-  ws.send(
-    JSON.stringify({
-      type: "file-updated",
-      filename: currentFilename,
-    }),
-  );
-
-  ws.on("message", (raw) => {
     try {
-      const message = JSON.parse(raw.toString());
-      if (!isClientMessage(message)) {
-        throw new Error("Unsupported WebSocket payload.");
-      }
-
-      if (message.type === "reset-slot") {
-        stopWatching();
-        resetSlot();
-        currentFilename = null;
-        broadcast({ type: "file-updated", filename: null });
-        return;
-      }
-
-      stopWatching();
-      writeSlot(message.content);
-      currentFilename = message.filename || "pasted.tsx";
+      currentFilename = loadFileIntoSlot(filePath);
       broadcast({ type: "file-updated", filename: currentFilename });
+      console.log("\x1b[36m[jsx-viewer]\x1b[0m File changed, reloading...");
     } catch (error) {
       console.error(
-        "\x1b[31m[jsx-viewer]\x1b[0m Bad WebSocket message:",
+        "\x1b[31m[jsx-viewer]\x1b[0m Failed to reload watched file:",
         toError(error).message,
       );
     }
   });
-});
-
-server = await createServer({
-  root: ROOT,
-  configFile: path.join(ROOT, "vite.config.ts"),
-  server: {
-    port,
-    open: !process.env.CI,
-  },
-});
-
-await server.listen();
-
-console.log();
-console.log(`  \x1b[1m\x1b[36mjsx-viewer\x1b[0m \x1b[2mv${VERSION}\x1b[0m`);
-console.log();
-console.log(
-  `  \x1b[2m→\x1b[0m Viewer:    \x1b[36mhttp://localhost:${port}\x1b[0m`,
-);
-console.log(
-  `  \x1b[2m→\x1b[0m WebSocket: \x1b[2mws://localhost:${wsPort}\x1b[0m`,
-);
-if (inputFile) {
-  console.log(`  \x1b[2m→\x1b[0m Watching:  \x1b[33m${inputFile}\x1b[0m`);
 }
-console.log();
-if (inputFile) {
-  console.log(
-    '  \x1b[2mUse "swap file" in the browser or save the watched file to reload.\x1b[0m',
-  );
-} else {
-  console.log(
-    "  \x1b[2mDrop a .jsx/.tsx file in the browser, press Ctrl/Cmd+V to paste, or pass a file via CLI.\x1b[0m",
-  );
-}
-console.log();
 
 let cleaningUp = false;
 
-function cleanup() {
+function cleanup(exitCode = 0) {
   if (cleaningUp) {
     return;
   }
 
   cleaningUp = true;
 
-  try {
-    resetSlot();
-  } catch (error) {
-    console.error("[jsx-viewer] Failed to reset slot:", toError(error).message);
+  if (slotWasTouched) {
+    try {
+      resetSlot();
+    } catch (error) {
+      console.error("[jsx-viewer] Failed to reset slot:", toError(error).message);
+    }
   }
 
   try {
@@ -254,7 +141,7 @@ function cleanup() {
   }
 
   try {
-    wss.close();
+    wss?.close();
   } catch {
     // Ignore WebSocket shutdown failures.
   }
@@ -265,8 +152,131 @@ function cleanup() {
     // Ignore Vite shutdown failures.
   }
 
-  process.exit(0);
+  process.exit(exitCode);
 }
 
-process.on("SIGINT", cleanup);
-process.on("SIGTERM", cleanup);
+function registerWebSocketHandlers() {
+  wss.on("connection", (ws) => {
+    ws.send(
+      JSON.stringify({
+        type: "file-updated",
+        filename: currentFilename,
+      }),
+    );
+
+    ws.on("message", (raw) => {
+      try {
+        const message = JSON.parse(raw.toString());
+        if (!isClientMessage(message)) {
+          throw new Error("Unsupported WebSocket payload.");
+        }
+
+        if (message.type === "reset-slot") {
+          stopWatching();
+          resetSlot();
+          currentFilename = null;
+          broadcast({ type: "file-updated", filename: null });
+          return;
+        }
+
+        stopWatching();
+        writeSlot(message.content);
+        currentFilename = message.filename || "pasted.tsx";
+        broadcast({ type: "file-updated", filename: currentFilename });
+      } catch (error) {
+        console.error(
+          "\x1b[31m[jsx-viewer]\x1b[0m Bad WebSocket message:",
+          toError(error).message,
+        );
+      }
+    });
+  });
+}
+
+async function main() {
+  let cliArgs;
+
+  try {
+    cliArgs = parseCliArgs(process.argv.slice(2));
+  } catch (error) {
+    if (error instanceof CliUsageError) {
+      console.error(`\x1b[31m[jsx-viewer]\x1b[0m ${error.message}`);
+      process.exit(1);
+    }
+
+    throw error;
+  }
+
+  if (cliArgs.mode === "help") {
+    console.log(getHelpText());
+    return;
+  }
+
+  if (cliArgs.mode === "version") {
+    console.log(VERSION);
+    return;
+  }
+
+  const { inputFile, port, wsPort } = cliArgs;
+
+  try {
+    wss = new WebSocketServer({ port: wsPort });
+    registerWebSocketHandlers();
+
+    if (inputFile) {
+      currentFilename = loadFileIntoSlot(inputFile);
+      markSlotAsTouched();
+      startWatching(inputFile);
+    } else {
+      resetSlot();
+      markSlotAsTouched();
+    }
+
+    server = await createServer({
+      root: ROOT,
+      configFile: path.join(ROOT, "vite.config.ts"),
+      server: {
+        port,
+        open: !process.env.CI,
+        strictPort: true,
+      },
+    });
+
+    await server.listen();
+
+    console.log();
+    console.log(`  \x1b[1m\x1b[36mjsx-viewer\x1b[0m \x1b[2mv${VERSION}\x1b[0m`);
+    console.log();
+    console.log(
+      `  \x1b[2m→\x1b[0m Viewer:    \x1b[36mhttp://localhost:${port}\x1b[0m`,
+    );
+    console.log(
+      `  \x1b[2m→\x1b[0m WebSocket: \x1b[2mws://localhost:${wsPort}\x1b[0m`,
+    );
+    if (inputFile) {
+      console.log(`  \x1b[2m→\x1b[0m Watching:  \x1b[33m${inputFile}\x1b[0m`);
+    }
+    console.log();
+    if (inputFile) {
+      console.log(
+        '  \x1b[2mUse "swap file" in the browser or save the watched file to reload.\x1b[0m',
+      );
+    } else {
+      console.log(
+        "  \x1b[2mDrop a .jsx/.tsx file in the browser, press Ctrl/Cmd+V to paste, or pass a file via CLI.\x1b[0m",
+      );
+    }
+    console.log();
+
+    process.on("SIGINT", cleanup);
+    process.on("SIGTERM", cleanup);
+  } catch (error) {
+    console.error(
+      "\x1b[31m[jsx-viewer]\x1b[0m Failed to start:",
+      toError(error).message,
+    );
+    cleanup(1);
+  }
+}
+
+await main();
