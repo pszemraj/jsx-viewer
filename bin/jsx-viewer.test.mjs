@@ -47,6 +47,7 @@ import {
   WATCHED_ARTIFACT_EVENTS,
   createQueuedArtifactReload,
   getViteServerConfig,
+  mergeCleanupExitCode,
   registerWatchedArtifactEvents,
   waitForCloseOperation,
 } from "./jsx-viewer-runtime.mjs";
@@ -444,6 +445,13 @@ test("waitForCloseOperation waits for close completion but caps hanging shutdown
 
   assert.ok(elapsedMs >= 10);
   assert.ok(elapsedMs < 200);
+});
+
+test("mergeCleanupExitCode preserves failure status across overlapping shutdown requests", () => {
+  assert.equal(mergeCleanupExitCode(0, 0), 0);
+  assert.equal(mergeCleanupExitCode(0, 1), 1);
+  assert.equal(mergeCleanupExitCode(1, 0), 1);
+  assert.equal(mergeCleanupExitCode(1, 1), 1);
 });
 
 test("registerWatchedArtifactEvents subscribes to add and change with one shared handler", () => {

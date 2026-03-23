@@ -78,6 +78,7 @@ let slotWasTouched = false;
 let runtimePort = null;
 /** @type {Promise<void> | null} */
 let cleanupPromise = null;
+let scheduledExitCode = 0;
 /** @type {QueuedArtifactReload | null} */
 let queuedWatchedFileReload = null;
 /** @type {Array<"add" | "change">} */
@@ -186,6 +187,17 @@ export function registerWatchedArtifactEvents(fileWatcher, onArtifactEvent) {
 }
 
 /**
+ * Preserve the highest-priority exit code across overlapping cleanup requests.
+ *
+ * @param {number} currentExitCode
+ * @param {number} [nextExitCode]
+ * @returns {number}
+ */
+export function mergeCleanupExitCode(currentExitCode, nextExitCode = 0) {
+  return Math.max(currentExitCode, nextExitCode);
+}
+
+/**
  * @param {PromiseLike<unknown> | undefined | null} pendingClose
  * @param {number} [timeoutMs]
  * @returns {Promise<void>}
@@ -242,6 +254,8 @@ function startWatching(filePath) {
  * @returns {Promise<void>}
  */
 async function cleanup(exitCode = 0) {
+  scheduledExitCode = mergeCleanupExitCode(scheduledExitCode, exitCode);
+
   if (cleanupPromise) {
     return cleanupPromise;
   }
@@ -282,7 +296,7 @@ async function cleanup(exitCode = 0) {
       // Ignore Vite shutdown failures.
     }
 
-    process.exit(exitCode);
+    process.exit(scheduledExitCode);
   })();
 
   return cleanupPromise;
@@ -414,6 +428,7 @@ export async function main(cliArgs) {
   }
 
   const { inputFile, port, wsPort } = cliArgs;
+  scheduledExitCode = 0;
   runtimePort = port;
 
   try {
