@@ -64,6 +64,8 @@ function LoadingPreview() {
 
 export function SlotPreview({ Component, version }: SlotPreviewProps) {
   return (
+    // Reset the preview subtree on each successful reload so stale render
+    // errors and lazy-resolution state do not leak across artifact swaps.
     <ErrorBoundary key={version} resetKey={version}>
       <Suspense fallback={<LoadingPreview />}>
         <Component />

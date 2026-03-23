@@ -19,6 +19,16 @@ const LazyComponent = lazy(async () => ({ default: PlainComponent }));
 
 type SlotComponentCase = readonly [name: string, value: unknown, expected: boolean];
 
+function getWrapperMarker(value: unknown) {
+  return (value as { $$typeof?: symbol }).$$typeof;
+}
+
+test("wrapper guards match the installed React runtime markers", () => {
+  assert.equal(getWrapperMarker(MemoComponent), Symbol.for("react.memo"));
+  assert.equal(getWrapperMarker(ForwardRefComponent), Symbol.for("react.forward_ref"));
+  assert.equal(getWrapperMarker(LazyComponent), Symbol.for("react.lazy"));
+});
+
 for (const [name, value, expected] of [
   ["accepts plain function components", PlainComponent, true],
   ["accepts memo component exports", MemoComponent, true],

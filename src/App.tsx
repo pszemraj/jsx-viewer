@@ -17,6 +17,8 @@ import {
 import { getWebSocketUrl } from "./runtimeConfig";
 import { registerAfterUpdateReload } from "./hotReload";
 
+// The viewer shell uses inline styles on purpose so its chrome stays isolated
+// from the loaded artifact's Tailwind classes and any class-name collisions.
 const MONO = '"JetBrains Mono", "Fira Code", "SF Mono", monospace';
 const SANS = '"Inter", -apple-system, "Helvetica Neue", sans-serif';
 declare const __JSX_VIEWER_SLOT_MODULE_URL__: string;
