@@ -67,10 +67,6 @@ function broadcast(message) {
   });
 }
 
-function markSlotAsTouched() {
-  slotWasTouched = true;
-}
-
 function stopWatching() {
   if (watcher) {
     void watcher.close();
@@ -203,11 +199,11 @@ async function main() {
 
     if (inputFile) {
       currentFilename = loadFileIntoSlot(inputFile);
-      markSlotAsTouched();
+      slotWasTouched = true;
       startWatching(inputFile);
     } else {
       resetSlot();
-      markSlotAsTouched();
+      slotWasTouched = true;
     }
 
     server = await createServer({

@@ -7,56 +7,48 @@ import {
   parseConfiguredWebSocketPort,
 } from "./runtimeConfig";
 
-test("derives the WebSocket port from the active viewer port", () => {
-  assert.equal(
-    getWebSocketUrl({
-      protocol: "http:",
-      hostname: "localhost",
-      port: "8080",
-    }),
+type WebSocketUrlCase = readonly [
+  name: string,
+  location: Parameters<typeof getWebSocketUrl>[0],
+  configuredPort: number | undefined,
+  expected: string,
+];
+
+const webSocketUrlCases: WebSocketUrlCase[] = [
+  [
+    "derives the WebSocket port from the active viewer port",
+    { protocol: "http:", hostname: "localhost", port: "8080" },
+    undefined,
     "ws://localhost:8081",
-  );
-});
-
-test("falls back to the documented default ports when the browser port is absent", () => {
-  assert.equal(
-    getWebSocketUrl({
-      protocol: "http:",
-      hostname: "127.0.0.1",
-      port: "",
-    }),
+  ],
+  [
+    "falls back to the documented default ports when the browser port is absent",
+    { protocol: "http:", hostname: "127.0.0.1", port: "" },
+    undefined,
     `ws://127.0.0.1:${DEFAULT_VIEWER_PORT + WEB_SOCKET_PORT_OFFSET}`,
-  );
-});
-
-test("preserves secure websocket protocol when the viewer is served over https", () => {
-  assert.equal(
-    getWebSocketUrl({
-      protocol: "https:",
-      hostname: "viewer.local",
-      port: "9443",
-    }),
+  ],
+  [
+    "preserves secure websocket protocol when the viewer is served over https",
+    { protocol: "https:", hostname: "viewer.local", port: "9443" },
+    undefined,
     "wss://viewer.local:9444",
-  );
-});
-
-test("uses the injected WebSocket port when the viewer runs on a standard port", () => {
-  assert.equal(
-    getWebSocketUrl(
-      {
-        protocol: "https:",
-        hostname: "viewer.local",
-        port: "",
-      },
-      444,
-    ),
+  ],
+  [
+    "uses the injected WebSocket port when the viewer runs on a standard port",
+    { protocol: "https:", hostname: "viewer.local", port: "" },
+    444,
     "wss://viewer.local:444",
-  );
-});
+  ],
+];
+
+for (const [name, location, configuredPort, expected] of webSocketUrlCases) {
+  test(name, () => {
+    assert.equal(getWebSocketUrl(location, configuredPort), expected);
+  });
+}
 
 test("ignores invalid injected WebSocket ports", () => {
-  assert.equal(parseConfiguredWebSocketPort(undefined), null);
-  assert.equal(parseConfiguredWebSocketPort(""), null);
-  assert.equal(parseConfiguredWebSocketPort("abc"), null);
-  assert.equal(parseConfiguredWebSocketPort("0"), null);
+  for (const value of [undefined, "", "abc", "0"]) {
+    assert.equal(parseConfiguredWebSocketPort(value), null);
+  }
 });

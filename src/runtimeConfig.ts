@@ -10,26 +10,21 @@ interface BrowserLocationLike {
   protocol: string;
 }
 
-export function parseConfiguredWebSocketPort(portText: string | undefined) {
-  if (typeof portText !== "string" || portText.length === 0) {
+function parsePositiveInteger(value: string | undefined) {
+  if (typeof value !== "string" || value.length === 0) {
     return null;
   }
 
-  const parsedPort = Number.parseInt(portText, 10);
-  if (!Number.isInteger(parsedPort) || parsedPort <= 0) {
+  const parsedValue = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsedValue) || parsedValue <= 0) {
     return null;
   }
 
-  return parsedPort;
+  return parsedValue;
 }
 
-function resolveViewerPort(portText: string) {
-  const parsedPort = Number.parseInt(portText, 10);
-  if (Number.isInteger(parsedPort) && parsedPort > 0) {
-    return parsedPort;
-  }
-
-  return DEFAULT_VIEWER_PORT;
+export function parseConfiguredWebSocketPort(portText: string | undefined) {
+  return parsePositiveInteger(portText);
 }
 
 export function getWebSocketUrl(
@@ -39,8 +34,8 @@ export function getWebSocketUrl(
   ),
 ) {
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+  const viewerPort = parsePositiveInteger(location.port) ?? DEFAULT_VIEWER_PORT;
   const webSocketPort =
-    configuredWebSocketPort ??
-    resolveViewerPort(location.port) + WEB_SOCKET_PORT_OFFSET;
+    configuredWebSocketPort ?? viewerPort + WEB_SOCKET_PORT_OFFSET;
   return `${protocol}//${location.hostname}:${webSocketPort}`;
 }
