@@ -1,2 +1,2 @@
 #!/bin/sh
-npm run --silent guard:slot || exit 1
+exec node bin/check-slot.mjs
