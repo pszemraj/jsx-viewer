@@ -10,6 +10,8 @@ AGENTS.md
 .tmp/
 demo.out
 demo.err
+cli.out
+cli.err
 
 # The component slot file is transient - never committed
 # (except the placeholder version that ships with the repo)
