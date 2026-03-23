@@ -42,6 +42,9 @@ function runCli(args, options = {}) {
 test("cli entrypoint does not depend on the tsx loader", () => {
   assert.doesNotMatch(cliEntrypoint, /tsx\/esm\/api/);
   assert.doesNotMatch(cliEntrypoint, /jsx-viewer\.ts/);
+  assert.doesNotMatch(cliEntrypoint, /from "vite"/);
+  assert.doesNotMatch(cliEntrypoint, /from "ws"/);
+  assert.match(cliEntrypoint, /await import\("\.\/jsx-viewer-runtime\.mjs"\)/);
   assert.equal(existsSync(new URL("./jsx-viewer.ts", import.meta.url)), false);
 });
 
@@ -171,6 +174,40 @@ test("startup failures roll the transient slot back to the placeholder", async (
   }
 });
 
+test("WebSocket port conflicts still restore the tracked placeholder", async () => {
+  const originalSlot = readSlot();
+  const blocker = createServer();
+
+  try {
+    writeSlot("export default function Dirty() { return <div>dirty</div>; }\n");
+
+    await new Promise((resolve, reject) => {
+      blocker.once("error", reject);
+      blocker.listen(0, resolve);
+    });
+
+    const address = blocker.address();
+    assert.notEqual(address, null);
+    assert.equal(typeof address, "object");
+
+    const viewerPort = address.port - WEB_SOCKET_PORT_OFFSET;
+    assert.ok(viewerPort > 0);
+
+    const result = runCli(["--port", String(viewerPort)]);
+
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Failed to start:/);
+    assert.equal(readSlot(), PLACEHOLDER);
+  } finally {
+    await new Promise((resolve) => blocker.close(resolve));
+    if (originalSlot === null) {
+      resetSlot();
+    } else {
+      writeSlot(originalSlot);
+    }
+  }
+});
+
 test("npm pack only ships runtime package files", () => {
   const result = spawnSync("npm", ["pack", "--dry-run", "--json", "--silent"], {
     cwd: REPO_ROOT,
@@ -190,5 +227,6 @@ test("npm pack only ships runtime package files", () => {
   assert.equal(packedPaths.includes("shared/runtime-config.json"), true);
   assert.equal(packedPaths.includes("bin/jsx-viewer-cli.mjs"), true);
   assert.equal(packedPaths.includes("bin/jsx-viewer.mjs"), true);
+  assert.equal(packedPaths.includes("bin/jsx-viewer-runtime.mjs"), true);
   assert.equal(packedPaths.includes("src/App.tsx"), true);
 });

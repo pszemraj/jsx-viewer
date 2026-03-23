@@ -9,6 +9,7 @@
     "bin/check-slot.mjs",
     "bin/jsx-viewer-cli.mjs",
     "bin/jsx-viewer.mjs",
+    "bin/jsx-viewer-runtime.mjs",
     "bin/node-version.mjs",
     "bin/setup-hooks.mjs",
     "bin/slot.mjs",
