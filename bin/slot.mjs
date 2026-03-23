@@ -58,8 +58,13 @@ export function getRuntimeCacheDir(port) {
   return path.join(getRuntimeCacheRoot(), `port-${port}`);
 }
 
+function toViteFsPath(fileUrl) {
+  // Vite's /@fs prefix expects UNC hosts to remain in the request path.
+  return fileUrl.host ? `//${fileUrl.host}${fileUrl.pathname}` : fileUrl.pathname;
+}
+
 export function getRuntimeSlotModuleUrl(port) {
-  return `/@fs${pathToFileURL(getRuntimeSlotPath(port)).pathname}`;
+  return `/@fs${toViteFsPath(pathToFileURL(getRuntimeSlotPath(port)))}`;
 }
 
 function ensureSlotDir(slotPath) {

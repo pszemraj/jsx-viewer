@@ -87,6 +87,11 @@ function withRuntimeSlotsDir(runtimeSlotsDir, callback) {
   }
 }
 
+function getExpectedRuntimeSlotModuleUrl(filePath) {
+  const fileUrl = pathToFileURL(filePath);
+  return `/@fs${fileUrl.host ? `//${fileUrl.host}${fileUrl.pathname}` : fileUrl.pathname}`;
+}
+
 test("cli entrypoint does not depend on the tsx loader", () => {
   assert.doesNotMatch(cliEntrypoint, /tsx\/esm\/api/);
   assert.doesNotMatch(cliEntrypoint, /jsx-viewer\.ts/);
@@ -233,16 +238,35 @@ test("runtime slot module URLs encode URL-significant path characters", () => {
     const runtimeSlotUrl = getRuntimeSlotModuleUrl(DEFAULT_VIEWER_PORT);
     const parsedUrl = new URL(runtimeSlotUrl, "http://localhost");
 
-    assert.equal(
-      parsedUrl.pathname,
-      `/@fs${pathToFileURL(runtimeSlotPath).pathname}`,
-    );
+    assert.equal(parsedUrl.pathname, getExpectedRuntimeSlotModuleUrl(runtimeSlotPath));
     assert.equal(parsedUrl.search, "");
     assert.equal(parsedUrl.hash, "");
     assert.match(runtimeSlotUrl, /%23/);
     assert.match(runtimeSlotUrl, /%3F/);
   });
 });
+
+test(
+  "runtime slot module URLs preserve UNC hosts on Windows runtime roots",
+  { skip: process.platform !== "win32" },
+  () => {
+    const runtimeSlotsBase = String.raw`\\server\share\runtime-root#hash?query`;
+
+    withRuntimeSlotsDir(runtimeSlotsBase, () => {
+      const runtimeSlotPath = getRuntimeSlotPath(DEFAULT_VIEWER_PORT);
+      const runtimeSlotUrl = getRuntimeSlotModuleUrl(DEFAULT_VIEWER_PORT);
+      const parsedUrl = new URL(runtimeSlotUrl, "http://localhost");
+
+      assert.match(runtimeSlotPath, /^\\\\server\\share\\/);
+      assert.equal(parsedUrl.pathname, getExpectedRuntimeSlotModuleUrl(runtimeSlotPath));
+      assert.equal(parsedUrl.search, "");
+      assert.equal(parsedUrl.hash, "");
+      assert.match(runtimeSlotUrl, /^\/@fs\/\/server\/share\//);
+      assert.match(runtimeSlotUrl, /%23/);
+      assert.match(runtimeSlotUrl, /%3F/);
+    });
+  },
+);
 
 test("clearRuntimeSlots removes only viewer-managed port directories", () => {
   const runtimeSlotsBase = mkdtempSync(path.join(os.tmpdir(), "jsx-viewer-slots-"));
