@@ -1,11 +1,37 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import type { ClientMessage, ServerMessage } from "./protocol.d.mts";
+import type {
+  ClientMessage as DeclaredClientMessage,
+  ServerMessage as DeclaredServerMessage,
+} from "./protocol.d.mts";
 import { isClientMessage, isServerMessage } from "./protocol.mjs";
 
 type MessageCase = readonly [name: string, message: unknown, expected: boolean];
 type TypedMessageCase<TMessage> = readonly [name: string, message: TMessage];
+type GuardedType<TGuard> =
+  TGuard extends (value: unknown) => value is infer TMessage ? TMessage : never;
+type IsExactly<TLeft, TRight> = (<TValue>() => TValue extends TLeft ? 1 : 2) extends <
+  TValue,
+>() => TValue extends TRight ? 1 : 2
+  ? (<TValue>() => TValue extends TRight ? 1 : 2) extends <
+      TValue,
+    >() => TValue extends TLeft ? 1 : 2
+    ? true
+    : false
+  : false;
+type Assert<TValue extends true> = TValue;
+
+// Keep the shipped declaration file and the JSDoc-exposed runtime guard
+// surface in lockstep. If either side drifts, typecheck fails in CI.
+type RuntimeClientMessage = GuardedType<typeof isClientMessage>;
+type RuntimeServerMessage = GuardedType<typeof isServerMessage>;
+type _ClientMessageContractMatches = Assert<
+  IsExactly<RuntimeClientMessage, DeclaredClientMessage>
+>;
+type _ServerMessageContractMatches = Assert<
+  IsExactly<RuntimeServerMessage, DeclaredServerMessage>
+>;
 
 const declarationSource = readFileSync(
   new URL("./protocol.d.mts", import.meta.url),
@@ -22,12 +48,12 @@ const validClientMessageCases = [
     },
   ],
   ["accepts reset-slot client messages", { type: "reset-slot" }],
-] as const satisfies readonly TypedMessageCase<ClientMessage>[];
+] as const satisfies readonly TypedMessageCase<DeclaredClientMessage>[];
 
 const validServerMessageCases = [
   ["accepts file-updated payloads with a filename", { type: "file-updated", filename: "Example.tsx" }],
   ["accepts file-updated payloads without a filename", { type: "file-updated", filename: null }],
-] as const satisfies readonly TypedMessageCase<ServerMessage>[];
+] as const satisfies readonly TypedMessageCase<DeclaredServerMessage>[];
 
 const clientMessageCases: MessageCase[] = [
   ...validClientMessageCases.map(([name, message]) => [name, message, true] as const),
