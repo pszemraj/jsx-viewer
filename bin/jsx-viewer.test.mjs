@@ -43,7 +43,13 @@ import {
   resetSlot,
   writeSlot,
 } from "./slot.mjs";
-import { getViteServerConfig, waitForCloseOperation } from "./jsx-viewer-runtime.mjs";
+import {
+  WATCHED_ARTIFACT_EVENTS,
+  createQueuedArtifactReload,
+  getViteServerConfig,
+  registerWatchedArtifactEvents,
+  waitForCloseOperation,
+} from "./jsx-viewer-runtime.mjs";
 
 const REPO_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const CLI_PATH = fileURLToPath(new URL("./jsx-viewer.mjs", import.meta.url));
@@ -438,6 +444,47 @@ test("waitForCloseOperation waits for close completion but caps hanging shutdown
 
   assert.ok(elapsedMs >= 10);
   assert.ok(elapsedMs < 200);
+});
+
+test("registerWatchedArtifactEvents subscribes to add and change with one shared handler", () => {
+  /** @type {Array<{ event: string, listener: () => void }>} */
+  const registrations = [];
+  const listener = () => {};
+
+  registerWatchedArtifactEvents(
+    {
+      on(event, handler) {
+        registrations.push({ event, listener: handler });
+      },
+    },
+    listener,
+  );
+
+  assert.deepEqual(
+    registrations.map(({ event }) => event),
+    WATCHED_ARTIFACT_EVENTS,
+  );
+  assert.equal(registrations[0]?.listener, listener);
+  assert.equal(registrations[1]?.listener, listener);
+});
+
+test("createQueuedArtifactReload coalesces save bursts and cancels pending reloads", async () => {
+  let reloadCount = 0;
+  const queueReload = createQueuedArtifactReload(() => {
+    reloadCount += 1;
+  }, setTimeout, clearTimeout, 10);
+
+  queueReload();
+  queueReload();
+  await new Promise((resolve) => setTimeout(resolve, 30));
+
+  assert.equal(reloadCount, 1);
+
+  queueReload();
+  queueReload.dispose();
+  await new Promise((resolve) => setTimeout(resolve, 30));
+
+  assert.equal(reloadCount, 1);
 });
 
 test("parseCliArgs returns the documented default workflow", () => {

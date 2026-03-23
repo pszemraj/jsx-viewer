@@ -20,12 +20,14 @@ import {
  * @typedef {import("chokidar").FSWatcher} FSWatcher
  * @typedef {import("vite").InlineConfig} ViteServerConfig
  * @typedef {import("vite").ViteDevServer} ViteDevServer
+ * @typedef {{ on(event: "add" | "change", listener: () => void): unknown }} ArtifactWatcher
  * @typedef {import("ws").RawData} WebSocketRawData
  * @typedef {import("ws").WebSocket} RuntimeWebSocket
  * @typedef {import("ws").WebSocketServer} RuntimeWebSocketServer
  * @typedef {import("../shared/protocol.mjs").ClientMessage} ClientMessage
  * @typedef {import("../shared/protocol.mjs").ServerMessage} ServerMessage
  * @typedef {{mode: "run", inputFile: string | null, port: number, wsPort: number}} RunCliArgs
+ * @typedef {{ (): void, dispose(): void }} QueuedArtifactReload
  */
 
 const { version: VERSION } = JSON.parse(
@@ -76,6 +78,10 @@ let slotWasTouched = false;
 let runtimePort = null;
 /** @type {Promise<void> | null} */
 let cleanupPromise = null;
+/** @type {QueuedArtifactReload | null} */
+let queuedWatchedFileReload = null;
+/** @type {Array<"add" | "change">} */
+export const WATCHED_ARTIFACT_EVENTS = ["add", "change"];
 
 /**
  * @param {ServerMessage} message
@@ -117,9 +123,65 @@ function requireWebSocketServer() {
 }
 
 function stopWatching() {
+  queuedWatchedFileReload?.dispose();
+  queuedWatchedFileReload = null;
+
   if (watcher) {
     void watcher.close();
     watcher = null;
+  }
+}
+
+/**
+ * Coalesce atomic-save add/change bursts into one slot write so editor save
+ * strategies keep the watched-file workflow stable without duplicate reloads.
+ *
+ * @param {() => void} reloadArtifact
+ * @param {(callback: () => void, delayMs: number) => ReturnType<typeof setTimeout>} [schedule]
+ * @param {(timer: ReturnType<typeof setTimeout>) => void} [cancel]
+ * @param {number} [delayMs]
+ * @returns {QueuedArtifactReload}
+ */
+export function createQueuedArtifactReload(
+  reloadArtifact,
+  schedule = setTimeout,
+  cancel = clearTimeout,
+  delayMs = 25,
+) {
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let timer = null;
+
+  const queueReload = /** @type {QueuedArtifactReload} */ (() => {
+    if (timer !== null) {
+      cancel(timer);
+    }
+
+    timer = schedule(() => {
+      timer = null;
+      reloadArtifact();
+    }, delayMs);
+  });
+
+  queueReload.dispose = () => {
+    if (timer === null) {
+      return;
+    }
+
+    cancel(timer);
+    timer = null;
+  };
+
+  return queueReload;
+}
+
+/**
+ * @param {ArtifactWatcher} fileWatcher
+ * @param {() => void} onArtifactEvent
+ * @returns {void}
+ */
+export function registerWatchedArtifactEvents(fileWatcher, onArtifactEvent) {
+  for (const eventName of WATCHED_ARTIFACT_EVENTS) {
+    fileWatcher.on(eventName, onArtifactEvent);
   }
 }
 
@@ -158,7 +220,8 @@ function startWatching(filePath) {
   const port = requireRuntimePort();
   stopWatching();
   watcher = watch(filePath, { ignoreInitial: true });
-  watcher.on("change", () => {
+
+  queuedWatchedFileReload = createQueuedArtifactReload(() => {
     try {
       currentFilename = loadFileIntoSlot(filePath, getRuntimeSlotPath(port));
       broadcast({ type: "file-updated", filename: currentFilename });
@@ -170,6 +233,8 @@ function startWatching(filePath) {
       );
     }
   });
+
+  registerWatchedArtifactEvents(watcher, queuedWatchedFileReload);
 }
 
 /**
