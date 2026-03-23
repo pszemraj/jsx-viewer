@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const ROOT = path.resolve(__dirname, "..");
-export const SLOT = path.join(ROOT, "component", "View.tsx");
+const SLOT_PATH = path.join(ROOT, "component", "View.tsx");
 export const PLACEHOLDER = `type PlaceholderComponent = (() => null) & {
   __isPlaceholder: true;
 };
@@ -17,8 +17,8 @@ const Placeholder: PlaceholderComponent = Object.assign(() => null, {
 export default Placeholder;
 `;
 
-export function ensureSlotDir() {
-  const dir = path.dirname(SLOT);
+function ensureSlotDir() {
+  const dir = path.dirname(SLOT_PATH);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -26,7 +26,7 @@ export function ensureSlotDir() {
 
 export function writeSlot(content) {
   ensureSlotDir();
-  fs.writeFileSync(SLOT, content, "utf-8");
+  fs.writeFileSync(SLOT_PATH, content, "utf-8");
 }
 
 export function resetSlot() {
@@ -34,11 +34,11 @@ export function resetSlot() {
 }
 
 export function readSlot() {
-  if (!fs.existsSync(SLOT)) {
+  if (!fs.existsSync(SLOT_PATH)) {
     return null;
   }
 
-  return fs.readFileSync(SLOT, "utf-8");
+  return fs.readFileSync(SLOT_PATH, "utf-8");
 }
 
 export function slotMatchesPlaceholder() {

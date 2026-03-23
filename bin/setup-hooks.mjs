@@ -21,17 +21,23 @@ function getLocalHooksPath() {
   }
 }
 
+function unsetLocalHooksPath() {
+  if (getLocalHooksPath() !== HOOKS_PATH) {
+    return;
+  }
+
+  execFileSync("git", ["config", "--local", "--unset", "core.hooksPath"], {
+    stdio: "ignore",
+  });
+}
+
 try {
   execFileSync("git", ["rev-parse", "--is-inside-work-tree"], {
     stdio: "ignore",
   });
 
   if (!fs.existsSync(PRE_COMMIT_HOOK)) {
-    if (getLocalHooksPath() === HOOKS_PATH) {
-      execFileSync("git", ["config", "--local", "--unset", "core.hooksPath"], {
-        stdio: "ignore",
-      });
-    }
+    unsetLocalHooksPath();
     process.exit(0);
   }
 
@@ -39,11 +45,7 @@ try {
     process.platform !== "win32" || process.env[HOOKS_ENV] === "1";
 
   if (!shouldEnableHooks) {
-    if (getLocalHooksPath() === HOOKS_PATH) {
-      execFileSync("git", ["config", "--local", "--unset", "core.hooksPath"], {
-        stdio: "ignore",
-      });
-    }
+    unsetLocalHooksPath();
     process.exit(0);
   }
 
