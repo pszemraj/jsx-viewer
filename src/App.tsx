@@ -41,8 +41,15 @@ function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
 
-async function readTextFile(file: File): Promise<string> {
-  return file.text();
+function getFirstFile(files: FileList | null | undefined) {
+  return files?.item(0) ?? null;
+}
+
+async function readArtifactFile(file: File) {
+  return {
+    content: await file.text(),
+    name: file.name,
+  };
 }
 
 function useLoadedComponent() {
@@ -171,8 +178,8 @@ function DropZone({ onContent }: DropZoneProps) {
 
   const handleFile = useCallback(
     async (file: File) => {
-      const content = await readTextFile(file);
-      onContent(content, file.name);
+      const artifact = await readArtifactFile(file);
+      onContent(artifact.content, artifact.name);
     },
     [onContent],
   );
@@ -182,7 +189,7 @@ function DropZone({ onContent }: DropZoneProps) {
       event.preventDefault();
       setIsDragging(false);
 
-      const file = event.dataTransfer.files.item(0);
+      const file = getFirstFile(event.dataTransfer.files);
       if (file) {
         void handleFile(file);
       }
@@ -192,7 +199,7 @@ function DropZone({ onContent }: DropZoneProps) {
 
   const handleFileSelect = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.item(0);
+      const file = getFirstFile(event.target.files);
       if (file) {
         void handleFile(file);
       }
@@ -343,10 +350,10 @@ function Toolbar({ filename, connected, onClear, onSwap }: ToolbarProps) {
 
   const handleFileSelect = useCallback(
     async (event: ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.item(0);
+      const file = getFirstFile(event.target.files);
       if (file) {
-        const content = await readTextFile(file);
-        onSwap(content, file.name);
+        const artifact = await readArtifactFile(file);
+        onSwap(artifact.content, artifact.name);
       }
       event.target.value = "";
     },
@@ -459,10 +466,6 @@ export default function App() {
 
   const handleWsMessage = useCallback(
     (message: ServerMessage) => {
-      if (message.type !== "file-updated") {
-        return;
-      }
-
       setFilename(message.filename);
       window.setTimeout(() => {
         void reload();
