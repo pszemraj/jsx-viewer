@@ -1,27 +1,43 @@
-import React from "react";
+import {
+  Component,
+  type ErrorInfo,
+  type PropsWithChildren,
+  type ReactNode,
+} from "react";
 
-export class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { error: null, errorInfo: null };
+interface ErrorBoundaryProps extends PropsWithChildren {
+  resetKey: number;
+}
+
+interface ErrorBoundaryState {
+  error: Error | null;
+  errorInfo: ErrorInfo | null;
+}
+
+export class ErrorBoundary extends Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
+  override state: ErrorBoundaryState = {
+    error: null,
+    errorInfo: null,
+  };
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { error, errorInfo: null };
   }
 
-  static getDerivedStateFromError(error) {
-    return { error };
-  }
-
-  componentDidCatch(error, errorInfo) {
+  override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.setState({ error, errorInfo });
   }
 
-  componentDidUpdate(prevProps) {
-    // Reset error state when children change (new component loaded)
+  override componentDidUpdate(prevProps: Readonly<ErrorBoundaryProps>) {
     if (prevProps.resetKey !== this.props.resetKey) {
       this.setState({ error: null, errorInfo: null });
     }
   }
 
-  render() {
+  override render(): ReactNode {
     if (this.state.error) {
       return (
         <div

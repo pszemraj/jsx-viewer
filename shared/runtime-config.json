@@ -1,0 +1,5 @@
+{
+  "defaultViewerPort": 3142,
+  "webSocketPortOffset": 1,
+  "supportedInputExtensions": [".jsx", ".tsx"]
+}

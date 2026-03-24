@@ -1,11 +1,18 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import path from "path";
-import { fileURLToPath } from "url";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import runtimeConfig from "./shared/runtime-config.json";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  define: {
+    __JSX_VIEWER_SLOT_MODULE_URL__: JSON.stringify("/component/View.tsx"),
+    __JSX_VIEWER_WS_PORT__: JSON.stringify(
+      String(runtimeConfig.defaultViewerPort + runtimeConfig.webSocketPortOffset),
+    ),
+  },
   plugins: [react()],
   resolve: {
     alias: {
@@ -13,10 +20,9 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3142,
+    port: runtimeConfig.defaultViewerPort,
     open: true,
   },
-  // Pre-optimize heavy deps so first load is fast
   optimizeDeps: {
     include: [
       "react",
@@ -29,6 +35,7 @@ export default defineConfig({
       "mathjs",
       "papaparse",
       "chart.js",
+      "tone",
     ],
   },
 });
