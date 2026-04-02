@@ -31,6 +31,15 @@ Node `18.x`, `21.x`, `20.0.0` through `20.18.x`, and `22.0.0` through
 `package.json#engines`, and the CLI/build scripts fail early with a direct
 message when the runtime is too old.
 
+## Modes
+
+`jsx-viewer` now ships two distinct paths:
+
+- **Local viewer** (default) - `npm start` / `node bin/jsx-viewer.mjs file.tsx`. This remains the authoritative path for multi-file imports, live file watching, CLI preload, local package resolution, and stronger preview isolation requirements.
+- **GitHub Pages browser mode** - `npm run dev:browser` locally or deploy the browser build through [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml). This path accepts pasted/uploaded single-file `.jsx` / `.tsx`, transpiles in the browser, rewrites only allowlisted bare imports to repo-owned runtime modules, and renders directly into the app shell.
+
+Browser mode is a **trusted-artifact path**, not a sandbox.
+
 ## Usage
 
 There are four ways to get a component on screen:
@@ -135,18 +144,33 @@ These are available for `import` in your JSX/TSX files with no setup:
 
 If your artifact imports something not listed here, `npm install` it and restart the viewer. Vite picks it up automatically.
 
+### GitHub Pages Browser Mode
+
+The Pages/browser build is direct-render, same-origin, and self-contained:
+
+- it transpiles uploaded or pasted `.jsx` / `.tsx` in the browser with a repo-bundled Babel runtime
+- it rewrites only allowlisted bare imports to repo-built runtime modules like `runtime/react.js`
+- it renders the compiled module directly in the page, without an iframe
+- it shows a managed-browser preflight plus observed-origin diagnostics so policy failures do not degrade into a blank screen
+
+Pages mode intentionally rejects relative imports, absolute path imports, remote URLs, CommonJS, `process.env`, and `import.meta.env`. Use the local Node/Vite viewer when you need multi-file imports, local package resolution, or a more isolated preview path.
+
+For deployment, the included GitHub Actions workflow builds `dist-browser/`, renames `index.browser.html` to `index.html`, writes `.nojekyll`, uploads the Pages artifact, and deploys it with GitHub Pages. The workflow injects `VITE_BASE_PATH` from `actions/configure-pages@v5`, so standard repo-path Pages hosting works without hardcoding the repository name.
+
 ### Dev commands
 
 | Command                     | Purpose                                         |
 | --------------------------- | ----------------------------------------------- |
 | `npm start` / `npm run dev` | Launch the empty drop/upload/paste UI           |
 | `npm run demo`              | Preload and watch `example/Dashboard.tsx`       |
+| `npm run dev:browser`       | Launch the direct-render browser-only entry     |
 | `npm run slot:reset`        | Restore `component/View.tsx` and clear inactive runtime slots/cache for this checkout |
 | `npm run guard:slot`        | Fail if `component/View.tsx` differs from the placeholder |
 | `npm test`                  | Run the CLI, protocol, runtime, and UI test suite |
 | `npm run lint`              | Run ESLint                                      |
 | `npm run typecheck`         | Run TypeScript and checked-JS type-checking     |
 | `npm run build`             | Production build to `dist/`                     |
+| `npm run build:browser`     | Production browser build to `dist-browser/`     |
 
 On non-Windows systems, `npm install` also configures a repo-local pre-commit hook that blocks commits when `component/View.tsx` has been changed away from the tracked placeholder.
 
