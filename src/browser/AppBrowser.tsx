@@ -6,7 +6,6 @@ import {
   type ChangeEvent,
   type DragEvent,
   type MouseEvent,
-  type ReactNode,
 } from "react";
 import { SlotPreview } from "../SlotPreview";
 import { createLoadTracker } from "../loadTracker";
@@ -36,8 +35,11 @@ interface DropZoneProps {
 }
 
 interface ToolbarProps {
+  diagnostics: DiagnosticsState;
+  diagnosticsOpen: boolean;
   filename: string | null;
   onClear: () => void;
+  onToggleDiagnostics: () => void;
   onSwap: (content: string, name: string) => void;
 }
 
@@ -76,16 +78,41 @@ function createPreflightError(report: CorporatePreflightReport) {
   return new Error(lines.join("\n"));
 }
 
+function getDiagnosticsMeta(diagnostics: DiagnosticsState) {
+  const isReady = diagnostics.status === "ready";
+  const isBlocked = isReady && diagnostics.report !== null && !diagnostics.report.ok;
+
+  return {
+    isBlocked,
+    accent: isBlocked ? "#ef4444" : isReady ? "#0cce6b" : "#f59e0b",
+    border: isBlocked ? "#4b1d1d" : isReady ? "#17361f" : "#4b3604",
+    background: isBlocked
+      ? "rgba(127, 29, 29, 0.18)"
+      : isReady
+        ? "rgba(12, 206, 107, 0.08)"
+        : "rgba(245, 158, 11, 0.08)",
+    label: !isReady ? "checking" : isBlocked ? "attention" : "ready",
+    headline: !isReady
+      ? "Managed-browser diagnostics are still checking this browser."
+      : isBlocked
+        ? "This browser or policy is blocking a requirement for Pages mode."
+        : "Managed-browser diagnostics passed.",
+    summary: !isReady
+      ? "Blob-backed ES module import support is still being probed."
+      : isBlocked
+        ? "Blob-backed ES module imports are unavailable here, so direct-render browser mode cannot execute uploaded artifacts."
+        : "Blob-backed imports are available. After initial load, this Pages app should only fetch same-origin runtime assets.",
+  };
+}
+
 function ErrorPanel({
   title,
   error,
   details,
-  footer,
 }: {
   title: string;
   error: Error;
   details?: string;
-  footer?: ReactNode;
 }) {
   return (
     <div
@@ -154,7 +181,6 @@ function ErrorPanel({
             {details}
           </p>
         ) : null}
-        {footer ? <div style={{ marginTop: "20px" }}>{footer}</div> : null}
       </div>
     </div>
   );
@@ -162,10 +188,8 @@ function ErrorPanel({
 
 function LoadingState({
   status,
-  footer,
 }: {
   status: string;
-  footer?: ReactNode;
 }) {
   return (
     <div
@@ -215,7 +239,6 @@ function LoadingState({
           Browser mode compiles the artifact client-side, then imports it
           directly into this page. This is a trusted-code path, not a sandbox.
         </p>
-        {footer ? <div style={{ marginTop: "20px" }}>{footer}</div> : null}
       </div>
     </div>
   );
@@ -228,33 +251,16 @@ function DiagnosticsPanel({
   diagnostics: DiagnosticsState;
   compact?: boolean;
 }) {
-  const isReady = diagnostics.status === "ready";
-  const isBlocked = isReady && diagnostics.report !== null && !diagnostics.report.ok;
-  const accent = isBlocked ? "#ef4444" : isReady ? "#0cce6b" : "#f59e0b";
-  const border = isBlocked ? "#4b1d1d" : isReady ? "#17361f" : "#4b3604";
-  const background = isBlocked
-    ? "rgba(127, 29, 29, 0.18)"
-    : isReady
-      ? "rgba(12, 206, 107, 0.08)"
-      : "rgba(245, 158, 11, 0.08)";
-  const headline = !isReady
-    ? "managed-browser preflight in progress"
-    : isBlocked
-      ? "managed-browser policy blocked browser mode"
-      : "managed-browser preflight passed";
-  const summary = !isReady
-    ? "Checking whether this browser/policy allows blob-backed ES module imports before artifact load."
-    : isBlocked
-      ? "Blob-backed ES module imports are unavailable here, so the direct-render Pages viewer cannot execute uploaded artifacts."
-      : "Blob-backed imports are available. After initial load, this Pages app should only fetch same-origin runtime assets.";
+  const meta = getDiagnosticsMeta(diagnostics);
 
   return (
     <div
       style={{
-        border: `1px solid ${border}`,
-        borderRadius: "10px",
-        padding: compact ? "12px 14px" : "16px",
-        background,
+        borderTop: compact ? "1px solid #1f1f1f" : `1px solid ${meta.border}`,
+        borderBottom: compact ? "1px solid #1f1f1f" : `1px solid ${meta.border}`,
+        borderRadius: compact ? 0 : "10px",
+        padding: compact ? "14px 16px" : "16px",
+        background: compact ? "rgba(3, 8, 5, 0.96)" : meta.background,
       }}
     >
       <div
@@ -262,7 +268,7 @@ function DiagnosticsPanel({
           display: "flex",
           alignItems: "center",
           gap: "10px",
-          marginBottom: compact ? "8px" : "10px",
+          marginBottom: compact ? "6px" : "10px",
           fontFamily: MONO,
           color: "#f5f5f5",
           fontSize: compact ? "12px" : "13px",
@@ -273,11 +279,16 @@ function DiagnosticsPanel({
             width: "10px",
             height: "10px",
             borderRadius: "50%",
-            background: accent,
+            background: meta.accent,
             flexShrink: 0,
           }}
         />
-        <strong>{headline}</strong>
+        <strong>{compact ? "diagnostics" : meta.headline}</strong>
+        {compact ? (
+          <span style={{ color: "#777", textTransform: "uppercase", letterSpacing: "0.12em" }}>
+            {meta.label}
+          </span>
+        ) : null}
       </div>
       <p
         style={{
@@ -288,7 +299,7 @@ function DiagnosticsPanel({
           fontFamily: compact ? MONO : SANS,
         }}
       >
-        {summary}
+        {meta.summary}
       </p>
       {diagnostics.report?.findings.length ? (
         <pre
@@ -296,7 +307,7 @@ function DiagnosticsPanel({
             margin: "12px 0 0 0",
             padding: "12px",
             borderRadius: "8px",
-            border: `1px solid ${border}`,
+            border: `1px solid ${meta.border}`,
             background: "rgba(0, 0, 0, 0.22)",
             color: "#fecaca",
             whiteSpace: "pre-wrap",
@@ -310,7 +321,7 @@ function DiagnosticsPanel({
         </pre>
       ) : null}
       <details
-        open={!compact && isBlocked}
+        open={!compact && meta.isBlocked}
         style={{
           marginTop: "12px",
           color: "#d4d4d4",
@@ -335,6 +346,53 @@ function DiagnosticsPanel({
         </div>
       </details>
     </div>
+  );
+}
+
+function DiagnosticsToggle({
+  diagnostics,
+  isOpen,
+  onToggle,
+}: {
+  diagnostics: DiagnosticsState;
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
+  const meta = getDiagnosticsMeta(diagnostics);
+
+  return (
+    <button
+      onClick={onToggle}
+      type="button"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "8px",
+        background: isOpen ? "rgba(255,255,255,0.05)" : "transparent",
+        color: meta.isBlocked ? "#fca5a5" : "#777",
+        border: `1px solid ${isOpen ? "#3a3a3a" : "#2a2a2a"}`,
+        borderRadius: "999px",
+        padding: "4px 10px",
+        fontSize: "11px",
+        fontFamily: MONO,
+        cursor: "pointer",
+      }}
+      title="Show browser-mode diagnostics"
+    >
+      <span
+        style={{
+          width: "8px",
+          height: "8px",
+          borderRadius: "50%",
+          background: meta.accent,
+          flexShrink: 0,
+        }}
+      />
+      diagnostics
+      <span style={{ color: "#5d5d5d", textTransform: "uppercase", letterSpacing: "0.12em" }}>
+        {meta.label}
+      </span>
+    </button>
   );
 }
 
@@ -524,7 +582,7 @@ function DropZone({ diagnostics, onContent }: DropZoneProps) {
       <div
         style={{
           marginTop: "40px",
-          maxWidth: "860px",
+          maxWidth: "720px",
           width: "100%",
           display: "grid",
           gap: "16px",
@@ -582,13 +640,44 @@ function DropZone({ diagnostics, onContent }: DropZoneProps) {
             trusted code only
           </div>
         </div>
-        <DiagnosticsPanel diagnostics={diagnostics} />
+        {diagnostics.status === "ready" && diagnostics.report?.ok ? null : (
+          <div
+            style={{
+              border: "1px solid #222",
+              borderRadius: "10px",
+              padding: "16px",
+              background: "#050505",
+            }}
+          >
+            <div style={{ color: "#f5f5f5", fontFamily: MONO, marginBottom: "8px" }}>
+              browser checks
+            </div>
+            <div
+              style={{
+                color: "#888",
+                fontSize: "12px",
+                lineHeight: 1.7,
+                fontFamily: MONO,
+              }}
+            >
+              Use the toolbar diagnostics control if browser policies block this
+              loader or you need origin/debug details.
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function Toolbar({ filename, onClear, onSwap }: ToolbarProps) {
+function Toolbar({
+  diagnostics,
+  diagnosticsOpen,
+  filename,
+  onClear,
+  onToggleDiagnostics,
+  onSwap,
+}: ToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleFileSelect = useCallback(
@@ -644,6 +733,11 @@ function Toolbar({ filename, onClear, onSwap }: ToolbarProps) {
       >
         trusted artifact only
       </span>
+      <DiagnosticsToggle
+        diagnostics={diagnostics}
+        isOpen={diagnosticsOpen}
+        onToggle={onToggleDiagnostics}
+      />
       <button
         onClick={onClear}
         disabled={!filename}
@@ -717,6 +811,7 @@ export default function AppBrowser() {
     null,
   );
   const [filename, setFilename] = useState<string | null>(null);
+  const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
   const [diagnostics, setDiagnostics] = useState<DiagnosticsState>({
     status: "checking",
     report: null,
@@ -731,6 +826,12 @@ export default function AppBrowser() {
   });
 
   const runtimeError = useGlobalRuntimeError(state.version);
+
+  useEffect(() => {
+    if (diagnostics.status === "ready" && diagnostics.report && !diagnostics.report.ok) {
+      setIsDiagnosticsOpen(true);
+    }
+  }, [diagnostics]);
 
   const refreshDiagnosticsOrigins = useCallback(() => {
     const origins = collectContactedOrigins();
@@ -917,27 +1018,30 @@ export default function AppBrowser() {
         background: "#000",
       }}
     >
-      <Toolbar filename={filename} onClear={resetToEmpty} onSwap={loadArtifact} />
+      <Toolbar
+        diagnostics={diagnostics}
+        diagnosticsOpen={isDiagnosticsOpen}
+        filename={filename}
+        onClear={resetToEmpty}
+        onToggleDiagnostics={() => setIsDiagnosticsOpen((current) => !current)}
+        onSwap={loadArtifact}
+      />
+      {isDiagnosticsOpen ? (
+        <DiagnosticsPanel diagnostics={diagnostics} compact />
+      ) : null}
       <div style={{ flex: 1, position: "relative" }}>
         {state.error ? (
           <ErrorPanel
             title="Browser Mode Error"
             error={state.error}
             details={browserModeDetails}
-            footer={<DiagnosticsPanel diagnostics={diagnostics} compact />}
           />
         ) : state.isLoading && state.status ? (
-          <LoadingState
-            status={state.status}
-            footer={<DiagnosticsPanel diagnostics={diagnostics} compact />}
-          />
+          <LoadingState status={state.status} />
         ) : !state.Component ? (
           <DropZone diagnostics={diagnostics} onContent={loadArtifact} />
         ) : (
           <>
-            <div style={{ padding: "16px 16px 0 16px" }}>
-              <DiagnosticsPanel diagnostics={diagnostics} compact />
-            </div>
             {runtimeError ? (
               <div
                 style={{
