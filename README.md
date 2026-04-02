@@ -40,6 +40,27 @@ message when the runtime is too old.
 
 Browser mode is a **trusted-artifact path**, not a sandbox.
 
+### Mode Comparison
+
+| Capability | Local viewer | Pages/browser mode |
+| ---------- | ------------ | ------------------ |
+| Single-file `.jsx` / `.tsx` | Yes | Yes |
+| Basic React rendering | Yes | Yes |
+| Hooks (`useState`, `useEffect`, `useRef`, etc.) | Yes | Yes |
+| Fragments / multi-child JSX (`jsx` / `jsxs`) | Yes | Yes |
+| `React.memo`, `forwardRef`, `lazy` default exports | Yes | Yes |
+| Allowlisted built-in package imports | Yes | Yes |
+| Drag/drop, upload, paste | Yes | Yes |
+| Managed-browser diagnostics | No | Yes |
+| CLI preload | Yes | No |
+| Live file watching / HMR on save | Yes | No |
+| Multi-file relative imports | Yes | No |
+| Arbitrary local npm package resolution | Yes | No |
+| CommonJS, `process.env`, `import.meta.env` in uploaded artifact | Yes | No |
+| Stronger isolation requirements | Better fit | Not the goal |
+
+The key distinction is not `.jsx` versus `.tsx`. Pages/browser mode is meant to handle real **single-file React artifacts** well, but it intentionally stops short of becoming a browser bundler for multi-file projects.
+
 ## Usage
 
 There are four ways to get a component on screen:
@@ -153,9 +174,29 @@ The Pages/browser build is direct-render, same-origin, and self-contained:
 - it renders the compiled module directly in the page, without an iframe
 - it shows a managed-browser preflight plus observed-origin diagnostics so policy failures do not degrade into a blank screen
 
+What should work in browser mode today:
+
+- plain `.jsx` and `.tsx` default exports
+- hooks like `useState`, `useEffect`, and `useRef`
+- fragments and multi-child JSX
+- `React.memo(...)`, `forwardRef(...)`, and `lazy(...)` default exports
+- allowlisted bare imports such as `react`, `react/jsx-runtime`, `react-dom/client`, `lucide-react`, `recharts`, `d3`, `lodash`, `mathjs`, `papaparse`, `chart.js`, `tone`, and `three`
+- inline styles and normal React event handlers
+
 Pages mode intentionally rejects relative imports, absolute path imports, remote URLs, CommonJS, `process.env`, and `import.meta.env`. Use the local Node/Vite viewer when you need multi-file imports, local package resolution, or a more isolated preview path.
 
+Some limits are deliberate, but not all future expansion is off the table. Reasonable next expansions for browser mode would be:
+
+- widening the runtime allowlist to additional repo-shipped packages or safe subpaths
+- adding more explicit compatibility coverage/tests for default-export wrappers and common React patterns
+- supporting a multi-file upload flow (for example, a zip or directory picker) that resolves relative imports inside a virtual in-browser module graph
+- adding optional browser-only helper modules for common patterns instead of exposing arbitrary environment globals
+
+What is *not* a good fit for this Pages path is trying to behave like a full local bundler: arbitrary package resolution from npm, unrestricted relative imports without a multi-file loader, or sandbox-grade isolation while still direct-rendering in the same page.
+
 For deployment, the included GitHub Actions workflow builds `dist-browser/`, renames `index.browser.html` to `index.html`, writes `.nojekyll`, uploads the Pages artifact, and deploys it with GitHub Pages. The workflow injects `VITE_BASE_PATH` from `actions/configure-pages@v5`, so standard repo-path Pages hosting works without hardcoding the repository name.
+
+For a paste-ready validation checklist, see [docs/browser-mode-smoke-matrix.md](docs/browser-mode-smoke-matrix.md).
 
 ### Dev commands
 
