@@ -1,4 +1,6 @@
-export * from "react/jsx-dev-runtime";
 import * as ReactJsxDevRuntime from "react/jsx-dev-runtime";
 
-export default ReactJsxDevRuntime;
+const ReactJsxDevRuntimeDefault = ReactJsxDevRuntime;
+
+export default ReactJsxDevRuntimeDefault;
+export const { Fragment, jsxDEV } = ReactJsxDevRuntime;

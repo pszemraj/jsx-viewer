@@ -29,6 +29,7 @@ export default defineConfig({
     outDir: "dist-browser",
     emptyOutDir: true,
     rollupOptions: {
+      preserveEntrySignatures: "strict",
       input: {
         "index.browser": path.resolve(__dirname, "index.browser.html"),
         ...runtimeInputs,
