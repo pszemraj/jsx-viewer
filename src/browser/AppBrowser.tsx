@@ -6,10 +6,16 @@ import {
   type ChangeEvent,
   type DragEvent,
   type MouseEvent,
+  type ReactNode,
 } from "react";
 import { SlotPreview } from "../SlotPreview";
 import { createLoadTracker } from "../loadTracker";
 import { isSlotComponent, type SlotComponent } from "../slotComponent";
+import {
+  collectContactedOrigins,
+  runCorporatePreflight,
+  type CorporatePreflightReport,
+} from "./corporatePreflight";
 import { BROWSER_RUNTIME_SPECIFIERS } from "./runtimeManifest";
 import { transpileArtifact } from "./transpiler";
 
@@ -25,6 +31,7 @@ interface BrowserArtifactState {
 }
 
 interface DropZoneProps {
+  diagnostics: DiagnosticsState;
   onContent: (content: string, name: string) => void;
 }
 
@@ -32,6 +39,12 @@ interface ToolbarProps {
   filename: string | null;
   onClear: () => void;
   onSwap: (content: string, name: string) => void;
+}
+
+interface DiagnosticsState {
+  status: "checking" | "ready";
+  report: CorporatePreflightReport | null;
+  origins: string[];
 }
 
 function toError(error: unknown): Error {
@@ -49,14 +62,30 @@ async function readArtifactFile(file: File) {
   };
 }
 
+function createPreflightError(report: CorporatePreflightReport) {
+  const lines = [...report.findings];
+
+  if (report.origins.length > 0) {
+    lines.push(`Observed origins: ${report.origins.join(", ")}`);
+  }
+
+  if (lines.length === 0) {
+    lines.push("Managed-browser compatibility checks failed.");
+  }
+
+  return new Error(lines.join("\n"));
+}
+
 function ErrorPanel({
   title,
   error,
   details,
+  footer,
 }: {
   title: string;
   error: Error;
   details?: string;
+  footer?: ReactNode;
 }) {
   return (
     <div
@@ -125,12 +154,19 @@ function ErrorPanel({
             {details}
           </p>
         ) : null}
+        {footer ? <div style={{ marginTop: "20px" }}>{footer}</div> : null}
       </div>
     </div>
   );
 }
 
-function LoadingState({ status }: { status: string }) {
+function LoadingState({
+  status,
+  footer,
+}: {
+  status: string;
+  footer?: ReactNode;
+}) {
   return (
     <div
       style={{
@@ -179,7 +215,125 @@ function LoadingState({ status }: { status: string }) {
           Browser mode compiles the artifact client-side, then imports it
           directly into this page. This is a trusted-code path, not a sandbox.
         </p>
+        {footer ? <div style={{ marginTop: "20px" }}>{footer}</div> : null}
       </div>
+    </div>
+  );
+}
+
+function DiagnosticsPanel({
+  diagnostics,
+  compact = false,
+}: {
+  diagnostics: DiagnosticsState;
+  compact?: boolean;
+}) {
+  const isReady = diagnostics.status === "ready";
+  const isBlocked = isReady && diagnostics.report !== null && !diagnostics.report.ok;
+  const accent = isBlocked ? "#ef4444" : isReady ? "#0cce6b" : "#f59e0b";
+  const border = isBlocked ? "#4b1d1d" : isReady ? "#17361f" : "#4b3604";
+  const background = isBlocked
+    ? "rgba(127, 29, 29, 0.18)"
+    : isReady
+      ? "rgba(12, 206, 107, 0.08)"
+      : "rgba(245, 158, 11, 0.08)";
+  const headline = !isReady
+    ? "managed-browser preflight in progress"
+    : isBlocked
+      ? "managed-browser policy blocked browser mode"
+      : "managed-browser preflight passed";
+  const summary = !isReady
+    ? "Checking whether this browser/policy allows blob-backed ES module imports before artifact load."
+    : isBlocked
+      ? "Blob-backed ES module imports are unavailable here, so the direct-render Pages viewer cannot execute uploaded artifacts."
+      : "Blob-backed imports are available. After initial load, this Pages app should only fetch same-origin runtime assets.";
+
+  return (
+    <div
+      style={{
+        border: `1px solid ${border}`,
+        borderRadius: "10px",
+        padding: compact ? "12px 14px" : "16px",
+        background,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          marginBottom: compact ? "8px" : "10px",
+          fontFamily: MONO,
+          color: "#f5f5f5",
+          fontSize: compact ? "12px" : "13px",
+        }}
+      >
+        <div
+          style={{
+            width: "10px",
+            height: "10px",
+            borderRadius: "50%",
+            background: accent,
+            flexShrink: 0,
+          }}
+        />
+        <strong>{headline}</strong>
+      </div>
+      <p
+        style={{
+          margin: 0,
+          color: "#b5b5b5",
+          fontSize: compact ? "12px" : "13px",
+          lineHeight: 1.6,
+          fontFamily: compact ? MONO : SANS,
+        }}
+      >
+        {summary}
+      </p>
+      {diagnostics.report?.findings.length ? (
+        <pre
+          style={{
+            margin: "12px 0 0 0",
+            padding: "12px",
+            borderRadius: "8px",
+            border: `1px solid ${border}`,
+            background: "rgba(0, 0, 0, 0.22)",
+            color: "#fecaca",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            fontFamily: MONO,
+            fontSize: "12px",
+            lineHeight: 1.6,
+          }}
+        >
+          {diagnostics.report.findings.join("\n")}
+        </pre>
+      ) : null}
+      <details
+        open={!compact && isBlocked}
+        style={{
+          marginTop: "12px",
+          color: "#d4d4d4",
+          fontFamily: MONO,
+          fontSize: "12px",
+        }}
+      >
+        <summary style={{ cursor: "pointer" }}>
+          observed origins ({diagnostics.origins.length})
+        </summary>
+        <div
+          style={{
+            marginTop: "8px",
+            color: "#888",
+            lineHeight: 1.7,
+            wordBreak: "break-word",
+          }}
+        >
+          {diagnostics.origins.length > 0
+            ? diagnostics.origins.join(", ")
+            : "No http(s) resource origins observed yet."}
+        </div>
+      </details>
     </div>
   );
 }
@@ -215,7 +369,7 @@ function useGlobalRuntimeError(resetKey: number) {
   return runtimeState.resetKey === resetKey ? runtimeState.error : null;
 }
 
-function DropZone({ onContent }: DropZoneProps) {
+function DropZone({ diagnostics, onContent }: DropZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -428,6 +582,7 @@ function DropZone({ onContent }: DropZoneProps) {
             trusted code only
           </div>
         </div>
+        <DiagnosticsPanel diagnostics={diagnostics} />
       </div>
     </div>
   );
@@ -558,7 +713,15 @@ function Toolbar({ filename, onClear, onSwap }: ToolbarProps) {
 export default function AppBrowser() {
   const loadTrackerRef = useRef(createLoadTracker());
   const artifactUrlRef = useRef<string | null>(null);
+  const preflightPromiseRef = useRef<Promise<CorporatePreflightReport> | null>(
+    null,
+  );
   const [filename, setFilename] = useState<string | null>(null);
+  const [diagnostics, setDiagnostics] = useState<DiagnosticsState>({
+    status: "checking",
+    report: null,
+    origins: collectContactedOrigins(),
+  });
   const [state, setState] = useState<BrowserArtifactState>({
     Component: null,
     error: null,
@@ -568,6 +731,41 @@ export default function AppBrowser() {
   });
 
   const runtimeError = useGlobalRuntimeError(state.version);
+
+  const refreshDiagnosticsOrigins = useCallback(() => {
+    const origins = collectContactedOrigins();
+
+    setDiagnostics((current) => {
+      const sameOrigins =
+        current.origins.length === origins.length &&
+        current.origins.every((origin, index) => origin === origins[index]);
+
+      if (sameOrigins) {
+        return current;
+      }
+
+      return {
+        ...current,
+        origins,
+        report: current.report ? { ...current.report, origins } : null,
+      };
+    });
+  }, []);
+
+  const ensurePreflight = useCallback(async () => {
+    if (!preflightPromiseRef.current) {
+      preflightPromiseRef.current = runCorporatePreflight().then((report) => {
+        setDiagnostics({
+          status: "ready",
+          report,
+          origins: report.origins,
+        });
+        return report;
+      });
+    }
+
+    return preflightPromiseRef.current;
+  }, []);
 
   const disposeArtifactUrl = useCallback(() => {
     if (artifactUrlRef.current !== null) {
@@ -582,6 +780,10 @@ export default function AppBrowser() {
     };
   }, [disposeArtifactUrl]);
 
+  useEffect(() => {
+    void ensurePreflight();
+  }, [ensurePreflight]);
+
   const resetToEmpty = useCallback(() => {
     loadTrackerRef.current.begin();
     disposeArtifactUrl();
@@ -594,7 +796,8 @@ export default function AppBrowser() {
       status: null,
       version: current.version + 1,
     }));
-  }, [disposeArtifactUrl]);
+    refreshDiagnosticsOrigins();
+  }, [disposeArtifactUrl, refreshDiagnosticsOrigins]);
 
   const loadArtifact = useCallback(
     async (content: string, name: string) => {
@@ -605,10 +808,29 @@ export default function AppBrowser() {
         Component: null,
         error: null,
         isLoading: true,
-        status: "Compiling artifact in the browser",
+        status:
+          diagnostics.status === "ready"
+            ? "Compiling artifact in the browser"
+            : "Checking managed-browser compatibility",
       }));
 
       try {
+        const preflightReport = await ensurePreflight();
+
+        if (!loadTrackerRef.current.isCurrent(loadToken)) {
+          return;
+        }
+
+        if (!preflightReport.ok) {
+          throw createPreflightError(preflightReport);
+        }
+
+        setState((current) => ({
+          ...current,
+          isLoading: true,
+          status: "Compiling artifact in the browser",
+        }));
+
         const { code } = await transpileArtifact(content, name);
 
         if (!loadTrackerRef.current.isCurrent(loadToken)) {
@@ -673,15 +895,18 @@ export default function AppBrowser() {
           status: null,
           version: current.version + 1,
         }));
+      } finally {
+        refreshDiagnosticsOrigins();
       }
     },
-    [disposeArtifactUrl],
+    [diagnostics.status, disposeArtifactUrl, ensurePreflight, refreshDiagnosticsOrigins],
   );
 
   const browserModeDetails =
     "This mode renders the loaded component directly into the app shell. " +
     "That keeps the UX simple and avoids iframe boundaries, but it also means there is no security isolation. " +
-    "Relative imports, remote URL imports, Vite-only globals, and CommonJS are intentionally rejected early.";
+    "Relative imports, remote URL imports, Vite-only globals, and CommonJS are intentionally rejected early. " +
+    "Managed-browser diagnostics below show whether blob-backed module imports are allowed on this machine.";
 
   return (
     <div
@@ -699,13 +924,20 @@ export default function AppBrowser() {
             title="Browser Mode Error"
             error={state.error}
             details={browserModeDetails}
+            footer={<DiagnosticsPanel diagnostics={diagnostics} compact />}
           />
         ) : state.isLoading && state.status ? (
-          <LoadingState status={state.status} />
+          <LoadingState
+            status={state.status}
+            footer={<DiagnosticsPanel diagnostics={diagnostics} compact />}
+          />
         ) : !state.Component ? (
-          <DropZone onContent={loadArtifact} />
+          <DropZone diagnostics={diagnostics} onContent={loadArtifact} />
         ) : (
           <>
+            <div style={{ padding: "16px 16px 0 16px" }}>
+              <DiagnosticsPanel diagnostics={diagnostics} compact />
+            </div>
             {runtimeError ? (
               <div
                 style={{
