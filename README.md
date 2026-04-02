@@ -1,234 +1,72 @@
 # jsx-viewer
 
-Render `.jsx` and `.tsx` files as easily as `.html`. One command, one file, rendered.
+Render single-file React `.jsx` and `.tsx` artifacts with minimal setup. Use
+the local viewer for the full development workflow, or use the hosted site for
+quick single-file previews.
 
 ![JSX Viewer Preview](assets/ui.png)
 
-You get a `.tsx` or `.jsx` artifact from Claude, ChatGPT, or wherever. To actually *see* it, you'd normally scaffold a React app, install deps, wire up imports, run a dev server. That's 5 minutes of ceremony for 2 seconds of viewing. `jsx-viewer` skips all of it.
+## Website
+
+Live site: [pszemraj.github.io/jsx-viewer](https://pszemraj.github.io/jsx-viewer/)
+
+The website can:
+
+- paste, upload, or drag and drop a single `.jsx` or `.tsx` file
+- transpile and render it client-side in the browser
+- support default-exported React 18 components plus a repo-shipped allowlist of runtime packages
+
+The website cannot:
+
+- resolve relative imports or multi-file project graphs
+- resolve arbitrary npm packages
+- support CommonJS, `process.env`, or `import.meta.env`
+- compile arbitrary Tailwind classes from uploaded artifacts
+- sandbox untrusted code; uploaded code runs in the same page as the viewer
+
+Privacy and execution:
+
+- the app ships with no analytics, telemetry, or third-party trackers
+- uploaded or pasted artifacts are not sent to a backend by the app
+- the hosted site serves static assets; transpilation and rendering happen on your machine in the browser
+- after initial load, browser mode should only fetch same-origin app and runtime assets
+
+More detail: [Modes and limitations](docs/modes.md), [Privacy and security](docs/privacy-and-security.md), and the [browser smoke matrix](docs/browser-mode-smoke-matrix.md).
+
+## Local Viewer
+
+For local development, `jsx-viewer` runs a Vite/WebSocket viewer on your
+machine and supports the broader workflow: multi-file imports, live watching,
+local package resolution, and local Tailwind compilation.
+
+Requirements: Node 20.19.0+ or 22.12.0+
 
 ```bash
 git clone https://github.com/pszemraj/jsx-viewer.git
 cd jsx-viewer
 npm install
 
-npm start        # empty drop/upload/paste UI
-# npm run demo     # preloads the example dashboard
-```
-
-The viewer opens in your browser. You're done.
-
-The browser UI is authored in TypeScript. The shipped Node CLI/runtime stays as
-native `.mjs` for direct execution and is type-checked via checked-JS during
-`npm run typecheck`.
-
-## Requirements
-
-`jsx-viewer` currently requires **Node 20.19.0+ or 22.12.0+** because the
-repo now builds and serves through **Vite 8**.
-
-Node `18.x`, `21.x`, `20.0.0` through `20.18.x`, and `22.0.0` through
-`22.11.x` are not supported. The package advertises that floor via
-`package.json#engines`, and the CLI/build scripts fail early with a direct
-message when the runtime is too old.
-
-## Modes
-
-`jsx-viewer` now ships two distinct paths:
-
-- **Local viewer** (default) - `npm start` / `node bin/jsx-viewer.mjs file.tsx`. This remains the authoritative path for multi-file imports, live file watching, CLI preload, local package resolution, and stronger preview isolation requirements.
-- **GitHub Pages browser mode** - `npm run dev:browser` locally or deploy the browser build through [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml). This path accepts pasted/uploaded single-file `.jsx` / `.tsx`, transpiles in the browser, rewrites only allowlisted bare imports to repo-owned runtime modules, and renders directly into the app shell.
-
-Browser mode is a **trusted-artifact path**, not a sandbox.
-
-### Mode Comparison
-
-| Capability | Local viewer | Pages/browser mode |
-| ---------- | ------------ | ------------------ |
-| Single-file `.jsx` / `.tsx` | Yes | Yes |
-| Basic React rendering | Yes | Yes |
-| Hooks (`useState`, `useEffect`, `useRef`, etc.) | Yes | Yes |
-| Fragments / multi-child JSX (`jsx` / `jsxs`) | Yes | Yes |
-| `React.memo`, `forwardRef`, `lazy` default exports | Yes | Yes |
-| Allowlisted built-in package imports | Yes | Yes |
-| Drag/drop, upload, paste | Yes | Yes |
-| Managed-browser diagnostics | No | Yes |
-| CLI preload | Yes | No |
-| Live file watching / HMR on save | Yes | No |
-| Multi-file relative imports | Yes | No |
-| Arbitrary local npm package resolution | Yes | No |
-| CommonJS, `process.env`, `import.meta.env` in uploaded artifact | Yes | No |
-| Stronger isolation requirements | Better fit | Not the goal |
-
-The key distinction is not `.jsx` versus `.tsx`. Pages/browser mode is meant to handle real **single-file React artifacts** well, but it intentionally stops short of becoming a browser bundler for multi-file projects.
-
-## Usage
-
-There are four ways to get a component on screen:
-
-**Start with a file** (recommended) - pass it directly and it's watched for changes. Save in your editor, browser updates.
-
-```bash
+npm start
+# or preload a file
 node bin/jsx-viewer.mjs path/to/Component.tsx
-# optional, only after global install/link:
-jsx-viewer path/to/Component.tsx
 ```
 
-`.tsx` is the preferred artifact format, but `.jsx` continues to work.
+## Modes At A Glance
 
-**Drag and drop** - start with no args (`npm start`), drag a `.jsx` or `.tsx` file onto the browser window.
+| Mode | Best for | Notable limits |
+| ---- | -------- | -------------- |
+| Local viewer | day-to-day development, multi-file work, live watching | requires Node and a local dev server |
+| Website / Pages browser mode | quick single-file preview and sharing | no multi-file imports, no arbitrary packages, no sandbox |
 
-**Upload a file** - start with no args (`npm start`), click `upload artifact`, and choose a local `.jsx` or `.tsx` file.
+## Docs
 
-**Paste source** - start with no args, focus the viewer window, and press `Ctrl+V` / `Cmd+V`. No extra paste button is required.
-
-An included TSX example dashboard is available via `npm run demo`.
-
-When a file is already loaded, use the toolbar `swap file` button to replace it directly, or `clear` to return to the empty drop/upload/paste state.
-
-### Options
-
-```bash
-node bin/jsx-viewer.mjs [options] [file.jsx|file.tsx]
-
-  -p, --port <n>   Viewer HTTP port (default: 3142, max: 65534)
-                   WebSocket listens on port + 1
-  -v, --version    Show version
-  -h, --help       Show help
-```
-
-If you globally install/link the package, the same command becomes `jsx-viewer [options] [file.jsx|file.tsx]`.
-
-Pass zero or one `.jsx` / `.tsx` file. Unknown flags, duplicate `--port`
-arguments, unsupported input extensions, and extra positional arguments fail
-fast with a usage error instead of silently falling back to another workflow.
-
-WebSocket runs on port + 1 (default: 3143). The browser auto-opens on startup
-unless `CI` is already set.
-Because the WebSocket reserves the next port, the highest supported viewer
-port is `65534`.
-
-### Component requirements
-
-Your JSX/TSX file needs a **default export** of a React component:
-
-```tsx
-export default function MyComponent() {
-  return <div>Hello</div>;
-}
-```
-
-Wrapped exports created with `React.memo(...)`, `forwardRef(...)`, or `lazy(...)`
-are supported too, as long as the default export is still renderable with no props.
-`lazy(...)` exports render behind the viewer's built-in `Suspense` boundary while
-their module resolves.
-
-## Reference
-
-### How it works
-
-1. **Vite dev server** handles JSX/TSX transpilation and HMR, with its dependency cache redirected into a checkout/install-specific temp workspace
-2. Your file is copied to a **transient runtime slot** in that same user-writable temp directory
-3. Vite picks up the change and hot-reloads the browser instantly
-4. A **WebSocket bridge** connects the browser UI to the CLI for drag-and-drop/paste
-5. On exit, the transient slot is cleared - your file is never committed, and packaged/global installs never need to write into their install prefix
-
-`component/View.tsx` remains a tracked placeholder file for the repo and package.
-`npm run slot:reset` restores that placeholder and clears inactive transient runtime slots plus stale temp Vite cache entries for the current checkout/install without interrupting live viewers.
-If startup fails after a file was requested (for example, a port conflict),
-`jsx-viewer` clears the transient runtime slot before exiting.
-The shared temp parent (`os.tmpdir()/jsx-viewer` by default, or
-`JSX_VIEWER_RUNTIME_DIR` if you override it) can still accumulate older sibling
-`workspace-*` directories from past checkouts/installations, because
-`slot:reset` intentionally scopes cleanup to the current workspace only. If no
-viewer processes are running anywhere, removing that shared temp parent is a
-safe way to reclaim old runtime artifacts across installs.
-
-### Pre-installed libraries
-
-These are available for `import` in your JSX/TSX files with no setup:
-
-| Package      | Version | Notes              |
-| ------------ | ------- | ------------------ |
-| react        | 18.x    | Hooks, etc.        |
-| react-dom    | 18.x    |                    |
-| recharts     | 2.x     | Charts/graphs      |
-| lucide-react | 0.383.x | Icons              |
-| d3           | 7.x     | Data visualization |
-| three        | 0.164.x | 3D graphics        |
-| lodash       | 4.x     | Utilities          |
-| mathjs       | 13.x    | Math operations    |
-| papaparse    | 5.x     | CSV parsing        |
-| chart.js     | 4.x     | Canvas charts      |
-| tone         | 15.x    | Audio synthesis    |
-
-**Tailwind CSS v3** is compiled locally via PostCSS - no CDN, no external network calls. Works fully offline and behind corporate firewalls. JIT recompiles on every slot swap, so arbitrary utility classes just work.
-
-If your artifact imports something not listed here, `npm install` it and restart the viewer. Vite picks it up automatically.
-
-### GitHub Pages Browser Mode
-
-The Pages/browser build is direct-render, same-origin, and self-contained:
-
-- it transpiles uploaded or pasted `.jsx` / `.tsx` in the browser with a repo-bundled Babel runtime
-- it rewrites only allowlisted bare imports to repo-built runtime modules like `runtime/react.js`
-- it renders the compiled module directly in the page, without an iframe
-- it shows a managed-browser preflight plus observed-origin diagnostics so policy failures do not degrade into a blank screen
-
-What should work in browser mode today:
-
-- plain `.jsx` and `.tsx` default exports
-- hooks like `useState`, `useEffect`, and `useRef`
-- fragments and multi-child JSX
-- `React.memo(...)`, `forwardRef(...)`, and `lazy(...)` default exports
-- allowlisted bare imports such as `react`, `react/jsx-runtime`, `react-dom/client`, `lucide-react`, `recharts`, `d3`, `lodash`, `mathjs`, `papaparse`, `chart.js`, `tone`, and `three`
-- inline styles and normal React event handlers
-
-Pages mode intentionally rejects relative imports, absolute path imports, remote URLs, CommonJS, `process.env`, and `import.meta.env`. Use the local Node/Vite viewer when you need multi-file imports, local package resolution, or a more isolated preview path.
-
-Some limits are deliberate, but not all future expansion is off the table. Reasonable next expansions for browser mode would be:
-
-- widening the runtime allowlist to additional repo-shipped packages or safe subpaths
-- adding more explicit compatibility coverage/tests for default-export wrappers and common React patterns
-- supporting a multi-file upload flow (for example, a zip or directory picker) that resolves relative imports inside a virtual in-browser module graph
-- adding optional browser-only helper modules for common patterns instead of exposing arbitrary environment globals
-
-What is *not* a good fit for this Pages path is trying to behave like a full local bundler: arbitrary package resolution from npm, unrestricted relative imports without a multi-file loader, or sandbox-grade isolation while still direct-rendering in the same page.
-
-For deployment, the included GitHub Actions workflow builds `dist-browser/`, renames `index.browser.html` to `index.html`, writes `.nojekyll`, uploads the Pages artifact, and deploys it with GitHub Pages. The workflow injects `VITE_BASE_PATH` from `actions/configure-pages@v5`, so standard repo-path Pages hosting works without hardcoding the repository name.
-
-For a paste-ready validation checklist, see [docs/browser-mode-smoke-matrix.md](docs/browser-mode-smoke-matrix.md).
-
-### Dev commands
-
-| Command                     | Purpose                                         |
-| --------------------------- | ----------------------------------------------- |
-| `npm start` / `npm run dev` | Launch the empty drop/upload/paste UI           |
-| `npm run demo`              | Preload and watch `example/Dashboard.tsx`       |
-| `npm run dev:browser`       | Launch the direct-render browser-only entry     |
-| `npm run slot:reset`        | Restore `component/View.tsx` and clear inactive runtime slots/cache for this checkout |
-| `npm run guard:slot`        | Fail if `component/View.tsx` differs from the placeholder |
-| `npm test`                  | Run the CLI, protocol, runtime, and UI test suite |
-| `npm run lint`              | Run ESLint                                      |
-| `npm run typecheck`         | Run TypeScript and checked-JS type-checking     |
-| `npm run build`             | Production build to `dist/`                     |
-| `npm run build:browser`     | Production browser build to `dist-browser/`     |
-
-On non-Windows systems, `npm install` also configures a repo-local pre-commit hook that blocks commits when `component/View.tsx` has been changed away from the tracked placeholder.
-
-On Windows, hook installation is skipped by default because Git-for-Windows shell hooks can be flaky in some environments. The guard still exists as `npm run guard:slot`.
-
-If you still want the hook on Windows, opt in explicitly before install:
-
-```powershell
-$env:JSX_VIEWER_ENABLE_GIT_HOOKS='1'
-npm install
-```
-
-For POSIX shells, the equivalent is:
-
-```bash
-JSX_VIEWER_ENABLE_GIT_HOOKS=1 npm install
-```
+- [Usage guide](docs/usage.md)
+- [Modes and limitations](docs/modes.md)
+- [Runtime and supported packages](docs/runtime-and-packages.md)
+- [GitHub Pages deployment](docs/deployment.md)
+- [Privacy and security](docs/privacy-and-security.md)
+- [Development and maintenance](docs/development.md)
+- [Browser mode smoke matrix](docs/browser-mode-smoke-matrix.md)
 
 ## License
 

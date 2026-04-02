@@ -1,0 +1,55 @@
+# Privacy And Security
+
+## Analytics And Telemetry
+
+The app ships with no analytics, telemetry, or third-party trackers.
+
+That means there is no in-app analytics SDK, no event beaconing, and no upload
+endpoint that receives your pasted or selected artifact source.
+
+The hosted site is still served by GitHub Pages as static hosting, so normal
+page requests can still hit the hosting platform. The statement here is about
+the app itself: it does not include analytics or ship your artifact to an
+application backend.
+
+## Execution Model
+
+### Local Viewer
+
+The local viewer runs on your machine through a local Vite dev server plus a
+local WebSocket bridge. Loaded artifacts are executed locally in the browser
+against that local runtime.
+
+### Website / Browser Mode
+
+The website serves static assets from GitHub Pages. After the page loads:
+
+- transpilation happens in the browser on your machine
+- uploaded and pasted artifacts stay client-side in the app
+- the compiled artifact is imported from a `blob:` URL
+- runtime dependencies are loaded from same-origin Pages assets
+
+There is no app backend that receives your component source.
+
+## Network Behavior
+
+Expected network behavior for the hosted site:
+
+- initial page load fetches static assets from `https://pszemraj.github.io/jsx-viewer/`
+- browser mode should then only fetch same-origin runtime assets needed by the app
+- managed-browser diagnostics can show the observed origins to help debug policy issues
+
+## Trust Model
+
+Browser mode direct-renders uploaded code in the same page as the viewer. That
+is convenient, but it is not a sandbox.
+
+Use the hosted mode for trusted single-file artifacts. Use the local viewer
+when you need broader package resolution, multi-file support, or a more
+controlled preview path.
+
+## Related Docs
+
+- [Modes and limitations](modes.md)
+- [GitHub Pages deployment](deployment.md)
+- [Browser mode smoke matrix](browser-mode-smoke-matrix.md)
