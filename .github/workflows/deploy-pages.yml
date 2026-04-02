@@ -1,8 +1,11 @@
 name: Deploy browser app to GitHub Pages
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 on:
   push:
-    branches: [main, feat/deploy]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
