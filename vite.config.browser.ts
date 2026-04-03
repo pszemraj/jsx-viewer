@@ -1,4 +1,6 @@
+import type { Connect, Plugin, ViteDevServer } from "vite";
 import { defineConfig } from "vite";
+import type { ServerResponse } from "node:http";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -35,7 +37,7 @@ const runtimeInputs = Object.values(BROWSER_RUNTIME_ENTRIES).reduce<
   return inputs;
 }, {});
 
-function browserContentSecurityPolicy() {
+function browserContentSecurityPolicy(): Plugin {
   return {
     name: "browser-content-security-policy",
     apply: "build" as const,
@@ -54,18 +56,24 @@ function browserContentSecurityPolicy() {
   };
 }
 
-function browserDevEntrypoint() {
+function browserDevEntrypoint(): Plugin {
   return {
     name: "browser-dev-entrypoint",
     apply: "serve" as const,
-    configureServer(server) {
-      server.middlewares.use((req, _res, next) => {
-        if (req.url) {
-          req.url = rewriteBrowserDevRootRequest(req.url);
-        }
+    configureServer(server: ViteDevServer) {
+      server.middlewares.use(
+        (
+          req: Connect.IncomingMessage,
+          _res: ServerResponse,
+          next: Connect.NextFunction,
+        ) => {
+          if (req.url) {
+            req.url = rewriteBrowserDevRootRequest(req.url);
+          }
 
-        next();
-      });
+          next();
+        },
+      );
     },
   };
 }

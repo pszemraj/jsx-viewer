@@ -14,9 +14,9 @@ test("browser runtime papaparse facade preserves default and named imports", () 
   assert.equal(DefaultDelimiter, PapaParse.DefaultDelimiter);
   assert.equal(BAD_DELIMITERS, PapaParse.BAD_DELIMITERS);
 
-  const parsed = parse<string>("name,value\nalpha,1", {
+  const parsed = parse("name,value\nalpha,1", {
     header: true,
-  });
+  }) as { data: Array<{ name: string; value: string }> };
   assert.deepEqual(parsed.data, [{ name: "alpha", value: "1" }]);
   assert.equal(
     unparse([
