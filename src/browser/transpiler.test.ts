@@ -156,6 +156,23 @@ test("transpileArtifact rejects import.meta env access through aliases reassigne
   );
 });
 
+test("transpileArtifact rejects import.meta env access through aliases assigned later", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadLateAssignedImportMetaEnv() {
+          let meta = {};
+          meta = import.meta;
+
+          return <div>{meta.env.MODE}</div>;
+        }
+      `,
+      "BadLateAssignedImportMetaEnv.tsx",
+    ),
+    /import\.meta\.env is Vite-specific/,
+  );
+});
+
 test("transpileArtifact allows import.meta aliases for supported properties", async () => {
   const { code } = await transpileArtifact(
     `
@@ -166,6 +183,38 @@ test("transpileArtifact allows import.meta aliases for supported properties", as
       }
     `,
     "ImportMetaUrl.tsx",
+  );
+
+  assert.match(code, /meta\.url/);
+});
+
+test("transpileArtifact allows import.meta.url through aliases assigned later", async () => {
+  const { code } = await transpileArtifact(
+    `
+      export default function LateAssignedImportMetaUrl() {
+        let meta = { url: "fallback" };
+        meta = import.meta;
+
+        return <div>{meta.url}</div>;
+      }
+    `,
+    "LateAssignedImportMetaUrl.tsx",
+  );
+
+  assert.match(code, /meta\.url/);
+});
+
+test("transpileArtifact allows safe later reassignments after import.meta aliasing", async () => {
+  const { code } = await transpileArtifact(
+    `
+      export default function ReassignedImportMetaAlias() {
+        let meta = import.meta;
+        meta = { url: "runtime" };
+
+        return <div>{meta.url}</div>;
+      }
+    `,
+    "ReassignedImportMetaAlias.tsx",
   );
 
   assert.match(code, /meta\.url/);
