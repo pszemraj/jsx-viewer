@@ -350,6 +350,36 @@ test("transpileArtifact rejects assignment-pattern process env destructuring", a
   );
 });
 
+test("transpileArtifact rejects direct process reassignment", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadProcessReassignment() {
+          process = { env: { NODE_ENV: "production" } };
+          return null;
+        }
+      `,
+      "BadProcessReassignment.tsx",
+    ),
+    /process is not available in browser mode/,
+  );
+});
+
+test("transpileArtifact rejects destructured writes to unsupported globals", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadDestructuredWrite() {
+          ({ value: require } = { value: () => "ok" });
+          return null;
+        }
+      `,
+      "BadDestructuredWrite.tsx",
+    ),
+    /CommonJS require\(\) is not supported in browser mode/,
+  );
+});
+
 test("transpileArtifact rejects direct require alias assignments", async () => {
   await assert.rejects(
     transpileArtifact(
@@ -507,6 +537,21 @@ test("transpileArtifact rejects aliased module access before runtime", async () 
   );
 });
 
+test("transpileArtifact rejects direct module reassignment", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadModuleReassignment() {
+          module = { exports: {} };
+          return null;
+        }
+      `,
+      "BadModuleReassignment.tsx",
+    ),
+    /CommonJS module is not supported in browser mode/,
+  );
+});
+
 test("transpileArtifact rejects bare module value references", async () => {
   await assert.rejects(
     transpileArtifact(
@@ -562,6 +607,21 @@ test("transpileArtifact rejects aliased exports member access", async () => {
         }
       `,
       "BadAliasedExports.tsx",
+    ),
+    /CommonJS exports are not supported in browser mode/,
+  );
+});
+
+test("transpileArtifact rejects direct exports reassignment", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadExportsReassignment() {
+          exports = { answer: 42 };
+          return null;
+        }
+      `,
+      "BadExportsReassignment.tsx",
     ),
     /CommonJS exports are not supported in browser mode/,
   );

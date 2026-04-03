@@ -116,6 +116,18 @@ interface BabelAssignmentPatternNode {
   right?: unknown;
 }
 
+interface BabelArrayPatternNode {
+  elements?: unknown[];
+}
+
+interface BabelObjectPropertyWithValueNode extends BabelObjectPropertyNode {
+  value?: unknown;
+}
+
+interface BabelRestElementNode {
+  argument?: unknown;
+}
+
 interface BabelUnaryExpressionNode {
   argument?: unknown;
   operator?: unknown;
@@ -723,6 +735,86 @@ function getUnsupportedReferenceMessage(
   }
 }
 
+function findUnsupportedWriteTarget(
+  node: unknown,
+  path: BabelNodePath,
+  types: BabelApi["types"],
+): UnsupportedReferenceSource | null {
+  const unwrappedNode = unwrapTransparentExpression(node);
+
+  if (types.isIdentifier(unwrappedNode)) {
+    const name = (unwrappedNode as { name?: unknown }).name;
+
+    if (
+      (name === "process" ||
+        name === "require" ||
+        name === "module" ||
+        name === "exports") &&
+      !hasBinding(path, name)
+    ) {
+      return name;
+    }
+
+    return null;
+  }
+
+  const nodeType = getNodeType(unwrappedNode);
+
+  if (nodeType === "AssignmentPattern") {
+    return findUnsupportedWriteTarget(
+      (unwrappedNode as BabelAssignmentPatternNode).left,
+      path,
+      types,
+    );
+  }
+
+  if (nodeType === "ArrayPattern") {
+    for (const element of (unwrappedNode as BabelArrayPatternNode).elements ?? []) {
+      const source = findUnsupportedWriteTarget(element, path, types);
+
+      if (source) {
+        return source;
+      }
+    }
+
+    return null;
+  }
+
+  if (nodeType === "ObjectPattern") {
+    for (const property of (unwrappedNode as BabelObjectPatternNode).properties ?? []) {
+      if (getNodeType(property) === "RestElement") {
+        const source = findUnsupportedWriteTarget(
+          (property as BabelRestElementNode).argument,
+          path,
+          types,
+        );
+
+        if (source) {
+          return source;
+        }
+
+        continue;
+      }
+
+      if (getNodeType(property) !== "ObjectProperty") {
+        continue;
+      }
+
+      const source = findUnsupportedWriteTarget(
+        (property as BabelObjectPropertyWithValueNode).value,
+        path,
+        types,
+      );
+
+      if (source) {
+        return source;
+      }
+    }
+  }
+
+  return null;
+}
+
 function createBrowserGuardsPlugin() {
   return function browserGuardsPlugin(babel: BabelApi) {
     const { types } = babel;
@@ -840,6 +932,18 @@ function createBrowserGuardsPlugin() {
         AssignmentExpression(
           path: BabelNodePath<BabelAssignmentExpressionNode>,
         ) {
+          const unsupportedTarget = findUnsupportedWriteTarget(
+            path.node.left,
+            path,
+            types,
+          );
+
+          if (unsupportedTarget) {
+            throw path.buildCodeFrameError(
+              getUnsupportedReferenceMessage(unsupportedTarget),
+            );
+          }
+
           guardUnsupportedSourceAccess(path, path.node.left, path.node.right);
         },
         AssignmentPattern(path: BabelNodePath<BabelAssignmentPatternNode>) {
