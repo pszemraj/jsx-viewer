@@ -59,3 +59,81 @@ test("transpileArtifact rejects optional-chained process.env access", async () =
     /process\.env is not available in browser mode/,
   );
 });
+
+test("transpileArtifact rejects destructured process env access", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadProcessEnvDestructure() {
+          const { env: runtimeEnv } = process;
+
+          return <div>{runtimeEnv.NODE_ENV}</div>;
+        }
+      `,
+      "BadProcessEnvDestructure.tsx",
+    ),
+    /process\.env is not available in browser mode/,
+  );
+});
+
+test("transpileArtifact rejects destructured import.meta env access", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadImportMetaEnvDestructure() {
+          const { env } = import.meta;
+
+          return <div>{env.MODE}</div>;
+        }
+      `,
+      "BadImportMetaEnvDestructure.tsx",
+    ),
+    /import\.meta\.env is Vite-specific/,
+  );
+});
+
+test("transpileArtifact rejects assignment-pattern process env destructuring", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadAssignmentPattern() {
+          let runtimeEnv;
+          ({ env: runtimeEnv } = process);
+
+          return <div>{runtimeEnv.NODE_ENV}</div>;
+        }
+      `,
+      "BadAssignmentPattern.tsx",
+    ),
+    /process\.env is not available in browser mode/,
+  );
+});
+
+test("transpileArtifact rejects unbound require() calls", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadRequire() {
+          return <div>{require("react")}</div>;
+        }
+      `,
+      "BadRequire.tsx",
+    ),
+    /CommonJS require\(\) is not supported in browser mode/,
+  );
+});
+
+test("transpileArtifact allows locally bound require() calls", async () => {
+  const { code } = await transpileArtifact(
+    `
+      const require = (value: string) => value;
+
+      export default function LocalRequire() {
+        return <div>{require("ok")}</div>;
+      }
+    `,
+    "LocalRequire.tsx",
+  );
+
+  assert.match(code, /require\("ok"\)/);
+});

@@ -25,6 +25,8 @@ interface BabelApi {
     isImport(node: unknown): boolean;
     isMemberExpression(node: unknown): boolean;
     isMetaProperty(node: unknown): boolean;
+    isObjectPattern(node: unknown): boolean;
+    isObjectProperty(node: unknown): boolean;
     isOptionalMemberExpression(node: unknown): boolean;
     isStringLiteral(node: unknown): boolean;
   };
@@ -60,6 +62,29 @@ interface BabelMemberExpressionNode {
   computed?: boolean;
   object?: unknown;
   property?: unknown;
+}
+
+interface BabelObjectPatternNode {
+  properties?: unknown[];
+}
+
+interface BabelObjectPropertyNode {
+  key?: unknown;
+}
+
+interface BabelVariableDeclaratorNode {
+  id?: unknown;
+  init?: unknown;
+}
+
+interface BabelAssignmentExpressionNode {
+  left?: unknown;
+  right?: unknown;
+}
+
+interface BabelAssignmentPatternNode {
+  left?: unknown;
+  right?: unknown;
 }
 
 const SUPPORTED_IMPORTS = BROWSER_RUNTIME_SPECIFIERS.join(", ");
@@ -186,6 +211,15 @@ function hasBinding(path: BabelNodePath, name: string) {
   return path.scope?.hasBinding(name) === true;
 }
 
+function isUnboundGlobalIdentifier(
+  node: unknown,
+  path: BabelNodePath,
+  name: string,
+  types: BabelApi["types"],
+) {
+  return types.isIdentifier(node, { name }) && !hasBinding(path, name);
+}
+
 function isUnboundGlobalMemberExpression(
   path: BabelNodePath<BabelMemberExpressionNode>,
   objectName: string,
@@ -193,8 +227,7 @@ function isUnboundGlobalMemberExpression(
   types: BabelApi["types"],
 ) {
   if (
-    !types.isIdentifier(path.node.object, { name: objectName }) ||
-    hasBinding(path, objectName)
+    !isUnboundGlobalIdentifier(path.node.object, path, objectName, types)
   ) {
     return false;
   }
@@ -202,6 +235,45 @@ function isUnboundGlobalMemberExpression(
   return propertyName === null
     ? true
     : isPropertyNamed(path.node.property, propertyName, types);
+}
+
+function getUnsupportedEnvSource(
+  node: unknown,
+  path: BabelNodePath,
+  types: BabelApi["types"],
+) {
+  if (isImportMetaExpression(node, types)) {
+    return "import.meta" as const;
+  }
+
+  if (isUnboundGlobalIdentifier(node, path, "process", types)) {
+    return "process" as const;
+  }
+
+  return null;
+}
+
+function objectPatternHasEnvProperty(
+  node: unknown,
+  types: BabelApi["types"],
+) {
+  if (!types.isObjectPattern(node)) {
+    return false;
+  }
+
+  return ((node as BabelObjectPatternNode).properties ?? []).some((property) => {
+    if (!types.isObjectProperty(property)) {
+      return false;
+    }
+
+    return isPropertyNamed((property as BabelObjectPropertyNode).key, "env", types);
+  });
+}
+
+function getUnsupportedEnvMessage(source: "import.meta" | "process") {
+  return source === "import.meta"
+    ? "import.meta.env is Vite-specific and is not available inside uploaded artifacts in browser mode."
+    : "process.env is not available in browser mode. Inline the value or use the local Node/Vite viewer.";
 }
 
 function createBrowserGuardsPlugin() {
@@ -212,15 +284,11 @@ function createBrowserGuardsPlugin() {
       path: BabelNodePath<BabelMemberExpressionNode>,
     ) => {
       if (isImportMetaEnvExpression(path.node, types)) {
-        throw path.buildCodeFrameError(
-          "import.meta.env is Vite-specific and is not available inside uploaded artifacts in browser mode.",
-        );
+        throw path.buildCodeFrameError(getUnsupportedEnvMessage("import.meta"));
       }
 
       if (isUnboundGlobalMemberExpression(path, "process", "env", types)) {
-        throw path.buildCodeFrameError(
-          "process.env is not available in browser mode. Inline the value or use the local Node/Vite viewer.",
-        );
+        throw path.buildCodeFrameError(getUnsupportedEnvMessage("process"));
       }
 
       if (
@@ -233,14 +301,37 @@ function createBrowserGuardsPlugin() {
       }
     };
 
+    const guardPatternEnvAccess = (
+      path: BabelNodePath,
+      pattern: unknown,
+      sourceNode: unknown,
+    ) => {
+      const source = getUnsupportedEnvSource(sourceNode, path, types);
+
+      if (!source || !objectPatternHasEnvProperty(pattern, types)) {
+        return;
+      }
+
+      throw path.buildCodeFrameError(getUnsupportedEnvMessage(source));
+    };
+
     return {
       name: "jsx-viewer-browser-guards",
       visitor: {
+        AssignmentExpression(path: BabelNodePath<BabelAssignmentExpressionNode>) {
+          guardPatternEnvAccess(path, path.node.left, path.node.right);
+        },
+        AssignmentPattern(path: BabelNodePath<BabelAssignmentPatternNode>) {
+          guardPatternEnvAccess(path, path.node.left, path.node.right);
+        },
         MemberExpression(path: BabelNodePath<BabelMemberExpressionNode>) {
           guardMemberExpression(path);
         },
         OptionalMemberExpression(path: BabelNodePath<BabelMemberExpressionNode>) {
           guardMemberExpression(path);
+        },
+        VariableDeclarator(path: BabelNodePath<BabelVariableDeclaratorNode>) {
+          guardPatternEnvAccess(path, path.node.id, path.node.init);
         },
       },
     };
@@ -292,7 +383,10 @@ function createImportRewritePlugin() {
             return;
           }
 
-          if (types.isIdentifier(callee, { name: "require" })) {
+          if (
+            types.isIdentifier(callee, { name: "require" }) &&
+            !hasBinding(path, "require")
+          ) {
             throw path.buildCodeFrameError(
               "CommonJS require() is not supported in browser mode.",
             );
