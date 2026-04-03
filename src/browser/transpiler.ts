@@ -219,18 +219,6 @@ function resolveImportSpecifier(specifier: string) {
   return getRuntimeModuleUrl(specifier);
 }
 
-function isPropertyNamed(
-  property: unknown,
-  name: string,
-  types: BabelApi["types"],
-) {
-  return (
-    types.isIdentifier(property, { name }) ||
-    (types.isStringLiteral(property) &&
-      (property as { value?: unknown }).value === name)
-  );
-}
-
 function isImportMetaExpression(
   node: unknown,
   types: BabelApi["types"],
