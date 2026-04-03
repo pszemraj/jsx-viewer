@@ -21,7 +21,7 @@ The website path is direct-render and same-page. It is a trusted-artifact path, 
 | Managed-browser diagnostics | No | Yes |
 | Multi-file relative imports | Yes | No |
 | Arbitrary local npm package resolution | Yes | No |
-| CommonJS, `process.env`, `import.meta.env` in uploaded artifact | Yes | No |
+| CommonJS, `process.*`, unsupported `import.meta.*` helpers in uploaded artifact | Yes | No |
 | Arbitrary Tailwind utility compilation from uploaded artifact | Yes | No |
 | CLI preload | Yes | No |
 | Live file watching / HMR on save | Yes | No |
@@ -37,6 +37,7 @@ Browser mode is meant to handle real single-file React artifacts well. That incl
 - fragments and multi-child JSX
 - wrapped default exports such as `memo`, `forwardRef`, and `lazy`
 - allowlisted bare imports rewritten to repo-shipped runtime modules
+- standard `import.meta.url` access inside the uploaded module
 - direct rendering into the app shell without an iframe
 
 ## What Browser Mode Rejects
@@ -46,9 +47,9 @@ Browser mode intentionally fails fast on:
 - relative imports such as `./Foo`
 - absolute path imports such as `/foo`
 - remote URL imports
-- CommonJS (`require`, `module.exports`, `exports.*`)
-- `process.env`
-- `import.meta.env`
+- CommonJS (`require`, `module.*`, `exports.*`)
+- `process` globals such as `process.env` or `process.version`
+- `import.meta` helpers other than `import.meta.url` such as `import.meta.env` or `import.meta.glob`
 - arbitrary package imports outside the runtime allowlist
 
 If you need those capabilities, use the local viewer instead.

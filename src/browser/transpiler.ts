@@ -28,6 +28,7 @@ interface BabelApi {
     isObjectPattern(node: unknown): boolean;
     isObjectProperty(node: unknown): boolean;
     isOptionalMemberExpression(node: unknown): boolean;
+    isRestElement(node: unknown): boolean;
     isStringLiteral(node: unknown): boolean;
   };
 }
@@ -378,10 +379,69 @@ function objectPatternHasEnvProperty(node: unknown, types: BabelApi["types"]) {
   );
 }
 
+function getPropertyName(
+  property: unknown,
+  types: BabelApi["types"],
+): string | null {
+  if (types.isIdentifier(property)) {
+    const name = (property as { name?: unknown }).name;
+    return typeof name === "string" ? name : null;
+  }
+
+  if (types.isStringLiteral(property)) {
+    const value = (property as { value?: unknown }).value;
+    return typeof value === "string" ? value : null;
+  }
+
+  return null;
+}
+
+function getUnsupportedImportMetaProperty(
+  node: unknown,
+  types: BabelApi["types"],
+): string | null {
+  if (!types.isObjectPattern(node)) {
+    return null;
+  }
+
+  for (const property of (node as BabelObjectPatternNode).properties ?? []) {
+    if (types.isRestElement(property)) {
+      return null;
+    }
+
+    if (!types.isObjectProperty(property)) {
+      continue;
+    }
+
+    const name = getPropertyName(
+      (property as BabelObjectPropertyNode).key,
+      types,
+    );
+
+    if (name !== "url") {
+      return typeof name === "string" ? name : null;
+    }
+  }
+
+  return null;
+}
+
 function getUnsupportedEnvMessage(source: "import.meta" | "process") {
   return source === "import.meta"
     ? "import.meta.env is Vite-specific and is not available inside uploaded artifacts in browser mode."
     : "process.env is not available in browser mode. Inline the value or use the local Node/Vite viewer.";
+}
+
+function getUnsupportedImportMetaMessage(propertyName?: string | null) {
+  if (propertyName === "env") {
+    return getUnsupportedEnvMessage("import.meta");
+  }
+
+  if (propertyName) {
+    return `import.meta.${propertyName} is not available inside uploaded artifacts in browser mode. Only import.meta.url is supported.`;
+  }
+
+  return "Only import.meta.url is supported inside uploaded artifacts in browser mode.";
 }
 
 function getUnsupportedReferenceMessage(
@@ -393,6 +453,7 @@ function getUnsupportedReferenceMessage(
     case "require":
       return "CommonJS require() is not supported in browser mode.";
     case "module":
+      return "CommonJS module is not supported in browser mode.";
     case "exports":
       return "CommonJS exports are not supported in browser mode.";
   }
@@ -411,33 +472,38 @@ function createBrowserGuardsPlugin() {
         types,
       );
 
-      if (
-        source === "import.meta" &&
-        isPropertyNamed(path.node.property, "env", types)
-      ) {
-        throw path.buildCodeFrameError(getUnsupportedEnvMessage("import.meta"));
-      }
+      const propertyName = getPropertyName(path.node.property, types);
 
-      if (
-        source === "process" &&
-        isPropertyNamed(path.node.property, "env", types)
-      ) {
-        throw path.buildCodeFrameError(getUnsupportedEnvMessage("process"));
-      }
+      if (source === "import.meta") {
+        if (propertyName === "url") {
+          return;
+        }
 
-      if (
-        source === "module" &&
-        isPropertyNamed(path.node.property, "exports", types)
-      ) {
         throw path.buildCodeFrameError(
-          "CommonJS exports are not supported in browser mode.",
+          getUnsupportedImportMetaMessage(propertyName),
+        );
+      }
+
+      if (source === "process") {
+        throw path.buildCodeFrameError(
+          propertyName === "env"
+            ? getUnsupportedEnvMessage("process")
+            : getUnsupportedReferenceMessage("process"),
+        );
+      }
+
+      if (source === "module") {
+        throw path.buildCodeFrameError(
+          propertyName === "exports"
+            ? getUnsupportedReferenceMessage("exports")
+            : propertyName === "require"
+              ? getUnsupportedReferenceMessage("require")
+              : getUnsupportedReferenceMessage("module"),
         );
       }
 
       if (source === "exports") {
-        throw path.buildCodeFrameError(
-          "CommonJS exports are not supported in browser mode.",
-        );
+        throw path.buildCodeFrameError(getUnsupportedReferenceMessage("exports"));
       }
     };
 
@@ -452,15 +518,27 @@ function createBrowserGuardsPlugin() {
         return;
       }
 
-      if (
-        (source === "import.meta" || source === "process") &&
-        objectPatternHasEnvProperty(pattern, types)
-      ) {
-        throw path.buildCodeFrameError(getUnsupportedEnvMessage(source));
+      if (source === "import.meta") {
+        const unsupportedProperty = getUnsupportedImportMetaProperty(
+          pattern,
+          types,
+        );
+
+        if (unsupportedProperty) {
+          throw path.buildCodeFrameError(
+            getUnsupportedImportMetaMessage(unsupportedProperty),
+          );
+        }
+
+        if (objectPatternHasEnvProperty(pattern, types)) {
+          throw path.buildCodeFrameError(getUnsupportedEnvMessage(source));
+        }
+
+        return;
       }
 
-      if (source === "import.meta") {
-        return;
+      if (source === "process" && objectPatternHasEnvProperty(pattern, types)) {
+        throw path.buildCodeFrameError(getUnsupportedEnvMessage(source));
       }
 
       throw path.buildCodeFrameError(getUnsupportedReferenceMessage(source));

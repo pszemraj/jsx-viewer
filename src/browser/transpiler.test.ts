@@ -92,6 +92,20 @@ test("transpileArtifact rejects aliased process access before runtime", async ()
   );
 });
 
+test("transpileArtifact rejects direct process member access", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadProcessVersion() {
+          return <div>{process.version}</div>;
+        }
+      `,
+      "BadProcessVersion.tsx",
+    ),
+    /process is not available in browser mode/,
+  );
+});
+
 test("transpileArtifact rejects destructured import.meta env access", async () => {
   await assert.rejects(
     transpileArtifact(
@@ -155,6 +169,51 @@ test("transpileArtifact allows import.meta aliases for supported properties", as
   );
 
   assert.match(code, /meta\.url/);
+});
+
+test("transpileArtifact rejects unsupported import.meta member access", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadImportMetaGlob() {
+          return <div>{String(Boolean(import.meta.glob("./*.tsx")))}</div>;
+        }
+      `,
+      "BadImportMetaGlob.tsx",
+    ),
+    /import\.meta\.glob is not available inside uploaded artifacts in browser mode/,
+  );
+});
+
+test("transpileArtifact rejects destructured unsupported import.meta properties", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadImportMetaGlobDestructure() {
+          const { glob } = import.meta;
+
+          return <div>{String(Boolean(glob))}</div>;
+        }
+      `,
+      "BadImportMetaGlobDestructure.tsx",
+    ),
+    /import\.meta\.glob is not available inside uploaded artifacts in browser mode/,
+  );
+});
+
+test("transpileArtifact allows destructured import.meta.url access", async () => {
+  const { code } = await transpileArtifact(
+    `
+      export default function ImportMetaUrlDestructure() {
+        const { url } = import.meta;
+
+        return <div>{url}</div>;
+      }
+    `,
+    "ImportMetaUrlDestructure.tsx",
+  );
+
+  assert.match(code, /const\s*\{\s*url\s*\}\s*=\s*import\.meta/);
 });
 
 test("transpileArtifact rejects assignment-pattern process env destructuring", async () => {
@@ -252,7 +311,7 @@ test("transpileArtifact allows aliased locally bound require() calls", async () 
   assert.match(code, /req\("ok"\)/);
 });
 
-test("transpileArtifact rejects aliased module.exports access", async () => {
+test("transpileArtifact rejects aliased module access before runtime", async () => {
   await assert.rejects(
     transpileArtifact(
       `
@@ -265,7 +324,36 @@ test("transpileArtifact rejects aliased module.exports access", async () => {
       `,
       "BadAliasedModuleExports.tsx",
     ),
+    /CommonJS module is not supported in browser mode/,
+  );
+});
+
+test("transpileArtifact rejects direct module.exports access", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadModuleExports() {
+          module.exports = {};
+          return null;
+        }
+      `,
+      "BadModuleExports.tsx",
+    ),
     /CommonJS exports are not supported in browser mode/,
+  );
+});
+
+test("transpileArtifact rejects module.require() member access", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadModuleRequire() {
+          return <div>{String(Boolean(module.require("react")))}</div>;
+        }
+      `,
+      "BadModuleRequire.tsx",
+    ),
+    /CommonJS require\(\) is not supported in browser mode/,
   );
 });
 
