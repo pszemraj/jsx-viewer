@@ -76,7 +76,7 @@ test("transpileArtifact rejects destructured process env access", async () => {
   );
 });
 
-test("transpileArtifact rejects aliased process env access", async () => {
+test("transpileArtifact rejects aliased process access before runtime", async () => {
   await assert.rejects(
     transpileArtifact(
       `
@@ -88,7 +88,7 @@ test("transpileArtifact rejects aliased process env access", async () => {
       `,
       "BadAliasedProcessEnv.tsx",
     ),
-    /process\.env is not available in browser mode/,
+    /process is not available in browser mode/,
   );
 });
 
@@ -124,6 +124,39 @@ test("transpileArtifact rejects aliased import.meta env access", async () => {
   );
 });
 
+test("transpileArtifact rejects import.meta env access through aliases reassigned later", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadLateReassignedImportMetaEnv() {
+          let meta = import.meta;
+          const mode = meta.env.MODE;
+          meta = { env: { MODE: "test" } };
+
+          return <div>{mode}</div>;
+        }
+      `,
+      "BadLateReassignedImportMetaEnv.tsx",
+    ),
+    /import\.meta\.env is Vite-specific/,
+  );
+});
+
+test("transpileArtifact allows import.meta aliases for supported properties", async () => {
+  const { code } = await transpileArtifact(
+    `
+      export default function ImportMetaUrl() {
+        const meta = import.meta;
+
+        return <div>{meta.url}</div>;
+      }
+    `,
+    "ImportMetaUrl.tsx",
+  );
+
+  assert.match(code, /meta\.url/);
+});
+
 test("transpileArtifact rejects assignment-pattern process env destructuring", async () => {
   await assert.rejects(
     transpileArtifact(
@@ -138,6 +171,23 @@ test("transpileArtifact rejects assignment-pattern process env destructuring", a
       "BadAssignmentPattern.tsx",
     ),
     /process\.env is not available in browser mode/,
+  );
+});
+
+test("transpileArtifact rejects direct require alias assignments", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadAssignedRequireAlias() {
+          let req;
+          req = require;
+
+          return <div>{String(Boolean(req))}</div>;
+        }
+      `,
+      "BadAssignedRequireAlias.tsx",
+    ),
+    /CommonJS require\(\) is not supported in browser mode/,
   );
 });
 

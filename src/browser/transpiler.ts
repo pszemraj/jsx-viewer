@@ -34,11 +34,13 @@ interface BabelApi {
 
 interface BabelBinding {
   constant?: boolean;
+  constantViolations?: BabelNodePath[];
   path: BabelNodePath;
 }
 
 interface BabelScope {
   getBinding(name: string): BabelBinding | undefined;
+  parent?: BabelScope | null;
 }
 
 interface BabelNodePath<TNode = unknown> {
@@ -241,6 +243,57 @@ function getBindingValueNode(
   return null;
 }
 
+function getNodeStart(node: unknown) {
+  const start = (node as { start?: unknown }).start;
+  return typeof start === "number" ? start : null;
+}
+
+function isScopeAncestorOrSelf(
+  candidate: BabelScope | undefined,
+  target: BabelScope | undefined,
+) {
+  if (!candidate || !target) {
+    return false;
+  }
+
+  let current: BabelScope | null | undefined = target;
+
+  while (current) {
+    if (current === candidate) {
+      return true;
+    }
+
+    current = current.parent;
+  }
+
+  return false;
+}
+
+function bindingHasPriorRelevantConstantViolation(
+  binding: BabelBinding,
+  referencePath: BabelNodePath,
+) {
+  const referenceStart = getNodeStart(referencePath.node);
+
+  if (referenceStart === null) {
+    return true;
+  }
+
+  return (binding.constantViolations ?? []).some((violation) => {
+    const violationStart = getNodeStart(violation.node);
+
+    if (violationStart === null || violationStart > referenceStart) {
+      return violationStart === null;
+    }
+
+    if (!referencePath.scope || !violation.scope) {
+      return true;
+    }
+
+    return isScopeAncestorOrSelf(violation.scope, referencePath.scope);
+  });
+}
+
 function resolveUnsupportedReferenceSource(
   node: unknown,
   path: BabelNodePath,
@@ -277,7 +330,14 @@ function resolveUnsupportedReferenceSource(
 
   const binding = getBinding(path, name);
 
-  if (!binding || binding.constant !== true) {
+  if (!binding) {
+    return null;
+  }
+
+  if (
+    binding.constant !== true &&
+    bindingHasPriorRelevantConstantViolation(binding, path)
+  ) {
     return null;
   }
 
@@ -296,20 +356,6 @@ function resolveUnsupportedReferenceSource(
     types,
     nextSeenNames,
   );
-}
-
-function getUnsupportedEnvSource(
-  node: unknown,
-  path: BabelNodePath,
-  types: BabelApi["types"],
-) {
-  const source = resolveUnsupportedReferenceSource(node, path, types);
-
-  if (source === "import.meta" || source === "process") {
-    return source;
-  }
-
-  return null;
 }
 
 function objectPatternHasEnvProperty(node: unknown, types: BabelApi["types"]) {
@@ -336,6 +382,20 @@ function getUnsupportedEnvMessage(source: "import.meta" | "process") {
   return source === "import.meta"
     ? "import.meta.env is Vite-specific and is not available inside uploaded artifacts in browser mode."
     : "process.env is not available in browser mode. Inline the value or use the local Node/Vite viewer.";
+}
+
+function getUnsupportedReferenceMessage(
+  source: "process" | "require" | "module" | "exports",
+) {
+  switch (source) {
+    case "process":
+      return "process is not available in browser mode. Inline the value or use the local Node/Vite viewer.";
+    case "require":
+      return "CommonJS require() is not supported in browser mode.";
+    case "module":
+    case "exports":
+      return "CommonJS exports are not supported in browser mode.";
+  }
 }
 
 function createBrowserGuardsPlugin() {
@@ -381,18 +441,29 @@ function createBrowserGuardsPlugin() {
       }
     };
 
-    const guardPatternEnvAccess = (
+    const guardUnsupportedSourceAccess = (
       path: BabelNodePath,
       pattern: unknown,
       sourceNode: unknown,
     ) => {
-      const source = getUnsupportedEnvSource(sourceNode, path, types);
+      const source = resolveUnsupportedReferenceSource(sourceNode, path, types);
 
-      if (!source || !objectPatternHasEnvProperty(pattern, types)) {
+      if (!source) {
         return;
       }
 
-      throw path.buildCodeFrameError(getUnsupportedEnvMessage(source));
+      if (
+        (source === "import.meta" || source === "process") &&
+        objectPatternHasEnvProperty(pattern, types)
+      ) {
+        throw path.buildCodeFrameError(getUnsupportedEnvMessage(source));
+      }
+
+      if (source === "import.meta") {
+        return;
+      }
+
+      throw path.buildCodeFrameError(getUnsupportedReferenceMessage(source));
     };
 
     return {
@@ -401,10 +472,10 @@ function createBrowserGuardsPlugin() {
         AssignmentExpression(
           path: BabelNodePath<BabelAssignmentExpressionNode>,
         ) {
-          guardPatternEnvAccess(path, path.node.left, path.node.right);
+          guardUnsupportedSourceAccess(path, path.node.left, path.node.right);
         },
         AssignmentPattern(path: BabelNodePath<BabelAssignmentPatternNode>) {
-          guardPatternEnvAccess(path, path.node.left, path.node.right);
+          guardUnsupportedSourceAccess(path, path.node.left, path.node.right);
         },
         MemberExpression(path: BabelNodePath<BabelMemberExpressionNode>) {
           guardMemberExpression(path);
@@ -415,7 +486,7 @@ function createBrowserGuardsPlugin() {
           guardMemberExpression(path);
         },
         VariableDeclarator(path: BabelNodePath<BabelVariableDeclaratorNode>) {
-          guardPatternEnvAccess(path, path.node.id, path.node.init);
+          guardUnsupportedSourceAccess(path, path.node.id, path.node.init);
         },
       },
     };
