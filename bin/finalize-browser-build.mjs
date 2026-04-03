@@ -1,4 +1,4 @@
-import { existsSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -30,6 +30,16 @@ async function assertNamedExports(relativePath, expectedExports) {
   }
 }
 
+function assertTextIncludes(filePath, expectedText) {
+  const contents = readFileSync(filePath, "utf8");
+
+  if (!contents.includes(expectedText)) {
+    throw new Error(
+      `Expected ${path.basename(filePath)} to include "${expectedText}", but it did not.`,
+    );
+  }
+}
+
 await assertNamedExports("runtime/react-jsx-runtime.js", [
   "Fragment",
   "jsx",
@@ -52,3 +62,5 @@ await assertNamedExports("runtime/papaparse.js", [
   "unparse",
   "BAD_DELIMITERS",
 ]);
+assertTextIncludes(targetHtml, 'http-equiv="Content-Security-Policy"');
+assertTextIncludes(targetHtml, "script-src &#39;self&#39; blob:");
