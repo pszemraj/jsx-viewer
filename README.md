@@ -45,11 +45,17 @@ Requirements: Node 20.19.0+ or 22.12.0+
 git clone https://github.com/pszemraj/jsx-viewer.git
 cd jsx-viewer
 npm install
-
+# spin up blank UI on localhost
 npm start
+```
+
+Or start with a file already loaded:
+
+```bash
 # or preload a file
 node bin/jsx-viewer.mjs path/to/Component.tsx
 ```
+
 
 ## Modes At A Glance
 
