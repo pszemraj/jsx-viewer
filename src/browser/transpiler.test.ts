@@ -313,6 +313,38 @@ test("transpileArtifact rejects aliased require() calls", async () => {
   );
 });
 
+test("transpileArtifact rejects zero-arg helper require() calls", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        const getRequire = () => require;
+
+        export default function BadWrappedRequire() {
+          return <div>{getRequire()("react")}</div>;
+        }
+      `,
+      "BadWrappedRequire.tsx",
+    ),
+    /CommonJS require\(\) is not supported in browser mode/,
+  );
+});
+
+test("transpileArtifact rejects zero-arg helper process.env access", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        const getProcess = () => process;
+
+        export default function BadWrappedProcessEnv() {
+          return <div>{getProcess().env.NODE_ENV}</div>;
+        }
+      `,
+      "BadWrappedProcessEnv.tsx",
+    ),
+    /process\.env is not available in browser mode/,
+  );
+});
+
 test("transpileArtifact allows locally bound require() calls", async () => {
   const { code } = await transpileArtifact(
     `
@@ -326,6 +358,22 @@ test("transpileArtifact allows locally bound require() calls", async () => {
   );
 
   assert.match(code, /require\("ok"\)/);
+});
+
+test("transpileArtifact allows zero-arg helpers returning local require bindings", async () => {
+  const { code } = await transpileArtifact(
+    `
+      const require = (value: string) => value;
+      const getRequire = () => require;
+
+      export default function LocalWrappedRequire() {
+        return <div>{getRequire()("ok")}</div>;
+      }
+    `,
+    "LocalWrappedRequire.tsx",
+  );
+
+  assert.match(code, /getRequire\(\)\("ok"\)/);
 });
 
 test("transpileArtifact allows aliased locally bound require() calls", async () => {

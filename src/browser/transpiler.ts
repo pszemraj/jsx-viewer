@@ -61,6 +61,10 @@ interface BabelCallExpressionNode {
   callee: unknown;
 }
 
+interface BabelBlockStatementNode {
+  body?: unknown[];
+}
+
 interface BabelMetaPropertyNode {
   meta?: unknown;
   property?: unknown;
@@ -79,6 +83,19 @@ interface BabelObjectPatternNode {
 interface BabelObjectPropertyNode {
   computed?: boolean;
   key?: unknown;
+}
+
+interface BabelReturnStatementNode {
+  argument?: unknown;
+}
+
+interface BabelFunctionNode {
+  body?: unknown;
+  params?: unknown[];
+}
+
+interface BabelTransparentExpressionNode {
+  expression?: unknown;
 }
 
 interface BabelVariableDeclaratorNode {
@@ -111,6 +128,11 @@ type UnsupportedImportMetaAccess =
   | {
       kind: "rest";
     };
+
+interface ResolvedNodeTarget {
+  node: unknown;
+  path: BabelNodePath;
+}
 
 const SUPPORTED_IMPORTS = BROWSER_RUNTIME_SPECIFIERS.join(", ");
 let babelApiPromise: Promise<BabelTransformApi> | null = null;
@@ -232,17 +254,106 @@ function getBinding(path: BabelNodePath, name: string) {
   return path.scope?.getBinding(name);
 }
 
-function getBindingValueNode(
-  binding: BabelBinding,
+function getNodeType(node: unknown) {
+  if (!node || (typeof node !== "object" && typeof node !== "function")) {
+    return null;
+  }
+
+  const type = (node as { type?: unknown }).type;
+  return typeof type === "string" ? type : null;
+}
+
+function unwrapTransparentExpression(node: unknown) {
+  let current = node;
+
+  while (current) {
+    const type = getNodeType(current);
+
+    if (
+      type !== "ParenthesizedExpression" &&
+      type !== "TSAsExpression" &&
+      type !== "TSSatisfiesExpression" &&
+      type !== "TSTypeAssertion" &&
+      type !== "TSNonNullExpression" &&
+      type !== "TypeCastExpression"
+    ) {
+      return current;
+    }
+
+    current = (current as BabelTransparentExpressionNode).expression;
+  }
+
+  return current;
+}
+
+function isDirectFunctionNode(node: unknown) {
+  const type = getNodeType(unwrapTransparentExpression(node));
+  return (
+    type === "ArrowFunctionExpression" ||
+    type === "FunctionDeclaration" ||
+    type === "FunctionExpression"
+  );
+}
+
+function getSingleReturnValueNode(node: unknown) {
+  if (getNodeType(node) !== "BlockStatement") {
+    return null;
+  }
+
+  const statements = (node as BabelBlockStatementNode).body;
+
+  if (!Array.isArray(statements) || statements.length !== 1) {
+    return null;
+  }
+
+  const [statement] = statements;
+
+  if (getNodeType(statement) !== "ReturnStatement") {
+    return null;
+  }
+
+  return (statement as BabelReturnStatementNode).argument ?? null;
+}
+
+function getDirectFunctionReturnValueNode(node: unknown) {
+  const unwrappedNode = unwrapTransparentExpression(node);
+
+  if (!isDirectFunctionNode(unwrappedNode)) {
+    return null;
+  }
+
+  const functionNode = unwrappedNode as BabelFunctionNode;
+
+  if (Array.isArray(functionNode.params) && functionNode.params.length > 0) {
+    return null;
+  }
+
+  if (getNodeType(unwrappedNode) === "ArrowFunctionExpression") {
+    return getNodeType(functionNode.body) === "BlockStatement"
+      ? getSingleReturnValueNode(functionNode.body)
+      : functionNode.body ?? null;
+  }
+
+  return getSingleReturnValueNode(functionNode.body);
+}
+
+function getAssignedValueNodeForPath(
+  path: BabelNodePath,
   name: string,
   types: BabelApi["types"],
 ) {
-  const bindingNode = binding.path.node as { type?: unknown };
+  const bindingNode = path.node as { type?: unknown };
 
   if (bindingNode.type === "VariableDeclarator") {
     const declarator = bindingNode as BabelVariableDeclaratorNode;
 
     return types.isIdentifier(declarator.id, { name }) ? declarator.init : null;
+  }
+
+  if (bindingNode.type === "AssignmentExpression") {
+    const assignment = bindingNode as BabelAssignmentExpressionNode;
+
+    return types.isIdentifier(assignment.left, { name }) ? assignment.right : null;
   }
 
   if (bindingNode.type === "AssignmentPattern") {
@@ -280,21 +391,19 @@ function isScopeAncestorOrSelf(
   return false;
 }
 
-function bindingHasPriorRelevantConstantViolation(
+function getPriorRelevantConstantViolations(
   binding: BabelBinding,
   referencePath: BabelNodePath,
 ) {
   const referenceStart = getNodeStart(referencePath.node);
 
-  if (referenceStart === null) {
-    return true;
-  }
-
-  return (binding.constantViolations ?? []).some((violation) => {
+  return (binding.constantViolations ?? []).filter((violation) => {
     const violationStart = getNodeStart(violation.node);
 
-    if (violationStart === null || violationStart > referenceStart) {
-      return violationStart === null;
+    if (referenceStart !== null && violationStart !== null) {
+      if (violationStart > referenceStart) {
+        return false;
+      }
     }
 
     if (!referencePath.scope || !violation.scope) {
@@ -305,21 +414,153 @@ function bindingHasPriorRelevantConstantViolation(
   });
 }
 
+function getBindingValueTarget(
+  binding: BabelBinding,
+  name: string,
+  referencePath: BabelNodePath,
+  types: BabelApi["types"],
+): ResolvedNodeTarget | null {
+  const priorViolations = getPriorRelevantConstantViolations(binding, referencePath);
+
+  if (priorViolations.length > 0) {
+    const violationStarts = priorViolations.map((violation) =>
+      getNodeStart(violation.node),
+    );
+
+    if (violationStarts.some((start) => start === null)) {
+      return null;
+    }
+
+    const latestViolation = [...priorViolations].sort(
+      (left, right) =>
+        (getNodeStart(right.node) ?? Number.NEGATIVE_INFINITY) -
+        (getNodeStart(left.node) ?? Number.NEGATIVE_INFINITY),
+    )[0];
+    const latestValueNode = getAssignedValueNodeForPath(
+      latestViolation,
+      name,
+      types,
+    );
+
+    return latestValueNode === null
+      ? null
+      : {
+          node: latestValueNode,
+          path: latestViolation,
+        };
+  }
+
+  const valueNode = getAssignedValueNodeForPath(binding.path, name, types);
+
+  return valueNode === null
+    ? null
+    : {
+        node: valueNode,
+        path: binding.path,
+      };
+}
+
+function resolveCallableTarget(
+  node: unknown,
+  path: BabelNodePath,
+  types: BabelApi["types"],
+  seenNames: Set<string>,
+): ResolvedNodeTarget | null {
+  const unwrappedNode = unwrapTransparentExpression(node);
+
+  if (isDirectFunctionNode(unwrappedNode)) {
+    return {
+      node: unwrappedNode,
+      path,
+    };
+  }
+
+  if (!types.isIdentifier(unwrappedNode)) {
+    return null;
+  }
+
+  const name = (unwrappedNode as { name?: unknown }).name;
+
+  if (typeof name !== "string" || seenNames.has(name)) {
+    return null;
+  }
+
+  const binding = getBinding(path, name);
+
+  if (!binding) {
+    return null;
+  }
+
+  const nextSeenNames = new Set(seenNames);
+  nextSeenNames.add(name);
+
+  if (getNodeType(binding.path.node) === "FunctionDeclaration") {
+    return {
+      node: binding.path.node,
+      path: binding.path,
+    };
+  }
+
+  const valueTarget = getBindingValueTarget(binding, name, path, types);
+
+  if (!valueTarget) {
+    return null;
+  }
+
+  return resolveCallableTarget(
+    valueTarget.node,
+    valueTarget.path,
+    types,
+    nextSeenNames,
+  );
+}
+
 function resolveUnsupportedReferenceSource(
   node: unknown,
   path: BabelNodePath,
   types: BabelApi["types"],
   seenNames = new Set<string>(),
 ): UnsupportedReferenceSource | null {
-  if (isImportMetaExpression(node, types)) {
+  const unwrappedNode = unwrapTransparentExpression(node);
+
+  if (isImportMetaExpression(unwrappedNode, types)) {
     return "import.meta";
   }
 
-  if (!types.isIdentifier(node)) {
+  if (
+    getNodeType(unwrappedNode) === "CallExpression" ||
+    getNodeType(unwrappedNode) === "OptionalCallExpression"
+  ) {
+    const callableTarget = resolveCallableTarget(
+      (unwrappedNode as BabelCallExpressionNode).callee,
+      path,
+      types,
+      seenNames,
+    );
+
+    if (!callableTarget) {
+      return null;
+    }
+
+    const returnedNode = getDirectFunctionReturnValueNode(callableTarget.node);
+
+    if (!returnedNode) {
+      return null;
+    }
+
+    return resolveUnsupportedReferenceSource(
+      returnedNode,
+      callableTarget.path,
+      types,
+      seenNames,
+    );
+  }
+
+  if (!types.isIdentifier(unwrappedNode)) {
     return null;
   }
 
-  const name = (node as { name?: unknown }).name;
+  const name = (unwrappedNode as { name?: unknown }).name;
 
   if (typeof name !== "string") {
     return null;
@@ -345,16 +586,9 @@ function resolveUnsupportedReferenceSource(
     return null;
   }
 
-  if (
-    binding.constant !== true &&
-    bindingHasPriorRelevantConstantViolation(binding, path)
-  ) {
-    return null;
-  }
+  const valueTarget = getBindingValueTarget(binding, name, path, types);
 
-  const valueNode = getBindingValueNode(binding, name, types);
-
-  if (!valueNode) {
+  if (!valueTarget) {
     return null;
   }
 
@@ -362,8 +596,8 @@ function resolveUnsupportedReferenceSource(
   nextSeenNames.add(name);
 
   return resolveUnsupportedReferenceSource(
-    valueNode,
-    binding.path,
+    valueTarget.node,
+    valueTarget.path,
     types,
     nextSeenNames,
   );
