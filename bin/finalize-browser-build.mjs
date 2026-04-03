@@ -47,3 +47,8 @@ await assertNamedExports("runtime/react-dom-client.js", [
   "createRoot",
   "hydrateRoot",
 ]);
+await assertNamedExports("runtime/papaparse.js", [
+  "parse",
+  "unparse",
+  "BAD_DELIMITERS",
+]);
