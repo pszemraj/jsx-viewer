@@ -255,6 +255,68 @@ test("transpileArtifact allows safe later reassignments after import.meta aliasi
   assert.match(code, /meta\.url/);
 });
 
+test("transpileArtifact allows destructuring url from import.meta aliases", async () => {
+  const { code } = await transpileArtifact(
+    `
+      export default function ImportMetaAliasDestructure() {
+        const meta = import.meta;
+        const { url } = meta;
+
+        return <div>{url}</div>;
+      }
+    `,
+    "ImportMetaAliasDestructure.tsx",
+  );
+
+  assert.match(code, /const meta = import\.meta/);
+  assert.match(code, /const\s*\{\s*url\s*\}\s*=\s*meta/);
+});
+
+test("transpileArtifact rejects direct bare import.meta escapes", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadBareImportMeta() {
+          return import.meta;
+        }
+      `,
+      "BadBareImportMeta.tsx",
+    ),
+    /Only import\.meta\.url is supported inside uploaded artifacts in browser mode/,
+  );
+});
+
+test("transpileArtifact rejects import.meta aliases that escape as full objects", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadImportMetaAliasEscape() {
+          const meta = import.meta;
+          return meta;
+        }
+      `,
+      "BadImportMetaAliasEscape.tsx",
+    ),
+    /Only import\.meta\.url is supported inside uploaded artifacts in browser mode/,
+  );
+});
+
+test("transpileArtifact rejects helpers that return import.meta directly", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        const getMeta = () => import.meta;
+
+        export default function BadWrappedImportMeta() {
+          return getMeta();
+        }
+      `,
+      "BadWrappedImportMeta.tsx",
+    ),
+    /Only import\.meta\.url is supported inside uploaded artifacts in browser mode/,
+  );
+});
+
 test("transpileArtifact rejects unsupported import.meta member access", async () => {
   await assert.rejects(
     transpileArtifact(

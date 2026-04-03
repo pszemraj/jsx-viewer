@@ -37,6 +37,7 @@ interface BabelBinding {
   constant?: boolean;
   constantViolations?: BabelNodePath[];
   path: BabelNodePath;
+  referencePaths?: BabelNodePath[];
 }
 
 interface BabelScope {
@@ -271,20 +272,24 @@ function getNodeType(node: unknown) {
   return typeof type === "string" ? type : null;
 }
 
+function isTransparentExpressionType(type: string | null) {
+  return (
+    type === "ParenthesizedExpression" ||
+    type === "TSAsExpression" ||
+    type === "TSSatisfiesExpression" ||
+    type === "TSTypeAssertion" ||
+    type === "TSNonNullExpression" ||
+    type === "TypeCastExpression"
+  );
+}
+
 function unwrapTransparentExpression(node: unknown) {
   let current = node;
 
   while (current) {
     const type = getNodeType(current);
 
-    if (
-      type !== "ParenthesizedExpression" &&
-      type !== "TSAsExpression" &&
-      type !== "TSSatisfiesExpression" &&
-      type !== "TSTypeAssertion" &&
-      type !== "TSNonNullExpression" &&
-      type !== "TypeCastExpression"
-    ) {
+    if (!isTransparentExpressionType(type)) {
       return current;
     }
 
@@ -419,6 +424,29 @@ function getPriorRelevantConstantViolations(
     }
 
     return isScopeAncestorOrSelf(violation.scope, referencePath.scope);
+  });
+}
+
+function getFutureRelevantReferencePaths(
+  binding: BabelBinding,
+  assignmentPath: BabelNodePath,
+) {
+  const assignmentStart = getNodeStart(assignmentPath.node);
+
+  return (binding.referencePaths ?? []).filter((referencePath) => {
+    const referenceStart = getNodeStart(referencePath.node);
+
+    if (assignmentStart !== null && referenceStart !== null) {
+      if (referenceStart <= assignmentStart) {
+        return false;
+      }
+    }
+
+    if (!assignmentPath.scope || !referencePath.scope) {
+      return true;
+    }
+
+    return isScopeAncestorOrSelf(assignmentPath.scope, referencePath.scope);
   });
 }
 
@@ -735,6 +763,125 @@ function getUnsupportedReferenceMessage(
   }
 }
 
+function getMeaningfulReferenceContext(referencePath: BabelNodePath) {
+  let currentPath = referencePath;
+  let parentPath = referencePath.parentPath;
+
+  while (
+    parentPath &&
+    isTransparentExpressionType(getNodeType(parentPath.node)) &&
+    (parentPath.node as BabelTransparentExpressionNode).expression ===
+      currentPath.node
+  ) {
+    currentPath = parentPath;
+    parentPath = currentPath.parentPath;
+  }
+
+  return {
+    currentPath,
+    parentPath,
+  };
+}
+
+function getUnsupportedImportMetaAliasReference(
+  referencePath: BabelNodePath,
+  types: BabelApi["types"],
+): UnsupportedImportMetaAccess | { propertyName?: string | null } | null {
+  const { currentPath, parentPath } = getMeaningfulReferenceContext(referencePath);
+
+  if (!parentPath) {
+    return {};
+  }
+
+  const parentNode = parentPath.node;
+  const parentType = getNodeType(parentNode);
+
+  if (
+    (parentType === "MemberExpression" ||
+      parentType === "OptionalMemberExpression") &&
+    (parentNode as BabelMemberExpressionNode).object === currentPath.node
+  ) {
+    const propertyName = getPropertyName(
+      (parentNode as BabelMemberExpressionNode).property,
+      types,
+    );
+
+    return propertyName === "url"
+      ? null
+      : {
+          kind: "property",
+          propertyName,
+        };
+  }
+
+  if (
+    parentType === "VariableDeclarator" &&
+    (parentNode as BabelVariableDeclaratorNode).init === currentPath.node
+  ) {
+    const target = (parentNode as BabelVariableDeclaratorNode).id;
+    if (types.isObjectPattern(target)) {
+      return getUnsupportedImportMetaAccess(target, types);
+    }
+
+    return {};
+  }
+
+  if (
+    (parentType === "AssignmentExpression" ||
+      parentType === "AssignmentPattern") &&
+    (parentNode as BabelAssignmentExpressionNode | BabelAssignmentPatternNode)
+      .right === currentPath.node
+  ) {
+    const target =
+      parentType === "AssignmentExpression"
+        ? (parentNode as BabelAssignmentExpressionNode).left
+        : (parentNode as BabelAssignmentPatternNode).left;
+
+    if (types.isObjectPattern(target)) {
+      return getUnsupportedImportMetaAccess(target, types);
+    }
+
+    return {};
+  }
+
+  return {};
+}
+
+function getUnsupportedImportMetaAliasAccess(
+  path: BabelNodePath,
+  target: unknown,
+  types: BabelApi["types"],
+) {
+  if (!types.isIdentifier(target)) {
+    return null;
+  }
+
+  const aliasName = (target as { name?: unknown }).name;
+
+  if (typeof aliasName !== "string") {
+    return {};
+  }
+
+  const binding = getBinding(path, aliasName);
+
+  if (!binding) {
+    return {};
+  }
+
+  for (const referencePath of getFutureRelevantReferencePaths(binding, path)) {
+    const unsupportedAccess = getUnsupportedImportMetaAliasReference(
+      referencePath,
+      types,
+    );
+
+    if (unsupportedAccess) {
+      return unsupportedAccess;
+    }
+  }
+
+  return null;
+}
+
 function findUnsupportedWriteTarget(
   node: unknown,
   path: BabelNodePath,
@@ -916,6 +1063,18 @@ function createBrowserGuardsPlugin() {
           );
         }
 
+        const unsupportedAliasAccess = getUnsupportedImportMetaAliasAccess(
+          path,
+          pattern,
+          types,
+        );
+
+        if (unsupportedAliasAccess) {
+          throw path.buildCodeFrameError(
+            getUnsupportedImportMetaMessage(unsupportedAliasAccess),
+          );
+        }
+
         return;
       }
 
@@ -951,6 +1110,26 @@ function createBrowserGuardsPlugin() {
         },
         Identifier(path: BabelNodePath) {
           guardIdentifierReference(path);
+        },
+        MetaProperty(path: BabelNodePath<BabelMetaPropertyNode>) {
+          if (!isImportMetaExpression(path.node, types)) {
+            return;
+          }
+
+          const { parentPath } = getMeaningfulReferenceContext(path);
+          const parentType = getNodeType(parentPath?.node);
+
+          if (
+            parentType === "MemberExpression" ||
+            parentType === "OptionalMemberExpression" ||
+            parentType === "VariableDeclarator" ||
+            parentType === "AssignmentExpression" ||
+            parentType === "AssignmentPattern"
+          ) {
+            return;
+          }
+
+          throw path.buildCodeFrameError(getUnsupportedImportMetaMessage());
         },
         MemberExpression(path: BabelNodePath<BabelMemberExpressionNode>) {
           guardMemberExpression(path);
