@@ -4,21 +4,15 @@
 
 The app ships with no analytics, telemetry, or third-party trackers.
 
-That means there is no in-app analytics SDK, no event beaconing, and no upload
-endpoint that receives your pasted or selected artifact source.
+That means there is no in-app analytics SDK, no event beaconing, and no upload endpoint that receives your pasted or selected artifact source.
 
-The hosted site is still served by GitHub Pages as static hosting, so normal
-page requests can still hit the hosting platform. The statement here is about
-the app itself: it does not include analytics or ship your artifact to an
-application backend.
+The hosted site is still served by GitHub Pages as static hosting, so normal page requests can still hit the hosting platform. The statement here is about the app itself: it does not include analytics or ship your artifact to an application backend.
 
 ## Execution Model
 
 ### Local Viewer
 
-The local viewer runs on your machine through a local Vite dev server plus a
-local WebSocket bridge. Loaded artifacts are executed locally in the browser
-against that local runtime.
+The local viewer runs on your machine through a local Vite dev server plus a local WebSocket bridge. Loaded artifacts are executed locally in the browser against that local runtime.
 
 ### Website / Browser Mode
 
@@ -41,12 +35,9 @@ Expected network behavior for the hosted site:
 
 ## Trust Model
 
-Browser mode direct-renders uploaded code in the same page as the viewer. That
-is convenient, but it is not a sandbox.
+Browser mode direct-renders uploaded code in the same page as the viewer. That is convenient, but it is not a sandbox.
 
-Use the hosted mode for trusted single-file artifacts. Use the local viewer
-when you need broader package resolution, multi-file support, or a more
-controlled preview path.
+Use the hosted mode for trusted single-file artifacts. Use the local viewer when you need broader package resolution, multi-file support, or a more controlled preview path.
 
 ## Related Docs
 

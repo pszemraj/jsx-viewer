@@ -9,8 +9,7 @@ See [modes and limitations](modes.md) for the full comparison.
 
 ## Local Viewer
 
-Start with a file when you want the smoothest workflow. The viewer watches it
-for changes and refreshes in the browser as you save.
+Start with a file when you want the smoothest workflow. The viewer watches it for changes and refreshes in the browser as you save.
 
 ```bash
 node bin/jsx-viewer.mjs path/to/Component.tsx
@@ -32,8 +31,7 @@ Then load an artifact by:
 - using the upload button
 - pasting source with `Ctrl+V` or `Cmd+V`
 
-When a file is already loaded, use `swap file` to replace it or `clear` to
-return to the empty state.
+When a file is already loaded, use `swap file` to replace it or `clear` to return to the empty state.
 
 An example dashboard is included:
 
@@ -52,8 +50,7 @@ node bin/jsx-viewer.mjs [options] [file.jsx|file.tsx]
   -h, --help       Show help
 ```
 
-Pass zero or one `.jsx` or `.tsx` file. Unknown flags, duplicate `--port`
-arguments, unsupported extensions, and extra positional arguments fail fast.
+Pass zero or one `.jsx` or `.tsx` file. Unknown flags, duplicate `--port` arguments, unsupported extensions, and extra positional arguments fail fast.
 
 The viewer auto-opens in the browser unless `CI` is already set.
 
@@ -67,8 +64,7 @@ export default function MyComponent() {
 }
 ```
 
-Wrapped defaults created with `React.memo(...)`, `forwardRef(...)`, and
-`lazy(...)` are supported as long as the default export is still renderable.
+Wrapped defaults created with `React.memo(...)`, `forwardRef(...)`, and `lazy(...)` are supported as long as the default export is still renderable.
 
 ## Related Docs
 

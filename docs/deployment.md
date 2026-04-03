@@ -2,8 +2,7 @@
 
 Live site: [pszemraj.github.io/jsx-viewer](https://pszemraj.github.io/jsx-viewer/)
 
-The repository includes a browser-only entry that can be deployed to GitHub
-Pages without changing the existing local Node/Vite/WebSocket viewer.
+The repository includes a browser-only entry that can be deployed to GitHub Pages without changing the existing local Node/Vite/WebSocket viewer.
 
 ## Browser Build Commands
 
@@ -12,8 +11,7 @@ npm run dev:browser
 npm run build:browser
 ```
 
-`npm run build:browser` emits `dist-browser/` and then finalizes it into a
-Pages-ready artifact.
+`npm run build:browser` emits `dist-browser/` and then finalizes it into a Pages-ready artifact.
 
 ## Build And Deploy Flow
 
@@ -27,8 +25,7 @@ The Pages workflow does the following:
 6. uploads the Pages artifact
 7. deploys it with `actions/deploy-pages`
 
-Using the configured base path avoids hardcoding the repository name and keeps
-the deployment compatible with nested repo paths and a future custom domain.
+Using the configured base path avoids hardcoding the repository name and keeps the deployment compatible with nested repo paths and a future custom domain.
 
 ## Design Notes
 
@@ -40,8 +37,7 @@ The Pages mode does not use an iframe. It:
 4. imports the compiled result from a `blob:` URL
 5. renders the component directly into the app shell
 
-That gives a more literal in-page preview, but it also means browser mode is a
-trusted-artifact path rather than a sandbox.
+That gives a more literal in-page preview, but it also means browser mode is a trusted-artifact path rather than a sandbox.
 
 ## Validation
 

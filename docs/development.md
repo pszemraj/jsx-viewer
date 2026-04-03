@@ -3,7 +3,7 @@
 ## Common Commands
 
 | Command | Purpose |
-| ------- | ------- |
+| --- | --- |
 | `npm start` or `npm run dev` | Launch the empty local drop/upload/paste UI |
 | `npm run demo` | Preload and watch `example/Dashboard.tsx` |
 | `npm run dev:browser` | Launch the browser-only entry locally |
@@ -17,12 +17,9 @@
 
 ## Hook Behavior
 
-On non-Windows systems, `npm install` also configures a repo-local pre-commit
-hook that blocks commits when `component/View.tsx` has been changed away from
-the tracked placeholder.
+On non-Windows systems, `npm install` also configures a repo-local pre-commit hook that blocks commits when `component/View.tsx` has been changed away from the tracked placeholder.
 
-On Windows, hook installation is skipped by default because Git-for-Windows
-shell hooks can be flaky in some environments. The guard still exists as:
+On Windows, hook installation is skipped by default because Git-for-Windows shell hooks can be flaky in some environments. The guard still exists as:
 
 ```powershell
 npm run guard:slot

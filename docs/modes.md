@@ -5,13 +5,12 @@
 - local viewer: the default Node/Vite/WebSocket workflow
 - website/browser mode: the GitHub Pages-hosted single-file viewer
 
-The website path is direct-render and same-page. It is a trusted-artifact path,
-not a sandbox.
+The website path is direct-render and same-page. It is a trusted-artifact path, not a sandbox.
 
 ## Capability Matrix
 
 | Capability | Local viewer | Website / browser mode |
-| ---------- | ------------ | ---------------------- |
+| --- | --- | --- |
 | Single-file `.jsx` / `.tsx` | Yes | Yes |
 | Basic React rendering | Yes | Yes |
 | Hooks (`useState`, `useEffect`, `useRef`, etc.) | Yes | Yes |
@@ -30,8 +29,7 @@ not a sandbox.
 
 ## What Browser Mode Supports
 
-Browser mode is meant to handle real single-file React artifacts well. That
-includes:
+Browser mode is meant to handle real single-file React artifacts well. That includes:
 
 - `.jsx` and `.tsx`
 - default-exported React 18 components
@@ -57,10 +55,7 @@ If you need those capabilities, use the local viewer instead.
 
 ## Why The Browser Mode Is Narrower
 
-The browser mode is meant to stay predictable. Once it starts resolving
-arbitrary package graphs, relative imports, or environment-dependent code, it
-stops being a simple single-file viewer and turns into a browser bundler. That
-is not the goal for the hosted Pages path.
+The browser mode is meant to stay predictable. Once it starts resolving arbitrary package graphs, relative imports, or environment-dependent code, it stops being a simple single-file viewer and turns into a browser bundler. That is not the goal for the hosted Pages path.
 
 Reasonable future expansion would be:
 

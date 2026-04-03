@@ -42,9 +42,7 @@ export default function BasicTsx() {
   }, []);
 
   return (
-    <div style={{ padding: 24, fontFamily: "monospace" }}>
-      count: {count}
-    </div>
+    <div style={{ padding: 24, fontFamily: "monospace" }}>count: {count}</div>
   );
 }
 ```
@@ -101,7 +99,9 @@ import { AlarmClock } from "lucide-react";
 
 export default function LucideCase() {
   return (
-    <div style={{ padding: 24, display: "flex", gap: 12, alignItems: "center" }}>
+    <div
+      style={{ padding: 24, display: "flex", gap: 12, alignItems: "center" }}
+    >
       <AlarmClock size={20} />
       <span>allowlisted import works</span>
     </div>

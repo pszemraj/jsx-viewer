@@ -1,8 +1,6 @@
 # jsx-viewer
 
-Render single-file React `.jsx` and `.tsx` artifacts with minimal setup. Use
-the local viewer for the full development workflow, or use the hosted site for
-quick single-file previews.
+Render single-file React `.jsx` and `.tsx` artifacts with minimal setup. Use the local viewer for the full development workflow, or use the hosted site for quick single-file previews.
 
 ![JSX Viewer Preview](assets/ui.png)
 
@@ -35,9 +33,7 @@ More detail: [Modes and limitations](docs/modes.md), [Privacy and security](docs
 
 ## Local Viewer
 
-For local development, `jsx-viewer` runs a Vite/WebSocket viewer on your
-machine and supports the broader workflow: multi-file imports, live watching,
-local package resolution, and local Tailwind compilation.
+For local development, `jsx-viewer` runs a Vite/WebSocket viewer on your machine and supports the broader workflow: multi-file imports, live watching, local package resolution, and local Tailwind compilation.
 
 Requirements: Node 20.19.0+ or 22.12.0+
 
@@ -56,11 +52,10 @@ Or start with a file already loaded:
 node bin/jsx-viewer.mjs path/to/Component.tsx
 ```
 
-
 ## Modes At A Glance
 
 | Mode | Best for | Notable limits |
-| ---- | -------- | -------------- |
+| --- | --- | --- |
 | Local viewer | day-to-day development, multi-file work, live watching | requires Node and a local dev server |
 | Website / Pages browser mode | quick single-file preview and sharing | no multi-file imports, no arbitrary packages, no sandbox |
 
