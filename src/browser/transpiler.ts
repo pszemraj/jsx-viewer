@@ -77,6 +77,7 @@ interface BabelObjectPatternNode {
 }
 
 interface BabelObjectPropertyNode {
+  computed?: boolean;
   key?: unknown;
 }
 
@@ -101,6 +102,15 @@ type UnsupportedReferenceSource =
   | "require"
   | "module"
   | "exports";
+
+type UnsupportedImportMetaAccess =
+  | {
+      kind: "property";
+      propertyName: string | null;
+    }
+  | {
+      kind: "rest";
+    };
 
 const SUPPORTED_IMPORTS = BROWSER_RUNTIME_SPECIFIERS.join(", ");
 let babelApiPromise: Promise<BabelTransformApi> | null = null;
@@ -370,11 +380,10 @@ function objectPatternHasEnvProperty(node: unknown, types: BabelApi["types"]) {
         return false;
       }
 
-      return isPropertyNamed(
-        (property as BabelObjectPropertyNode).key,
-        "env",
+      return getStaticObjectPropertyName(
+        property as BabelObjectPropertyNode,
         types,
-      );
+      ) === "env";
     },
   );
 }
@@ -396,30 +405,46 @@ function getPropertyName(
   return null;
 }
 
-function getUnsupportedImportMetaProperty(
-  node: unknown,
+function getStaticObjectPropertyName(
+  property: BabelObjectPropertyNode,
   types: BabelApi["types"],
 ): string | null {
+  if (property.computed === true) {
+    return types.isStringLiteral(property.key)
+      ? getPropertyName(property.key, types)
+      : null;
+  }
+
+  return getPropertyName(property.key, types);
+}
+
+function getUnsupportedImportMetaAccess(
+  node: unknown,
+  types: BabelApi["types"],
+): UnsupportedImportMetaAccess | null {
   if (!types.isObjectPattern(node)) {
     return null;
   }
 
   for (const property of (node as BabelObjectPatternNode).properties ?? []) {
     if (types.isRestElement(property)) {
-      return null;
+      return { kind: "rest" };
     }
 
     if (!types.isObjectProperty(property)) {
       continue;
     }
 
-    const name = getPropertyName(
-      (property as BabelObjectPropertyNode).key,
+    const name = getStaticObjectPropertyName(
+      property as BabelObjectPropertyNode,
       types,
     );
 
     if (name !== "url") {
-      return typeof name === "string" ? name : null;
+      return {
+        kind: "property",
+        propertyName: name,
+      };
     }
   }
 
@@ -432,9 +457,18 @@ function getUnsupportedEnvMessage(source: "import.meta" | "process") {
     : "process.env is not available in browser mode. Inline the value or use the local Node/Vite viewer.";
 }
 
-function getUnsupportedImportMetaMessage(propertyName?: string | null) {
+function getUnsupportedImportMetaMessage(
+  access?: UnsupportedImportMetaAccess | { propertyName?: string | null },
+) {
+  const propertyName =
+    access && "propertyName" in access ? access.propertyName : undefined;
+
   if (propertyName === "env") {
     return getUnsupportedEnvMessage("import.meta");
+  }
+
+  if (access && "kind" in access && access.kind === "rest") {
+    return "import.meta rest destructuring is not supported inside uploaded artifacts in browser mode. Only import.meta.url is supported.";
   }
 
   if (propertyName) {
@@ -480,7 +514,7 @@ function createBrowserGuardsPlugin() {
         }
 
         throw path.buildCodeFrameError(
-          getUnsupportedImportMetaMessage(propertyName),
+          getUnsupportedImportMetaMessage({ propertyName }),
         );
       }
 
@@ -519,7 +553,7 @@ function createBrowserGuardsPlugin() {
       }
 
       if (source === "import.meta") {
-        const unsupportedProperty = getUnsupportedImportMetaProperty(
+        const unsupportedProperty = getUnsupportedImportMetaAccess(
           pattern,
           types,
         );
@@ -528,10 +562,6 @@ function createBrowserGuardsPlugin() {
           throw path.buildCodeFrameError(
             getUnsupportedImportMetaMessage(unsupportedProperty),
           );
-        }
-
-        if (objectPatternHasEnvProperty(pattern, types)) {
-          throw path.buildCodeFrameError(getUnsupportedEnvMessage(source));
         }
 
         return;

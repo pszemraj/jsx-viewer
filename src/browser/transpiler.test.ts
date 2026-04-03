@@ -201,6 +201,39 @@ test("transpileArtifact rejects destructured unsupported import.meta properties"
   );
 });
 
+test("transpileArtifact rejects import.meta rest destructuring", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadImportMetaRestDestructure() {
+          const { ...meta } = import.meta;
+
+          return <div>{String(Boolean(meta.env?.MODE))}</div>;
+        }
+      `,
+      "BadImportMetaRestDestructure.tsx",
+    ),
+    /import\.meta rest destructuring is not supported inside uploaded artifacts in browser mode/,
+  );
+});
+
+test("transpileArtifact rejects computed import.meta destructuring", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadImportMetaComputedDestructure() {
+          const key = "env";
+          const { [key]: runtimeValue } = import.meta;
+
+          return <div>{String(Boolean(runtimeValue))}</div>;
+        }
+      `,
+      "BadImportMetaComputedDestructure.tsx",
+    ),
+    /Only import\.meta\.url is supported inside uploaded artifacts in browser mode/,
+  );
+});
+
 test("transpileArtifact allows destructured import.meta.url access", async () => {
   const { code } = await transpileArtifact(
     `
