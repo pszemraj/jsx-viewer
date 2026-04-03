@@ -143,6 +143,14 @@ test("cli runtime packages are published as production dependencies", () => {
   }
 });
 
+test("browser npm entrypoints stay behind the Node version gate", () => {
+  const versionGateScript = "node ./bin/check-node-version.mjs";
+
+  assert.equal(packageJson.scripts?.prebuild, versionGateScript);
+  assert.equal(packageJson.scripts?.["prebuild:browser"], versionGateScript);
+  assert.equal(packageJson.scripts?.["predev:browser"], versionGateScript);
+});
+
 test("cli reports the package version from package metadata", () => {
   const stdout = execFileSync(process.execPath, [CLI_PATH, "--version"], {
     cwd: REPO_ROOT,
