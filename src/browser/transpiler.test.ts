@@ -76,6 +76,22 @@ test("transpileArtifact rejects destructured process env access", async () => {
   );
 });
 
+test("transpileArtifact rejects aliased process env access", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadAliasedProcessEnv() {
+          const proc = process;
+
+          return <div>{proc.env.NODE_ENV}</div>;
+        }
+      `,
+      "BadAliasedProcessEnv.tsx",
+    ),
+    /process\.env is not available in browser mode/,
+  );
+});
+
 test("transpileArtifact rejects destructured import.meta env access", async () => {
   await assert.rejects(
     transpileArtifact(
@@ -87,6 +103,22 @@ test("transpileArtifact rejects destructured import.meta env access", async () =
         }
       `,
       "BadImportMetaEnvDestructure.tsx",
+    ),
+    /import\.meta\.env is Vite-specific/,
+  );
+});
+
+test("transpileArtifact rejects aliased import.meta env access", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadAliasedImportMetaEnv() {
+          const meta = import.meta;
+
+          return <div>{meta.env.MODE}</div>;
+        }
+      `,
+      "BadAliasedImportMetaEnv.tsx",
     ),
     /import\.meta\.env is Vite-specific/,
   );
@@ -123,6 +155,22 @@ test("transpileArtifact rejects unbound require() calls", async () => {
   );
 });
 
+test("transpileArtifact rejects aliased require() calls", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadAliasedRequire() {
+          const req = require;
+
+          return <div>{req("react")}</div>;
+        }
+      `,
+      "BadAliasedRequire.tsx",
+    ),
+    /CommonJS require\(\) is not supported in browser mode/,
+  );
+});
+
 test("transpileArtifact allows locally bound require() calls", async () => {
   const { code } = await transpileArtifact(
     `
@@ -136,4 +184,54 @@ test("transpileArtifact allows locally bound require() calls", async () => {
   );
 
   assert.match(code, /require\("ok"\)/);
+});
+
+test("transpileArtifact allows aliased locally bound require() calls", async () => {
+  const { code } = await transpileArtifact(
+    `
+      const require = (value: string) => value;
+      const req = require;
+
+      export default function LocalAliasedRequire() {
+        return <div>{req("ok")}</div>;
+      }
+    `,
+    "LocalAliasedRequire.tsx",
+  );
+
+  assert.match(code, /req\("ok"\)/);
+});
+
+test("transpileArtifact rejects aliased module.exports access", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadAliasedModuleExports() {
+          const runtimeModule = module;
+          runtimeModule.exports = {};
+
+          return null;
+        }
+      `,
+      "BadAliasedModuleExports.tsx",
+    ),
+    /CommonJS exports are not supported in browser mode/,
+  );
+});
+
+test("transpileArtifact rejects aliased exports member access", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadAliasedExports() {
+          const runtimeExports = exports;
+          runtimeExports.answer = 1;
+
+          return null;
+        }
+      `,
+      "BadAliasedExports.tsx",
+    ),
+    /CommonJS exports are not supported in browser mode/,
+  );
 });

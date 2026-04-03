@@ -32,8 +32,13 @@ interface BabelApi {
   };
 }
 
+interface BabelBinding {
+  constant?: boolean;
+  path: BabelNodePath;
+}
+
 interface BabelScope {
-  hasBinding(name: string): boolean;
+  getBinding(name: string): BabelBinding | undefined;
 }
 
 interface BabelNodePath<TNode = unknown> {
@@ -87,6 +92,13 @@ interface BabelAssignmentPatternNode {
   right?: unknown;
 }
 
+type UnsupportedReferenceSource =
+  | "import.meta"
+  | "process"
+  | "require"
+  | "module"
+  | "exports";
+
 const SUPPORTED_IMPORTS = BROWSER_RUNTIME_SPECIFIERS.join(", ");
 let babelApiPromise: Promise<BabelTransformApi> | null = null;
 
@@ -111,16 +123,16 @@ function getTranspilerOrigin() {
 }
 
 function getViteEnv() {
-  return (import.meta as ImportMeta & {
-    env?: { BASE_URL?: string; DEV?: boolean };
-  }).env;
+  return (
+    import.meta as ImportMeta & {
+      env?: { BASE_URL?: string; DEV?: boolean };
+    }
+  ).env;
 }
 
 function getRuntimeModuleUrl(specifier: string) {
   const entry =
-    BROWSER_RUNTIME_ENTRIES[
-      specifier as keyof typeof BROWSER_RUNTIME_ENTRIES
-    ];
+    BROWSER_RUNTIME_ENTRIES[specifier as keyof typeof BROWSER_RUNTIME_ENTRIES];
 
   if (!entry) {
     throw new Error(
@@ -190,51 +202,100 @@ function isImportMetaExpression(
 ): node is BabelMetaPropertyNode {
   return (
     types.isMetaProperty(node) &&
-    types.isIdentifier((node as BabelMetaPropertyNode).meta, { name: "import" }) &&
-    types.isIdentifier((node as BabelMetaPropertyNode).property, { name: "meta" })
-  );
-}
-
-function isImportMetaEnvExpression(
-  node: unknown,
-  types: BabelApi["types"],
-): node is BabelMemberExpressionNode {
-  return (
-    (types.isMemberExpression(node) ||
-      types.isOptionalMemberExpression(node)) &&
-    isImportMetaExpression((node as BabelMemberExpressionNode).object, types) &&
-    isPropertyNamed((node as BabelMemberExpressionNode).property, "env", types)
+    types.isIdentifier((node as BabelMetaPropertyNode).meta, {
+      name: "import",
+    }) &&
+    types.isIdentifier((node as BabelMetaPropertyNode).property, {
+      name: "meta",
+    })
   );
 }
 
 function hasBinding(path: BabelNodePath, name: string) {
-  return path.scope?.hasBinding(name) === true;
+  return path.scope?.getBinding(name) !== undefined;
 }
 
-function isUnboundGlobalIdentifier(
-  node: unknown,
-  path: BabelNodePath,
+function getBinding(path: BabelNodePath, name: string) {
+  return path.scope?.getBinding(name);
+}
+
+function getBindingValueNode(
+  binding: BabelBinding,
   name: string,
   types: BabelApi["types"],
 ) {
-  return types.isIdentifier(node, { name }) && !hasBinding(path, name);
-}
+  const bindingNode = binding.path.node as { type?: unknown };
 
-function isUnboundGlobalMemberExpression(
-  path: BabelNodePath<BabelMemberExpressionNode>,
-  objectName: string,
-  propertyName: string | null,
-  types: BabelApi["types"],
-) {
-  if (
-    !isUnboundGlobalIdentifier(path.node.object, path, objectName, types)
-  ) {
-    return false;
+  if (bindingNode.type === "VariableDeclarator") {
+    const declarator = bindingNode as BabelVariableDeclaratorNode;
+
+    return types.isIdentifier(declarator.id, { name }) ? declarator.init : null;
   }
 
-  return propertyName === null
-    ? true
-    : isPropertyNamed(path.node.property, propertyName, types);
+  if (bindingNode.type === "AssignmentPattern") {
+    const pattern = bindingNode as BabelAssignmentPatternNode;
+
+    return types.isIdentifier(pattern.left, { name }) ? pattern.right : null;
+  }
+
+  return null;
+}
+
+function resolveUnsupportedReferenceSource(
+  node: unknown,
+  path: BabelNodePath,
+  types: BabelApi["types"],
+  seenNames = new Set<string>(),
+): UnsupportedReferenceSource | null {
+  if (isImportMetaExpression(node, types)) {
+    return "import.meta";
+  }
+
+  if (!types.isIdentifier(node)) {
+    return null;
+  }
+
+  const name = (node as { name?: unknown }).name;
+
+  if (typeof name !== "string") {
+    return null;
+  }
+
+  if (
+    (name === "process" ||
+      name === "require" ||
+      name === "module" ||
+      name === "exports") &&
+    !hasBinding(path, name)
+  ) {
+    return name;
+  }
+
+  if (seenNames.has(name)) {
+    return null;
+  }
+
+  const binding = getBinding(path, name);
+
+  if (!binding || binding.constant !== true) {
+    return null;
+  }
+
+  const valueNode = getBindingValueNode(binding, name, types);
+
+  if (!valueNode) {
+    return null;
+  }
+
+  const nextSeenNames = new Set(seenNames);
+  nextSeenNames.add(name);
+
+  return resolveUnsupportedReferenceSource(
+    valueNode,
+    binding.path,
+    types,
+    nextSeenNames,
+  );
 }
 
 function getUnsupportedEnvSource(
@@ -242,32 +303,33 @@ function getUnsupportedEnvSource(
   path: BabelNodePath,
   types: BabelApi["types"],
 ) {
-  if (isImportMetaExpression(node, types)) {
-    return "import.meta" as const;
-  }
+  const source = resolveUnsupportedReferenceSource(node, path, types);
 
-  if (isUnboundGlobalIdentifier(node, path, "process", types)) {
-    return "process" as const;
+  if (source === "import.meta" || source === "process") {
+    return source;
   }
 
   return null;
 }
 
-function objectPatternHasEnvProperty(
-  node: unknown,
-  types: BabelApi["types"],
-) {
+function objectPatternHasEnvProperty(node: unknown, types: BabelApi["types"]) {
   if (!types.isObjectPattern(node)) {
     return false;
   }
 
-  return ((node as BabelObjectPatternNode).properties ?? []).some((property) => {
-    if (!types.isObjectProperty(property)) {
-      return false;
-    }
+  return ((node as BabelObjectPatternNode).properties ?? []).some(
+    (property) => {
+      if (!types.isObjectProperty(property)) {
+        return false;
+      }
 
-    return isPropertyNamed((property as BabelObjectPropertyNode).key, "env", types);
-  });
+      return isPropertyNamed(
+        (property as BabelObjectPropertyNode).key,
+        "env",
+        types,
+      );
+    },
+  );
 }
 
 function getUnsupportedEnvMessage(source: "import.meta" | "process") {
@@ -283,18 +345,36 @@ function createBrowserGuardsPlugin() {
     const guardMemberExpression = (
       path: BabelNodePath<BabelMemberExpressionNode>,
     ) => {
-      if (isImportMetaEnvExpression(path.node, types)) {
+      const source = resolveUnsupportedReferenceSource(
+        path.node.object,
+        path,
+        types,
+      );
+
+      if (
+        source === "import.meta" &&
+        isPropertyNamed(path.node.property, "env", types)
+      ) {
         throw path.buildCodeFrameError(getUnsupportedEnvMessage("import.meta"));
       }
 
-      if (isUnboundGlobalMemberExpression(path, "process", "env", types)) {
+      if (
+        source === "process" &&
+        isPropertyNamed(path.node.property, "env", types)
+      ) {
         throw path.buildCodeFrameError(getUnsupportedEnvMessage("process"));
       }
 
       if (
-        isUnboundGlobalMemberExpression(path, "module", "exports", types) ||
-        isUnboundGlobalMemberExpression(path, "exports", null, types)
+        source === "module" &&
+        isPropertyNamed(path.node.property, "exports", types)
       ) {
+        throw path.buildCodeFrameError(
+          "CommonJS exports are not supported in browser mode.",
+        );
+      }
+
+      if (source === "exports") {
         throw path.buildCodeFrameError(
           "CommonJS exports are not supported in browser mode.",
         );
@@ -318,7 +398,9 @@ function createBrowserGuardsPlugin() {
     return {
       name: "jsx-viewer-browser-guards",
       visitor: {
-        AssignmentExpression(path: BabelNodePath<BabelAssignmentExpressionNode>) {
+        AssignmentExpression(
+          path: BabelNodePath<BabelAssignmentExpressionNode>,
+        ) {
           guardPatternEnvAccess(path, path.node.left, path.node.right);
         },
         AssignmentPattern(path: BabelNodePath<BabelAssignmentPatternNode>) {
@@ -327,7 +409,9 @@ function createBrowserGuardsPlugin() {
         MemberExpression(path: BabelNodePath<BabelMemberExpressionNode>) {
           guardMemberExpression(path);
         },
-        OptionalMemberExpression(path: BabelNodePath<BabelMemberExpressionNode>) {
+        OptionalMemberExpression(
+          path: BabelNodePath<BabelMemberExpressionNode>,
+        ) {
           guardMemberExpression(path);
         },
         VariableDeclarator(path: BabelNodePath<BabelVariableDeclaratorNode>) {
@@ -384,8 +468,7 @@ function createImportRewritePlugin() {
           }
 
           if (
-            types.isIdentifier(callee, { name: "require" }) &&
-            !hasBinding(path, "require")
+            resolveUnsupportedReferenceSource(callee, path, types) === "require"
           ) {
             throw path.buildCodeFrameError(
               "CommonJS require() is not supported in browser mode.",
