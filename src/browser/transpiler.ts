@@ -25,6 +25,7 @@ interface BabelApi {
     isImport(node: unknown): boolean;
     isMemberExpression(node: unknown): boolean;
     isMetaProperty(node: unknown): boolean;
+    isOptionalMemberExpression(node: unknown): boolean;
     isStringLiteral(node: unknown): boolean;
   };
 }
@@ -174,7 +175,8 @@ function isImportMetaEnvExpression(
   types: BabelApi["types"],
 ): node is BabelMemberExpressionNode {
   return (
-    types.isMemberExpression(node) &&
+    (types.isMemberExpression(node) ||
+      types.isOptionalMemberExpression(node)) &&
     isImportMetaExpression((node as BabelMemberExpressionNode).object, types) &&
     isPropertyNamed((node as BabelMemberExpressionNode).property, "env", types)
   );
@@ -206,32 +208,39 @@ function createBrowserGuardsPlugin() {
   return function browserGuardsPlugin(babel: BabelApi) {
     const { types } = babel;
 
+    const guardMemberExpression = (
+      path: BabelNodePath<BabelMemberExpressionNode>,
+    ) => {
+      if (isImportMetaEnvExpression(path.node, types)) {
+        throw path.buildCodeFrameError(
+          "import.meta.env is Vite-specific and is not available inside uploaded artifacts in browser mode.",
+        );
+      }
+
+      if (isUnboundGlobalMemberExpression(path, "process", "env", types)) {
+        throw path.buildCodeFrameError(
+          "process.env is not available in browser mode. Inline the value or use the local Node/Vite viewer.",
+        );
+      }
+
+      if (
+        isUnboundGlobalMemberExpression(path, "module", "exports", types) ||
+        isUnboundGlobalMemberExpression(path, "exports", null, types)
+      ) {
+        throw path.buildCodeFrameError(
+          "CommonJS exports are not supported in browser mode.",
+        );
+      }
+    };
+
     return {
       name: "jsx-viewer-browser-guards",
       visitor: {
         MemberExpression(path: BabelNodePath<BabelMemberExpressionNode>) {
-          if (isImportMetaEnvExpression(path.node, types)) {
-            throw path.buildCodeFrameError(
-              "import.meta.env is Vite-specific and is not available inside uploaded artifacts in browser mode.",
-            );
-          }
-
-          if (
-            isUnboundGlobalMemberExpression(path, "process", "env", types)
-          ) {
-            throw path.buildCodeFrameError(
-              "process.env is not available in browser mode. Inline the value or use the local Node/Vite viewer.",
-            );
-          }
-
-          if (
-            isUnboundGlobalMemberExpression(path, "module", "exports", types) ||
-            isUnboundGlobalMemberExpression(path, "exports", null, types)
-          ) {
-            throw path.buildCodeFrameError(
-              "CommonJS exports are not supported in browser mode.",
-            );
-          }
+          guardMemberExpression(path);
+        },
+        OptionalMemberExpression(path: BabelNodePath<BabelMemberExpressionNode>) {
+          guardMemberExpression(path);
         },
       },
     };

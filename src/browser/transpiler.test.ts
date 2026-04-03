@@ -45,3 +45,17 @@ test("transpileArtifact rejects actual process.env access", async () => {
     /process\.env is not available in browser mode/,
   );
 });
+
+test("transpileArtifact rejects optional-chained process.env access", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadOptionalProcessEnv() {
+          return <div>{process?.env?.NODE_ENV}</div>;
+        }
+      `,
+      "BadOptionalProcessEnv.tsx",
+    ),
+    /process\.env is not available in browser mode/,
+  );
+});
