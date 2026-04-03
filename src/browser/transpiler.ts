@@ -117,6 +117,10 @@ interface BabelAssignmentPatternNode {
   right?: unknown;
 }
 
+interface BabelForXStatementNode {
+  left?: unknown;
+}
+
 interface BabelArrayPatternNode {
   elements?: unknown[];
 }
@@ -1107,6 +1111,32 @@ function createBrowserGuardsPlugin() {
         },
         AssignmentPattern(path: BabelNodePath<BabelAssignmentPatternNode>) {
           guardUnsupportedSourceAccess(path, path.node.left, path.node.right);
+        },
+        ForInStatement(path: BabelNodePath<BabelForXStatementNode>) {
+          const unsupportedTarget = findUnsupportedWriteTarget(
+            path.node.left,
+            path,
+            types,
+          );
+
+          if (unsupportedTarget) {
+            throw path.buildCodeFrameError(
+              getUnsupportedReferenceMessage(unsupportedTarget),
+            );
+          }
+        },
+        ForOfStatement(path: BabelNodePath<BabelForXStatementNode>) {
+          const unsupportedTarget = findUnsupportedWriteTarget(
+            path.node.left,
+            path,
+            types,
+          );
+
+          if (unsupportedTarget) {
+            throw path.buildCodeFrameError(
+              getUnsupportedReferenceMessage(unsupportedTarget),
+            );
+          }
         },
         Identifier(path: BabelNodePath) {
           guardIdentifierReference(path);

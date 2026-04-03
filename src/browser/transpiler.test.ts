@@ -442,6 +442,60 @@ test("transpileArtifact rejects destructured writes to unsupported globals", asy
   );
 });
 
+test("transpileArtifact rejects destructured for-of writes to unsupported globals", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadForOfDestructuredWrite() {
+          for ({ value: require } of [{ value: () => null }]) {
+            return null;
+          }
+
+          return null;
+        }
+      `,
+      "BadForOfDestructuredWrite.tsx",
+    ),
+    /CommonJS require\(\) is not supported in browser mode/,
+  );
+});
+
+test("transpileArtifact rejects array-pattern for-of writes to unsupported globals", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadForOfArrayWrite() {
+          for ([module] of [[{}]]) {
+            return null;
+          }
+
+          return null;
+        }
+      `,
+      "BadForOfArrayWrite.tsx",
+    ),
+    /CommonJS module is not supported in browser mode/,
+  );
+});
+
+test("transpileArtifact rejects destructured for-in writes to unsupported globals", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadForInDestructuredWrite() {
+          for ({ value: process } in { entry: { value: 1 } }) {
+            return null;
+          }
+
+          return null;
+        }
+      `,
+      "BadForInDestructuredWrite.tsx",
+    ),
+    /process is not available in browser mode/,
+  );
+});
+
 test("transpileArtifact rejects direct require alias assignments", async () => {
   await assert.rejects(
     transpileArtifact(
