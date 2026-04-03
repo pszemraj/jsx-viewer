@@ -45,7 +45,10 @@ interface BabelScope {
 }
 
 interface BabelNodePath<TNode = unknown> {
+  isReferencedIdentifier?: () => boolean;
   node: TNode;
+  parent?: unknown;
+  parentPath?: BabelNodePath;
   buildCodeFrameError(message: string): Error;
   scope?: BabelScope;
 }
@@ -111,6 +114,11 @@ interface BabelAssignmentExpressionNode {
 interface BabelAssignmentPatternNode {
   left?: unknown;
   right?: unknown;
+}
+
+interface BabelUnaryExpressionNode {
+  argument?: unknown;
+  operator?: unknown;
 }
 
 type UnsupportedReferenceSource =
@@ -719,6 +727,36 @@ function createBrowserGuardsPlugin() {
   return function browserGuardsPlugin(babel: BabelApi) {
     const { types } = babel;
 
+    const guardIdentifierReference = (path: BabelNodePath) => {
+      if (typeof path.isReferencedIdentifier === "function") {
+        if (!path.isReferencedIdentifier()) {
+          return;
+        }
+      }
+
+      const parentNode = path.parentPath?.node ?? path.parent;
+
+      if (
+        // Allow feature detection without letting uploaded code evaluate the global.
+        getNodeType(parentNode) === "UnaryExpression" &&
+        (parentNode as BabelUnaryExpressionNode).operator === "typeof" &&
+        (parentNode as BabelUnaryExpressionNode).argument === path.node
+      ) {
+        return;
+      }
+
+      const source = resolveUnsupportedReferenceSource(path.node, path, types);
+
+      if (
+        source === null ||
+        source === "import.meta"
+      ) {
+        return;
+      }
+
+      throw path.buildCodeFrameError(getUnsupportedReferenceMessage(source));
+    };
+
     const guardMemberExpression = (
       path: BabelNodePath<BabelMemberExpressionNode>,
     ) => {
@@ -806,6 +844,9 @@ function createBrowserGuardsPlugin() {
         },
         AssignmentPattern(path: BabelNodePath<BabelAssignmentPatternNode>) {
           guardUnsupportedSourceAccess(path, path.node.left, path.node.right);
+        },
+        Identifier(path: BabelNodePath) {
+          guardIdentifierReference(path);
         },
         MemberExpression(path: BabelNodePath<BabelMemberExpressionNode>) {
           guardMemberExpression(path);

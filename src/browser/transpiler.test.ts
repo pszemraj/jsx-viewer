@@ -106,6 +106,41 @@ test("transpileArtifact rejects direct process member access", async () => {
   );
 });
 
+test("transpileArtifact rejects bare process value references", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadProcessValue() {
+          return <div>{String(Boolean(process))}</div>;
+        }
+      `,
+      "BadProcessValue.tsx",
+    ),
+    /process is not available in browser mode/,
+  );
+});
+
+test("transpileArtifact allows typeof probes for unsupported globals", async () => {
+  const { code } = await transpileArtifact(
+    `
+      export default function SafeTypeofProbes() {
+        return <div>{[
+          typeof process,
+          typeof require,
+          typeof module,
+          typeof exports,
+        ].join(",")}</div>;
+      }
+    `,
+    "SafeTypeofProbes.tsx",
+  );
+
+  assert.match(code, /typeof process/);
+  assert.match(code, /typeof require/);
+  assert.match(code, /typeof module/);
+  assert.match(code, /typeof exports/);
+});
+
 test("transpileArtifact rejects destructured import.meta env access", async () => {
   await assert.rejects(
     transpileArtifact(
@@ -378,6 +413,20 @@ test("transpileArtifact rejects zero-arg helper require() calls", async () => {
   );
 });
 
+test("transpileArtifact rejects bare require value references", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadBareRequire() {
+          return require;
+        }
+      `,
+      "BadBareRequire.tsx",
+    ),
+    /CommonJS require\(\) is not supported in browser mode/,
+  );
+});
+
 test("transpileArtifact rejects zero-arg helper process.env access", async () => {
   await assert.rejects(
     transpileArtifact(
@@ -390,7 +439,7 @@ test("transpileArtifact rejects zero-arg helper process.env access", async () =>
       `,
       "BadWrappedProcessEnv.tsx",
     ),
-    /process\.env is not available in browser mode/,
+    /process is not available in browser mode/,
   );
 });
 
@@ -458,6 +507,20 @@ test("transpileArtifact rejects aliased module access before runtime", async () 
   );
 });
 
+test("transpileArtifact rejects bare module value references", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadBareModule() {
+          return module;
+        }
+      `,
+      "BadBareModule.tsx",
+    ),
+    /CommonJS module is not supported in browser mode/,
+  );
+});
+
 test("transpileArtifact rejects direct module.exports access", async () => {
   await assert.rejects(
     transpileArtifact(
@@ -499,6 +562,20 @@ test("transpileArtifact rejects aliased exports member access", async () => {
         }
       `,
       "BadAliasedExports.tsx",
+    ),
+    /CommonJS exports are not supported in browser mode/,
+  );
+});
+
+test("transpileArtifact rejects bare exports value references", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        export default function BadBareExports() {
+          return exports;
+        }
+      `,
+      "BadBareExports.tsx",
     ),
     /CommonJS exports are not supported in browser mode/,
   );
