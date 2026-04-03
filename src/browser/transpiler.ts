@@ -12,13 +12,20 @@ interface BabelApi {
   types: {
     isIdentifier(node: unknown, opts?: Record<string, unknown>): boolean;
     isImport(node: unknown): boolean;
+    isMemberExpression(node: unknown): boolean;
+    isMetaProperty(node: unknown): boolean;
     isStringLiteral(node: unknown): boolean;
   };
+}
+
+interface BabelScope {
+  hasBinding(name: string): boolean;
 }
 
 interface BabelNodePath<TNode = unknown> {
   node: TNode;
   buildCodeFrameError(message: string): Error;
+  scope?: BabelScope;
 }
 
 interface BabelSourceNode {
@@ -32,10 +39,33 @@ interface BabelCallExpressionNode {
   callee: unknown;
 }
 
+interface BabelMetaPropertyNode {
+  meta?: unknown;
+  property?: unknown;
+}
+
+interface BabelMemberExpressionNode {
+  computed?: boolean;
+  object?: unknown;
+  property?: unknown;
+}
+
 const SUPPORTED_IMPORTS = BROWSER_RUNTIME_SPECIFIERS.join(", ");
 
 function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
+}
+
+function getTranspilerOrigin() {
+  return typeof window === "undefined"
+    ? "http://localhost"
+    : window.location.origin;
+}
+
+function getViteEnv() {
+  return (import.meta as ImportMeta & {
+    env?: { BASE_URL?: string; DEV?: boolean };
+  }).env;
 }
 
 function getRuntimeModuleUrl(specifier: string) {
@@ -52,11 +82,14 @@ function getRuntimeModuleUrl(specifier: string) {
     );
   }
 
-  if (import.meta.env.DEV) {
-    return new URL(entry.devPath, window.location.origin).toString();
+  const env = getViteEnv();
+  const origin = getTranspilerOrigin();
+
+  if (env?.DEV) {
+    return new URL(entry.devPath, origin).toString();
   }
 
-  const baseUrl = new URL(import.meta.env.BASE_URL, window.location.origin);
+  const baseUrl = new URL(env?.BASE_URL ?? "/", origin);
   return new URL(`${entry.entryName}.js`, baseUrl).toString();
 }
 
@@ -89,6 +122,98 @@ function resolveImportSpecifier(specifier: string) {
   }
 
   return getRuntimeModuleUrl(specifier);
+}
+
+function isPropertyNamed(
+  property: unknown,
+  name: string,
+  types: BabelApi["types"],
+) {
+  return (
+    types.isIdentifier(property, { name }) ||
+    (types.isStringLiteral(property) &&
+      (property as { value?: unknown }).value === name)
+  );
+}
+
+function isImportMetaExpression(
+  node: unknown,
+  types: BabelApi["types"],
+): node is BabelMetaPropertyNode {
+  return (
+    types.isMetaProperty(node) &&
+    types.isIdentifier((node as BabelMetaPropertyNode).meta, { name: "import" }) &&
+    types.isIdentifier((node as BabelMetaPropertyNode).property, { name: "meta" })
+  );
+}
+
+function isImportMetaEnvExpression(
+  node: unknown,
+  types: BabelApi["types"],
+): node is BabelMemberExpressionNode {
+  return (
+    types.isMemberExpression(node) &&
+    isImportMetaExpression((node as BabelMemberExpressionNode).object, types) &&
+    isPropertyNamed((node as BabelMemberExpressionNode).property, "env", types)
+  );
+}
+
+function hasBinding(path: BabelNodePath, name: string) {
+  return path.scope?.hasBinding(name) === true;
+}
+
+function isUnboundGlobalMemberExpression(
+  path: BabelNodePath<BabelMemberExpressionNode>,
+  objectName: string,
+  propertyName: string | null,
+  types: BabelApi["types"],
+) {
+  if (
+    !types.isIdentifier(path.node.object, { name: objectName }) ||
+    hasBinding(path, objectName)
+  ) {
+    return false;
+  }
+
+  return propertyName === null
+    ? true
+    : isPropertyNamed(path.node.property, propertyName, types);
+}
+
+function createBrowserGuardsPlugin() {
+  return function browserGuardsPlugin(babel: BabelApi) {
+    const { types } = babel;
+
+    return {
+      name: "jsx-viewer-browser-guards",
+      visitor: {
+        MemberExpression(path: BabelNodePath<BabelMemberExpressionNode>) {
+          if (isImportMetaEnvExpression(path.node, types)) {
+            throw path.buildCodeFrameError(
+              "import.meta.env is Vite-specific and is not available inside uploaded artifacts in browser mode.",
+            );
+          }
+
+          if (
+            isUnboundGlobalMemberExpression(path, "process", "env", types)
+          ) {
+            throw path.buildCodeFrameError(
+              "process.env is not available in browser mode. Inline the value or use the local Node/Vite viewer.",
+            );
+          }
+
+          if (
+            isUnboundGlobalMemberExpression(path, "module", "exports", types) ||
+            isUnboundGlobalMemberExpression(path, "exports", null, types)
+          ) {
+            throw path.buildCodeFrameError(
+              "CommonJS exports are not supported in browser mode.",
+            );
+          }
+        },
+      },
+    };
+  };
 }
 
 function createImportRewritePlugin() {
@@ -147,24 +272,6 @@ function createImportRewritePlugin() {
   };
 }
 
-function validateSource(source: string) {
-  if (/\bmodule\.exports\b|\bexports\./.test(source)) {
-    throw new Error("CommonJS exports are not supported in browser mode.");
-  }
-
-  if (/\bprocess\.env\b/.test(source)) {
-    throw new Error(
-      "process.env is not available in browser mode. Inline the value or use the local Node/Vite viewer.",
-    );
-  }
-
-  if (source.includes("import.meta.env")) {
-    throw new Error(
-      "import.meta.env is Vite-specific and is not available inside uploaded artifacts in browser mode.",
-    );
-  }
-}
-
 function requireCode(result: BabelTransformResult, filename: string) {
   if (typeof result.code === "string" && result.code.trim().length > 0) {
     return result.code;
@@ -181,12 +288,11 @@ export async function transpileArtifact(
   source: string,
   filename: string,
 ): Promise<TranspiledArtifact> {
-  validateSource(source);
-
   try {
     const compiled = requireCode(
       Babel.transform(source, {
         filename,
+        plugins: [createBrowserGuardsPlugin()],
         presets: [
           ["typescript", { allExtensions: true, isTSX: true }],
           ["react", { runtime: "automatic" }],
