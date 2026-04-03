@@ -145,6 +145,8 @@ type UnsupportedReferenceSource =
   | "module"
   | "exports";
 
+type UnsupportedWriteTarget = Exclude<UnsupportedReferenceSource, "import.meta">;
+
 type UnsupportedImportMetaAccess =
   | {
       kind: "property";
@@ -890,7 +892,7 @@ function findUnsupportedWriteTarget(
   node: unknown,
   path: BabelNodePath,
   types: BabelApi["types"],
-): UnsupportedReferenceSource | null {
+): UnsupportedWriteTarget | null {
   const unwrappedNode = unwrapTransparentExpression(node);
 
   if (types.isIdentifier(unwrappedNode)) {
