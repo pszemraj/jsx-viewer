@@ -1,4 +1,3 @@
-import * as Babel from "@babel/standalone";
 import {
   BROWSER_RUNTIME_ENTRIES,
   BROWSER_RUNTIME_SPECIFIERS,
@@ -6,6 +5,18 @@ import {
 
 interface BabelTransformResult {
   code?: string | null;
+}
+
+interface BabelTransformApi {
+  transform(
+    source: string,
+    options: {
+      filename: string;
+      plugins?: unknown[];
+      presets?: Array<[string, Record<string, unknown>]>;
+      sourceType: "module";
+    },
+  ): BabelTransformResult;
 }
 
 interface BabelApi {
@@ -51,9 +62,20 @@ interface BabelMemberExpressionNode {
 }
 
 const SUPPORTED_IMPORTS = BROWSER_RUNTIME_SPECIFIERS.join(", ");
+let babelApiPromise: Promise<BabelTransformApi> | null = null;
 
 function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
+}
+
+function getBabelApi() {
+  if (babelApiPromise === null) {
+    babelApiPromise = import("@babel/standalone").then(
+      (module) => module as unknown as BabelTransformApi,
+    );
+  }
+
+  return babelApiPromise;
 }
 
 function getTranspilerOrigin() {
@@ -289,8 +311,9 @@ export async function transpileArtifact(
   filename: string,
 ): Promise<TranspiledArtifact> {
   try {
+    const babel = await getBabelApi();
     const compiled = requireCode(
-      Babel.transform(source, {
+      babel.transform(source, {
         filename,
         plugins: [createBrowserGuardsPlugin()],
         presets: [
@@ -303,7 +326,7 @@ export async function transpileArtifact(
     );
 
     const rewritten = requireCode(
-      Babel.transform(compiled, {
+      babel.transform(compiled, {
         filename,
         plugins: [createImportRewritePlugin()],
         sourceType: "module",
