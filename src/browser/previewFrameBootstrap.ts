@@ -21,6 +21,7 @@ interface ErrorBoundaryState {
 }
 
 type PreviewFrameStatusType = PreviewFrameStatusMessage["type"];
+const TAILWIND_BROWSER_CDN_URL = "https://cdn.tailwindcss.com";
 
 function toMessage(value: unknown) {
   if (value instanceof Error) {
@@ -44,6 +45,46 @@ function postToParent(
     },
     state.parentOrigin,
   );
+}
+
+async function ensureTailwindRuntime(enabled: boolean) {
+  if (!enabled) {
+    return;
+  }
+
+  const existingScript = document.querySelector<HTMLScriptElement>(
+    `script[src="${TAILWIND_BROWSER_CDN_URL}"]`,
+  );
+
+  if (existingScript) {
+    if (existingScript.dataset.loaded === "true") {
+      return;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      existingScript.addEventListener("load", () => resolve(), { once: true });
+      existingScript.addEventListener(
+        "error",
+        () => reject(new Error("Failed to load the Tailwind browser runtime.")),
+        { once: true },
+      );
+    });
+    return;
+  }
+
+  const script = document.createElement("script");
+  script.src = TAILWIND_BROWSER_CDN_URL;
+
+  await new Promise<void>((resolve, reject) => {
+    script.addEventListener("load", () => {
+      script.dataset.loaded = "true";
+      resolve();
+    });
+    script.addEventListener("error", () => {
+      reject(new Error("Failed to load the Tailwind browser runtime."));
+    });
+    document.head.append(script);
+  });
 }
 
 function waitForInitMessage(): Promise<PreviewFrameState> {
@@ -80,6 +121,8 @@ async function boot() {
   });
 
   try {
+    await ensureTailwindRuntime(init.enableTailwindRuntime);
+
     const [React, { createRoot }, module] = await Promise.all([
       import(init.reactUrl) as Promise<typeof import("react")>,
       import(init.reactDomClientUrl) as Promise<typeof import("react-dom/client")>,

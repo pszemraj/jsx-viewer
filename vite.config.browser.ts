@@ -12,8 +12,8 @@ import { buildBrowserRuntimeImportMap } from "./src/browser/runtimeImportMap";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BROWSER_CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "script-src 'self' blob: https://esm.sh",
-  "connect-src 'self'",
+  "script-src 'self' blob: https://esm.sh https://cdn.tailwindcss.com",
+  "connect-src 'self' https://cdn.tailwindcss.com",
   "img-src 'self' blob: data:",
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self' data:",

@@ -9,6 +9,7 @@ test("browser shell keeps the preview mounted while an artifact is booting", () 
   const state = {
     artifact: {
       code: "export default function Example() { return null; }",
+      enableTailwindRuntime: false,
       filename: "Example.jsx",
       version: 1,
     },

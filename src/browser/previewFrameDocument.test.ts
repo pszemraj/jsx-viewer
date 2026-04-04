@@ -10,6 +10,7 @@ import {
 test("buildPreviewFrameInitMessage keeps the preview bootstrap payload explicit", () => {
   const initMessage = buildPreviewFrameInitMessage({
     artifactUrl: "blob:artifact-url",
+    enableTailwindRuntime: true,
     reactDomClientUrl: "https://example.com/runtime/react-dom-client.js",
     reactUrl: "https://example.com/runtime/react.js",
     version: 7,
@@ -17,6 +18,7 @@ test("buildPreviewFrameInitMessage keeps the preview bootstrap payload explicit"
 
   assert.deepEqual(initMessage, {
     artifactUrl: "blob:artifact-url",
+    enableTailwindRuntime: true,
     mono: '"JetBrains Mono", "Fira Code", "SF Mono", monospace',
     reactDomClientUrl: "https://example.com/runtime/react-dom-client.js",
     reactUrl: "https://example.com/runtime/react.js",

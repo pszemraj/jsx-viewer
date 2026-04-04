@@ -528,7 +528,7 @@ export default function AppBrowser() {
       });
 
       try {
-        const { code } = await transpileArtifact(content, name);
+        const { code, features } = await transpileArtifact(content, name);
 
         if (!loadTrackerRef.current.isCurrent(loadToken)) {
           return;
@@ -538,6 +538,7 @@ export default function AppBrowser() {
         setState({
           artifact: {
             code,
+            enableTailwindRuntime: features.enableTailwindRuntime,
             filename: name,
             version: artifactVersion,
           },

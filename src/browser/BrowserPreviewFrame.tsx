@@ -10,6 +10,7 @@ import { toError } from "../viewerShared";
 
 export interface BrowserPreviewArtifact {
   code: string;
+  enableTailwindRuntime: boolean;
   filename: string;
   version: number;
 }
@@ -62,6 +63,7 @@ export function BrowserPreviewFrame({
     );
     const initMessage = buildPreviewFrameInitMessage({
       artifactUrl,
+      enableTailwindRuntime: artifact.enableTailwindRuntime,
       reactDomClientUrl: runtimeModuleUrls.reactDomClientUrl,
       reactUrl: runtimeModuleUrls.reactUrl,
       version: artifact.version,
@@ -122,7 +124,11 @@ export function BrowserPreviewFrame({
       frame.src = "about:blank";
       URL.revokeObjectURL(artifactUrl);
     };
-  }, [artifact, runtimeModuleUrls.reactDomClientUrl, runtimeModuleUrls.reactUrl]);
+  }, [
+    artifact,
+    runtimeModuleUrls.reactDomClientUrl,
+    runtimeModuleUrls.reactUrl,
+  ]);
 
   return (
     <iframe

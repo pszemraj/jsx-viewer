@@ -10,6 +10,7 @@ export interface PreviewFrameRuntimeModuleUrls {
 
 interface BuildPreviewFrameInitMessageOptions extends PreviewFrameRuntimeModuleUrls {
   readonly artifactUrl: string;
+  readonly enableTailwindRuntime: boolean;
   readonly version: number;
 }
 
@@ -55,12 +56,14 @@ export function getPreviewFrameRuntimeModuleUrls(): PreviewFrameRuntimeModuleUrl
 
 export function buildPreviewFrameInitMessage({
   artifactUrl,
+  enableTailwindRuntime,
   reactDomClientUrl,
   reactUrl,
   version,
 }: BuildPreviewFrameInitMessageOptions): PreviewFrameInitMessage {
   return {
     artifactUrl,
+    enableTailwindRuntime,
     mono: PREVIEW_MONO,
     reactDomClientUrl,
     reactUrl,
@@ -83,6 +86,7 @@ export function isPreviewFrameInitMessage(
 
   return (
     typeof value.artifactUrl === "string" &&
+    typeof value.enableTailwindRuntime === "boolean" &&
     typeof value.mono === "string" &&
     typeof value.reactDomClientUrl === "string" &&
     typeof value.reactUrl === "string" &&

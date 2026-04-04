@@ -3,6 +3,10 @@ import {
 } from "./runtimeManifest";
 import { resolveCurrentRuntimeModuleUrl } from "./browserRuntimeContext";
 import { resolveRemotePackageUrl } from "./remotePackageUrl";
+import {
+  detectBrowserArtifactFeatures,
+  type BrowserArtifactFeatures,
+} from "./artifactFeatures";
 import { toError } from "../viewerShared";
 
 interface BabelTransformResult {
@@ -1368,6 +1372,7 @@ function requireCode(result: BabelTransformResult, filename: string) {
 
 export interface TranspiledArtifact {
   code: string;
+  features: BrowserArtifactFeatures;
 }
 
 export async function transpileArtifact(
@@ -1375,6 +1380,7 @@ export async function transpileArtifact(
   filename: string,
 ): Promise<TranspiledArtifact> {
   try {
+    const features = detectBrowserArtifactFeatures(source);
     const babel = await getBabelApi();
     const compiled = requireCode(
       babel.transform(source, {
@@ -1398,7 +1404,10 @@ export async function transpileArtifact(
       filename,
     );
 
-    return { code: rewritten };
+    return {
+      code: rewritten,
+      features,
+    };
   } catch (error) {
     throw new Error(`[${filename}] ${toError(error).message}`);
   }
