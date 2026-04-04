@@ -6,6 +6,7 @@ import {
   getPreviewFrameRuntimeModuleUrls,
   type PreviewFrameStatusMessage,
 } from "./previewFrameDocument";
+import { toError } from "../viewerShared";
 
 export interface BrowserPreviewArtifact {
   code: string;
@@ -24,10 +25,6 @@ interface BrowserPreviewFrameCallbacks {
   onLoadError: BrowserPreviewFrameProps["onLoadError"];
   onReady: BrowserPreviewFrameProps["onReady"];
   onRuntimeError: BrowserPreviewFrameProps["onRuntimeError"];
-}
-
-function toError(error: unknown) {
-  return error instanceof Error ? error : new Error(String(error));
 }
 
 function toOrigins(value: unknown) {

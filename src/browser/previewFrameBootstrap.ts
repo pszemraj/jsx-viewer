@@ -1,4 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
+import { isSlotComponent } from "../slotComponent";
+import { collectHttpOrigins } from "./httpOrigins";
 import {
   BROWSER_PREVIEW_MESSAGE_SOURCE,
   isPreviewFrameInitMessage,
@@ -30,20 +32,10 @@ function toMessage(value: unknown) {
 }
 
 function collectOrigins() {
-  const origins = new Set([window.location.origin]);
-
-  for (const entry of performance.getEntriesByType("resource")) {
-    try {
-      const url = new URL(entry.name);
-      if (url.protocol === "http:" || url.protocol === "https:") {
-        origins.add(url.origin);
-      }
-    } catch {
-      // Ignore non-URL resource names.
-    }
-  }
-
-  return Array.from(origins).sort();
+  return collectHttpOrigins(
+    performance.getEntriesByType("resource").map((entry) => entry.name),
+    window.location.origin,
+  );
 }
 
 function postToParent(
@@ -60,23 +52,6 @@ function postToParent(
       version: state.init.version,
     },
     state.parentOrigin,
-  );
-}
-
-function isSlotComponent(value: unknown) {
-  if (typeof value === "function") {
-    return true;
-  }
-
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-
-  const marker = (value as { $$typeof?: unknown }).$$typeof;
-  return (
-    marker === Symbol.for("react.forward_ref") ||
-    marker === Symbol.for("react.lazy") ||
-    marker === Symbol.for("react.memo")
   );
 }
 

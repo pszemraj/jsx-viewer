@@ -1,5 +1,7 @@
-import { resolveBrowserBaseUrl } from "./basePath";
-import { resolveRuntimeModuleUrl } from "./runtimeUrl";
+import {
+  resolveCurrentBrowserBaseUrl,
+  resolveCurrentRuntimeModuleUrl,
+} from "./browserRuntimeContext";
 
 export interface PreviewFrameRuntimeModuleUrls {
   readonly reactUrl: string;
@@ -30,32 +32,13 @@ const PREVIEW_MONO = '"JetBrains Mono", "Fira Code", "SF Mono", monospace';
 const PREVIEW_MESSAGE_SOURCE = "jsx-viewer-browser-preview";
 const PREVIEW_FRAME_DOCUMENT_PATH = "preview-frame.html";
 
-function getPreviewOrigin() {
-  return typeof window === "undefined" ? "http://localhost" : window.location.origin;
-}
-
-function getPreviewViteEnv() {
-  return (
-    import.meta as ImportMeta & {
-      env?: { BASE_URL?: string; DEV?: boolean };
-    }
-  ).env;
-}
-
 export function getPreviewFrameDocumentUrl() {
-  const env = getPreviewViteEnv();
-  const baseUrl = resolveBrowserBaseUrl(getPreviewOrigin(), env?.BASE_URL);
-
+  const baseUrl = resolveCurrentBrowserBaseUrl();
   return new URL(PREVIEW_FRAME_DOCUMENT_PATH, baseUrl).toString();
 }
 
 function getRuntimeUrl(specifier: string) {
-  const env = getPreviewViteEnv();
-  const runtimeUrl = resolveRuntimeModuleUrl(specifier, {
-    basePath: env?.BASE_URL,
-    dev: env?.DEV,
-    origin: getPreviewOrigin(),
-  });
+  const runtimeUrl = resolveCurrentRuntimeModuleUrl(specifier);
 
   if (!runtimeUrl) {
     throw new Error(`Missing browser runtime module URL for "${specifier}".`);

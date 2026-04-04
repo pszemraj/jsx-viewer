@@ -1,24 +1,9 @@
+import { collectHttpOrigins } from "./httpOrigins";
+
 export interface CorporatePreflightReport {
   ok: boolean;
   findings: string[];
   origins: string[];
-}
-
-function toHttpOrigin(value: string) {
-  if (!/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(value)) {
-    return null;
-  }
-
-  try {
-    const url = new URL(value);
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
-      return null;
-    }
-
-    return url.origin;
-  } catch {
-    return null;
-  }
 }
 
 export function collectContactedOrigins(
@@ -31,22 +16,7 @@ export function collectContactedOrigins(
     | string
     | undefined = typeof location === "undefined" ? undefined : location.origin,
 ) {
-  const origins = new Set<string>();
-  const resolvedCurrentOrigin =
-    typeof currentOrigin === "string" ? toHttpOrigin(currentOrigin) : null;
-
-  if (resolvedCurrentOrigin) {
-    origins.add(resolvedCurrentOrigin);
-  }
-
-  for (const resourceName of resourceNames) {
-    const origin = toHttpOrigin(resourceName);
-    if (origin) {
-      origins.add(origin);
-    }
-  }
-
-  return Array.from(origins).sort();
+  return collectHttpOrigins(resourceNames, currentOrigin);
 }
 
 export async function runCorporatePreflight(): Promise<CorporatePreflightReport> {

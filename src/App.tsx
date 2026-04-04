@@ -10,6 +10,13 @@ import {
 import { isSlotComponent, type SlotComponent } from "./slotComponent";
 import { SlotPreview } from "./SlotPreview";
 import {
+  MONO,
+  SANS,
+  getFirstFile,
+  readArtifactFile,
+  toError,
+} from "./viewerShared";
+import {
   isServerMessage,
   type ClientMessage,
   type ServerMessage,
@@ -20,8 +27,6 @@ import { createLoadTracker } from "./loadTracker";
 
 // The viewer shell uses inline styles on purpose so its chrome stays isolated
 // from the loaded artifact's Tailwind classes and any class-name collisions.
-const MONO = '"JetBrains Mono", "Fira Code", "SF Mono", monospace';
-const SANS = '"Inter", -apple-system, "Helvetica Neue", sans-serif';
 declare const __JSX_VIEWER_SLOT_MODULE_URL__: string;
 
 interface LoadedComponentState {
@@ -40,21 +45,6 @@ interface ToolbarProps {
   connected: boolean;
   onClear: () => void;
   onSwap: (content: string, name: string) => void;
-}
-
-function toError(error: unknown): Error {
-  return error instanceof Error ? error : new Error(String(error));
-}
-
-function getFirstFile(files: FileList | null | undefined) {
-  return files?.item(0) ?? null;
-}
-
-async function readArtifactFile(file: File) {
-  return {
-    content: await file.text(),
-    name: file.name,
-  };
 }
 
 function useLoadedComponent() {

@@ -1,7 +1,8 @@
 import {
   BROWSER_RUNTIME_SPECIFIERS,
 } from "./runtimeManifest";
-import { resolveRuntimeModuleUrl } from "./runtimeUrl";
+import { resolveCurrentRuntimeModuleUrl } from "./browserRuntimeContext";
+import { toError } from "../viewerShared";
 
 interface BabelTransformResult {
   code?: string | null;
@@ -164,10 +165,6 @@ interface ResolvedNodeTarget {
 const SUPPORTED_IMPORTS = BROWSER_RUNTIME_SPECIFIERS.join(", ");
 let babelApiPromise: Promise<BabelTransformApi> | null = null;
 
-function toError(error: unknown): Error {
-  return error instanceof Error ? error : new Error(String(error));
-}
-
 function getBabelApi() {
   if (babelApiPromise === null) {
     babelApiPromise = import("@babel/standalone").then(
@@ -178,27 +175,8 @@ function getBabelApi() {
   return babelApiPromise;
 }
 
-function getTranspilerOrigin() {
-  return typeof window === "undefined"
-    ? "http://localhost"
-    : window.location.origin;
-}
-
-function getViteEnv() {
-  return (
-    import.meta as ImportMeta & {
-      env?: { BASE_URL?: string; DEV?: boolean };
-    }
-  ).env;
-}
-
 function getRuntimeModuleUrl(specifier: string) {
-  const env = getViteEnv();
-  const runtimeUrl = resolveRuntimeModuleUrl(specifier, {
-    basePath: env?.BASE_URL,
-    dev: env?.DEV,
-    origin: getTranspilerOrigin(),
-  });
+  const runtimeUrl = resolveCurrentRuntimeModuleUrl(specifier);
 
   if (!runtimeUrl) {
     throw new Error(

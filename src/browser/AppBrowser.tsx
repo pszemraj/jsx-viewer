@@ -9,6 +9,13 @@ import {
 } from "react";
 import { createLoadTracker } from "../loadTracker";
 import {
+  MONO,
+  SANS,
+  getFirstFile,
+  readArtifactFile,
+  toError,
+} from "../viewerShared";
+import {
   BrowserPreviewFrame,
   type BrowserPreviewArtifact,
 } from "./BrowserPreviewFrame";
@@ -19,9 +26,6 @@ import {
 } from "./corporatePreflight";
 import { BROWSER_RUNTIME_SPECIFIERS } from "./runtimeManifest";
 import { transpileArtifact } from "./transpiler";
-
-const MONO = '"JetBrains Mono", "Fira Code", "SF Mono", monospace';
-const SANS = '"Inter", -apple-system, "Helvetica Neue", sans-serif';
 
 interface BrowserArtifactState {
   artifact: BrowserPreviewArtifact | null;
@@ -52,21 +56,6 @@ interface DiagnosticsState {
 }
 
 type BrowserShellView = "dropzone" | "error" | "preview";
-
-function toError(error: unknown): Error {
-  return error instanceof Error ? error : new Error(String(error));
-}
-
-function getFirstFile(files: FileList | null | undefined) {
-  return files?.item(0) ?? null;
-}
-
-async function readArtifactFile(file: File) {
-  return {
-    content: await file.text(),
-    name: file.name,
-  };
-}
 
 function createPreflightError(report: CorporatePreflightReport) {
   const lines = [...report.findings];
