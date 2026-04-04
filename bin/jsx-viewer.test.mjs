@@ -626,6 +626,11 @@ test("npm pack only ships runtime package files", () => {
 
   const [{ files }] = JSON.parse(stdout);
   const packedPaths = files.map((entry) => entry.path);
+  const requiredBrowserPackFiles = [
+    "src/browser/basePath.ts",
+    "src/browser/browserRuntimeContext.ts",
+    "src/browser/runtimeUrl.ts",
+  ];
 
   assert.equal(packedPaths.some((entry) => entry.includes(".test.")), false);
   assert.equal(packedPaths.includes(".githooks/pre-commit"), false);
@@ -635,6 +640,10 @@ test("npm pack only ships runtime package files", () => {
   assert.equal(packedPaths.includes("bin/jsx-viewer.mjs"), true);
   assert.equal(packedPaths.includes("bin/jsx-viewer-runtime.mjs"), true);
   assert.equal(packedPaths.includes("src/App.tsx"), true);
+  assert.deepEqual(
+    requiredBrowserPackFiles.filter((entry) => packedPaths.includes(entry)),
+    requiredBrowserPackFiles,
+  );
   assert.equal(packedPaths.includes("src/browser/devEntryUrl.ts"), true);
   assert.equal(packedPaths.includes("src/hotReload.ts"), true);
 });
