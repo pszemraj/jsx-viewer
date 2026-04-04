@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 const distDir = path.resolve(process.cwd(), "dist-browser");
 const sourceHtml = path.join(distDir, "index.browser.html");
 const targetHtml = path.join(distDir, "index.html");
+const previewFrameHtml = path.join(distDir, "preview-frame.html");
 
 if (!existsSync(sourceHtml)) {
   throw new Error(`Expected browser entry at ${sourceHtml}, but it was not found.`);
@@ -12,6 +13,10 @@ if (!existsSync(sourceHtml)) {
 
 if (existsSync(targetHtml)) {
   throw new Error(`Refusing to overwrite existing ${targetHtml}.`);
+}
+
+if (!existsSync(previewFrameHtml)) {
+  throw new Error(`Expected preview frame entry at ${previewFrameHtml}, but it was not found.`);
 }
 
 renameSync(sourceHtml, targetHtml);
@@ -64,3 +69,5 @@ await assertNamedExports("runtime/papaparse.js", [
 ]);
 assertTextIncludes(targetHtml, 'http-equiv="Content-Security-Policy"');
 assertTextIncludes(targetHtml, "script-src &#39;self&#39; blob:");
+assertTextIncludes(previewFrameHtml, 'http-equiv="Content-Security-Policy"');
+assertTextIncludes(previewFrameHtml, "script-src &#39;self&#39; blob:");

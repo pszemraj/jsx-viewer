@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef } from "react";
 import {
   BROWSER_PREVIEW_MESSAGE_SOURCE,
-  buildPreviewFrameDocument,
+  buildPreviewFrameInitMessage,
+  getPreviewFrameDocumentUrl,
   getPreviewFrameRuntimeModuleUrls,
+  type PreviewFrameStatusMessage,
 } from "./previewFrameDocument";
 
 export interface BrowserPreviewArtifact {
@@ -16,14 +18,6 @@ interface BrowserPreviewFrameProps {
   onLoadError: (version: number, error: Error, origins: string[]) => void;
   onReady: (version: number, origins: string[]) => void;
   onRuntimeError: (version: number, error: Error, origins: string[]) => void;
-}
-
-interface BrowserPreviewMessage {
-  message?: unknown;
-  origins?: unknown;
-  source?: unknown;
-  type?: unknown;
-  version?: unknown;
 }
 
 function toError(error: unknown) {
@@ -58,24 +52,36 @@ export function BrowserPreviewFrame({
         type: "text/javascript",
       }),
     );
-
-    frame.srcdoc = buildPreviewFrameDocument({
+    const initMessage = buildPreviewFrameInitMessage({
       artifactUrl,
       reactDomClientUrl: runtimeModuleUrls.reactDomClientUrl,
       reactUrl: runtimeModuleUrls.reactUrl,
       version: artifact.version,
     });
+    const previewDocumentUrl = new URL(getPreviewFrameDocumentUrl());
+    previewDocumentUrl.searchParams.set("preview-version", String(artifact.version));
+
+    const handleLoad = () => {
+      const frameWindow = frame.contentWindow;
+      if (!frameWindow) {
+        return;
+      }
+
+      frameWindow.postMessage(initMessage, window.location.origin);
+    };
+
+    frame.addEventListener("load", handleLoad);
+    frame.src = previewDocumentUrl.toString();
 
     return () => {
-      if (frame.srcdoc) {
-        frame.srcdoc = "";
-      }
+      frame.removeEventListener("load", handleLoad);
+      frame.src = "about:blank";
       URL.revokeObjectURL(artifactUrl);
     };
   }, [artifact, runtimeModuleUrls.reactDomClientUrl, runtimeModuleUrls.reactUrl]);
 
   useEffect(() => {
-    const handleMessage = (event: MessageEvent<BrowserPreviewMessage>) => {
+    const handleMessage = (event: MessageEvent<PreviewFrameStatusMessage>) => {
       if (event.source !== frameRef.current?.contentWindow) {
         return;
       }

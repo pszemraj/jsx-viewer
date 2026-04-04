@@ -82,6 +82,7 @@ export default defineConfig({
       preserveEntrySignatures: "strict",
       input: {
         "index.browser": path.resolve(__dirname, "index.browser.html"),
+        "preview-frame": path.resolve(__dirname, "preview-frame.html"),
         ...runtimeInputs,
       },
       output: {

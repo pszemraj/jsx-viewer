@@ -2,22 +2,39 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   BROWSER_PREVIEW_MESSAGE_SOURCE,
-  buildPreviewFrameDocument,
+  buildPreviewFrameInitMessage,
+  getPreviewFrameDocumentUrl,
+  isPreviewFrameInitMessage,
 } from "./previewFrameDocument";
 
-test("buildPreviewFrameDocument bootstraps the preview iframe with the runtime urls and artifact blob", () => {
-  const html = buildPreviewFrameDocument({
+test("buildPreviewFrameInitMessage keeps the preview bootstrap payload explicit", () => {
+  const initMessage = buildPreviewFrameInitMessage({
     artifactUrl: "blob:artifact-url",
     reactDomClientUrl: "https://example.com/runtime/react-dom-client.js",
     reactUrl: "https://example.com/runtime/react.js",
     version: 7,
   });
 
-  assert.match(html, /blob:artifact-url/);
-  assert.match(html, /runtime\/react\.js/);
-  assert.match(html, /runtime\/react-dom-client\.js/);
-  assert.match(html, /Loaded artifact must default-export a React component/);
-  assert.match(html, /CollectOrigins|collectOrigins/i);
-  assert.match(html, new RegExp(BROWSER_PREVIEW_MESSAGE_SOURCE));
-  assert.match(html, /version":7|version: 7/);
+  assert.deepEqual(initMessage, {
+    artifactUrl: "blob:artifact-url",
+    mono: '"JetBrains Mono", "Fira Code", "SF Mono", monospace',
+    reactDomClientUrl: "https://example.com/runtime/react-dom-client.js",
+    reactUrl: "https://example.com/runtime/react.js",
+    source: BROWSER_PREVIEW_MESSAGE_SOURCE,
+    type: "init",
+    version: 7,
+  });
+  assert.equal(isPreviewFrameInitMessage(initMessage), true);
+  assert.equal(
+    isPreviewFrameInitMessage({
+      source: BROWSER_PREVIEW_MESSAGE_SOURCE,
+      type: "ready",
+      version: 7,
+    }),
+    false,
+  );
+});
+
+test("getPreviewFrameDocumentUrl resolves the dedicated preview document on the same origin", () => {
+  assert.equal(getPreviewFrameDocumentUrl(), "http://localhost/preview-frame.html");
 });

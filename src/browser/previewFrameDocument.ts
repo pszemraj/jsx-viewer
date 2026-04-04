@@ -1,17 +1,34 @@
+import { resolveBrowserBaseUrl } from "./basePath";
 import { resolveRuntimeModuleUrl } from "./runtimeUrl";
 
-interface PreviewFrameRuntimeModuleUrls {
-  reactUrl: string;
-  reactDomClientUrl: string;
+export interface PreviewFrameRuntimeModuleUrls {
+  readonly reactUrl: string;
+  readonly reactDomClientUrl: string;
 }
 
-interface BuildPreviewFrameDocumentOptions extends PreviewFrameRuntimeModuleUrls {
-  artifactUrl: string;
-  version: number;
+interface BuildPreviewFrameInitMessageOptions extends PreviewFrameRuntimeModuleUrls {
+  readonly artifactUrl: string;
+  readonly version: number;
+}
+
+export interface PreviewFrameInitMessage
+  extends BuildPreviewFrameInitMessageOptions {
+  readonly mono: string;
+  readonly source: typeof PREVIEW_MESSAGE_SOURCE;
+  readonly type: "init";
+}
+
+export interface PreviewFrameStatusMessage {
+  readonly message?: string;
+  readonly origins?: string[];
+  readonly source: typeof PREVIEW_MESSAGE_SOURCE;
+  readonly type: "load-error" | "ready" | "runtime-error";
+  readonly version: number;
 }
 
 const PREVIEW_MONO = '"JetBrains Mono", "Fira Code", "SF Mono", monospace';
 const PREVIEW_MESSAGE_SOURCE = "jsx-viewer-browser-preview";
+const PREVIEW_FRAME_DOCUMENT_PATH = "preview-frame.html";
 
 function getPreviewOrigin() {
   return typeof window === "undefined" ? "http://localhost" : window.location.origin;
@@ -23,6 +40,13 @@ function getPreviewViteEnv() {
       env?: { BASE_URL?: string; DEV?: boolean };
     }
   ).env;
+}
+
+export function getPreviewFrameDocumentUrl() {
+  const env = getPreviewViteEnv();
+  const baseUrl = resolveBrowserBaseUrl(getPreviewOrigin(), env?.BASE_URL);
+
+  return new URL(PREVIEW_FRAME_DOCUMENT_PATH, baseUrl).toString();
 }
 
 function getRuntimeUrl(specifier: string) {
@@ -47,244 +71,44 @@ export function getPreviewFrameRuntimeModuleUrls(): PreviewFrameRuntimeModuleUrl
   };
 }
 
-export function buildPreviewFrameDocument({
+export function buildPreviewFrameInitMessage({
   artifactUrl,
   reactDomClientUrl,
   reactUrl,
   version,
-}: BuildPreviewFrameDocumentOptions) {
-  const payload = JSON.stringify({
+}: BuildPreviewFrameInitMessageOptions): PreviewFrameInitMessage {
+  return {
     artifactUrl,
-    messageSource: PREVIEW_MESSAGE_SOURCE,
     mono: PREVIEW_MONO,
     reactDomClientUrl,
     reactUrl,
+    source: PREVIEW_MESSAGE_SOURCE,
+    type: "init",
     version,
-  });
+  };
+}
 
-  return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style>
-      html, body, #root {
-        min-height: 100%;
-      }
+function isPreviewFrameRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 
-      html, body {
-        margin: 0;
-        background: #0a0a0a;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module">
-      const preview = ${payload};
-      const toMessage = (value) => {
-        if (value instanceof Error) {
-          return value.message;
-        }
+export function isPreviewFrameInitMessage(
+  value: unknown,
+): value is PreviewFrameInitMessage {
+  if (!isPreviewFrameRecord(value)) {
+    return false;
+  }
 
-        return typeof value === "string" ? value : String(value);
-      };
-      const collectOrigins = () => {
-        const origins = new Set([window.location.origin]);
-
-        for (const entry of performance.getEntriesByType("resource")) {
-          try {
-            const url = new URL(entry.name);
-            if (url.protocol === "http:" || url.protocol === "https:") {
-              origins.add(url.origin);
-            }
-          } catch {
-            // Ignore non-URL resource names.
-          }
-        }
-
-        return Array.from(origins).sort();
-      };
-      const postToParent = (type, message) => {
-        parent.postMessage(
-          {
-            message,
-            origins: collectOrigins(),
-            source: preview.messageSource,
-            type,
-            version: preview.version,
-          },
-          window.location.origin,
-        );
-      };
-      const isSlotComponent = (value) => {
-        if (typeof value === "function") {
-          return true;
-        }
-
-        if (typeof value !== "object" || value === null) {
-          return false;
-        }
-
-        const marker = value.$$typeof;
-        return (
-          marker === Symbol.for("react.forward_ref") ||
-          marker === Symbol.for("react.lazy") ||
-          marker === Symbol.for("react.memo")
-        );
-      };
-
-      window.addEventListener("error", (event) => {
-        postToParent(
-          "runtime-error",
-          toMessage(event.error ?? event.message ?? "Unknown runtime error"),
-        );
-      });
-      window.addEventListener("unhandledrejection", (event) => {
-        postToParent("runtime-error", toMessage(event.reason));
-      });
-
-      try {
-        const [{ default: React }, { createRoot }, module] = await Promise.all([
-          import(preview.reactUrl),
-          import(preview.reactDomClientUrl),
-          import(preview.artifactUrl),
-        ]);
-        const Component = module.default;
-
-        if (!isSlotComponent(Component)) {
-          throw new Error("Loaded artifact must default-export a React component.");
-        }
-
-        const ErrorBoundary = class extends React.Component {
-          constructor(props) {
-            super(props);
-            this.state = { error: null };
-          }
-
-          static getDerivedStateFromError(error) {
-            return { error };
-          }
-
-          componentDidCatch(error) {
-            postToParent("runtime-error", toMessage(error));
-          }
-
-          render() {
-            if (!this.state.error) {
-              return this.props.children;
-            }
-
-            return React.createElement(
-              "div",
-              {
-                style: {
-                  background: "#0a0a0a",
-                  color: "#f5f5f5",
-                  fontFamily: preview.mono,
-                  minHeight: "100vh",
-                  padding: "32px",
-                },
-              },
-              React.createElement(
-                "div",
-                { style: { margin: "0 auto", maxWidth: "720px" } },
-                React.createElement(
-                  "h2",
-                  {
-                    style: {
-                      color: "#fca5a5",
-                      fontSize: "18px",
-                      fontWeight: 500,
-                      margin: "0 0 16px 0",
-                    },
-                  },
-                  "Render Error",
-                ),
-                React.createElement(
-                  "pre",
-                  {
-                    style: {
-                      background: "#111",
-                      border: "1px solid #333",
-                      borderRadius: "8px",
-                      color: "#ef4444",
-                      fontFamily: preview.mono,
-                      fontSize: "13px",
-                      lineHeight: 1.6,
-                      margin: 0,
-                      overflow: "auto",
-                      padding: "20px",
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-word",
-                    },
-                  },
-                  toMessage(this.state.error),
-                ),
-              ),
-            );
-          }
-        };
-        const LoadingFallback = () =>
-          React.createElement(
-            "div",
-            {
-              style: {
-                background: "#0a0a0a",
-                color: "#ededed",
-                fontFamily: preview.mono,
-                minHeight: "100vh",
-                padding: "32px",
-              },
-            },
-            React.createElement(
-              "div",
-              { style: { margin: "0 auto", maxWidth: "720px" } },
-              React.createElement(
-                "h2",
-                {
-                  style: {
-                    fontSize: "18px",
-                    fontWeight: 500,
-                    margin: "0 0 12px 0",
-                  },
-                },
-                "Loading component",
-              ),
-              React.createElement(
-                "p",
-                {
-                  style: {
-                    color: "#888",
-                    fontSize: "13px",
-                    lineHeight: 1.6,
-                    margin: 0,
-                  },
-                },
-                "Waiting for the uploaded component to finish resolving.",
-              ),
-            ),
-          );
-
-        const root = createRoot(document.getElementById("root"));
-        root.render(
-          React.createElement(
-            ErrorBoundary,
-            null,
-            React.createElement(
-              React.Suspense,
-              { fallback: React.createElement(LoadingFallback) },
-              React.createElement(Component),
-            ),
-          ),
-        );
-        postToParent("ready");
-      } catch (error) {
-        postToParent("load-error", toMessage(error));
-      }
-    </script>
-  </body>
-</html>`;
+  return (
+    typeof value.artifactUrl === "string" &&
+    typeof value.mono === "string" &&
+    typeof value.reactDomClientUrl === "string" &&
+    typeof value.reactUrl === "string" &&
+    value.source === PREVIEW_MESSAGE_SOURCE &&
+    value.type === "init" &&
+    typeof value.version === "number" &&
+    Number.isFinite(value.version)
+  );
 }
 
 export const BROWSER_PREVIEW_MESSAGE_SOURCE = PREVIEW_MESSAGE_SOURCE;

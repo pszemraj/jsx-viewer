@@ -14,3 +14,18 @@ test("browser entry source html stays free of CSP so Vite dev can inject its pre
   );
   assert.equal(entryHtml.includes("Content-Security-Policy"), false);
 });
+
+test("preview frame source html uses an external module bootstrap and stays free of CSP", () => {
+  const entryHtml = readFileSync(
+    new URL("../../preview-frame.html", import.meta.url),
+    "utf8",
+  );
+
+  assert.ok(entryHtml.includes('<div id="root"></div>'));
+  assert.ok(
+    entryHtml.includes(
+      '<script type="module" src="/src/browser/previewFrameBootstrap.ts"></script>',
+    ),
+  );
+  assert.equal(entryHtml.includes("Content-Security-Policy"), false);
+});
