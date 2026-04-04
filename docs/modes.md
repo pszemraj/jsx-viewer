@@ -18,7 +18,6 @@ The website path uses a dedicated same-origin preview frame. It is a trusted-art
 | `React.memo`, `forwardRef`, `lazy` default exports | Yes | Yes |
 | Drag and drop, upload, paste | Yes | Yes |
 | Allowlisted runtime package imports | Yes | Yes |
-| Managed-browser diagnostics | No | Yes |
 | Multi-file relative imports | Yes | No |
 | Arbitrary local npm package resolution | Yes | No |
 | CommonJS, `process.*`, unsupported `import.meta.*` helpers in uploaded artifact | Yes | No |

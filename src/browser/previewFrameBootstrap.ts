@@ -1,6 +1,5 @@
 import type { ComponentType, ReactNode } from "react";
 import { isSlotComponent } from "../slotComponent";
-import { collectHttpOrigins } from "./httpOrigins";
 import {
   BROWSER_PREVIEW_MESSAGE_SOURCE,
   isPreviewFrameInitMessage,
@@ -31,13 +30,6 @@ function toMessage(value: unknown) {
   return typeof value === "string" ? value : String(value);
 }
 
-function collectOrigins() {
-  return collectHttpOrigins(
-    performance.getEntriesByType("resource").map((entry) => entry.name),
-    window.location.origin,
-  );
-}
-
 function postToParent(
   state: PreviewFrameState,
   type: PreviewFrameStatusType,
@@ -46,7 +38,6 @@ function postToParent(
   parent.postMessage(
     {
       message,
-      origins: collectOrigins(),
       source: BROWSER_PREVIEW_MESSAGE_SOURCE,
       type,
       version: state.init.version,

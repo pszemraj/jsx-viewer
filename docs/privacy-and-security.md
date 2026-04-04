@@ -31,7 +31,6 @@ Expected network behavior for the hosted site:
 
 - initial page load fetches static assets from `https://pszemraj.github.io/jsx-viewer/`
 - browser mode should then only fetch same-origin runtime assets needed by the app
-- managed-browser diagnostics can show the observed origins to help debug policy issues
 
 For local reproduction of that hosted behavior, prefer `npm run preview:browser`. `npm run dev:browser` is a Vite development server and intentionally does not enforce the deployed CSP.
 

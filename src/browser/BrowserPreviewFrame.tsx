@@ -16,23 +16,15 @@ export interface BrowserPreviewArtifact {
 
 interface BrowserPreviewFrameProps {
   artifact: BrowserPreviewArtifact;
-  onLoadError: (version: number, error: Error, origins: string[]) => void;
-  onReady: (version: number, origins: string[]) => void;
-  onRuntimeError: (version: number, error: Error, origins: string[]) => void;
+  onLoadError: (version: number, error: Error) => void;
+  onReady: (version: number) => void;
+  onRuntimeError: (version: number, error: Error) => void;
 }
 
 interface BrowserPreviewFrameCallbacks {
   onLoadError: BrowserPreviewFrameProps["onLoadError"];
   onReady: BrowserPreviewFrameProps["onReady"];
   onRuntimeError: BrowserPreviewFrameProps["onRuntimeError"];
-}
-
-function toOrigins(value: unknown) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.filter((entry): entry is string => typeof entry === "string");
 }
 
 export function BrowserPreviewFrame({
@@ -93,20 +85,19 @@ export function BrowserPreviewFrame({
 
       const callbacks = callbacksRef.current;
       const message = toError(data.message ?? "Unknown preview error");
-      const origins = toOrigins(data.origins);
 
       if (data.type === "ready") {
-        callbacks.onReady(artifact.version, origins);
+        callbacks.onReady(artifact.version);
         return;
       }
 
       if (data.type === "load-error") {
-        callbacks.onLoadError(artifact.version, message, origins);
+        callbacks.onLoadError(artifact.version, message);
         return;
       }
 
       if (data.type === "runtime-error") {
-        callbacks.onRuntimeError(artifact.version, message, origins);
+        callbacks.onRuntimeError(artifact.version, message);
       }
     };
 

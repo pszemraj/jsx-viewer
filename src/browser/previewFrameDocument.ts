@@ -22,7 +22,6 @@ export interface PreviewFrameInitMessage
 
 export interface PreviewFrameStatusMessage {
   readonly message?: string;
-  readonly origins?: string[];
   readonly source: typeof PREVIEW_MESSAGE_SOURCE;
   readonly type: "load-error" | "ready" | "runtime-error";
   readonly version: number;
