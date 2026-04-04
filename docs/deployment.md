@@ -9,9 +9,11 @@ The repository includes a browser-only entry that can be deployed to GitHub Page
 ```bash
 npm run dev:browser
 npm run build:browser
+npm run preview:browser
 ```
 
 `npm run build:browser` emits `dist-browser/` and then finalizes it into a Pages-ready artifact.
+`npm run preview:browser` runs that same finalized artifact locally through `vite preview`, which makes it the correct path for checking the deployed CSP and base-path behavior before shipping.
 
 ## Build And Deploy Flow
 
@@ -43,11 +45,14 @@ That keeps clear and swap from leaking module-scope timers or listeners across p
 
 Useful checks for this path:
 
+- `npm run preview:browser`
 - `npm run typecheck`
 - `npm run lint`
 - `npm run build`
 - `npm run build:browser`
 - manual verification against the [browser mode smoke matrix](browser-mode-smoke-matrix.md)
+
+Use `npm run dev:browser` for fast iteration on browser-mode code. Use `npm run preview:browser` when you need the deployment-faithful entry URL, finalized `index.html`, and production CSP.
 
 ## Related Docs
 

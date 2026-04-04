@@ -6,7 +6,8 @@
 | --- | --- |
 | `npm start` or `npm run dev` | Launch the empty local drop/upload/paste UI |
 | `npm run demo` | Preload and watch `example/Dashboard.tsx` |
-| `npm run dev:browser` | Launch the browser-only entry locally |
+| `npm run dev:browser` | Launch the fast browser-only dev entry locally |
+| `npm run preview:browser` | Build the finalized Pages artifact and serve it locally |
 | `npm run slot:reset` | Restore `component/View.tsx` and clear inactive runtime slots for this checkout |
 | `npm run guard:slot` | Fail if `component/View.tsx` differs from the tracked placeholder |
 | `npm test` | Run the CLI, protocol, runtime, and UI test suite |
@@ -43,6 +44,12 @@ JSX_VIEWER_ENABLE_GIT_HOOKS=1 npm install
 - `component/View.tsx` should remain the tracked placeholder, not a loaded artifact
 - `dist/` and `dist-browser/` are build outputs and should stay uncommitted
 - Pages deployment behavior is documented in [deployment.md](deployment.md)
+
+## Browser Mode Validation Paths
+
+- `npm run dev:browser` is the fast inner loop for transpiler/runtime work. It intentionally serves the source `index.browser.html` without the deployed CSP so Vite can inject its dev client.
+- `npm run preview:browser` is the deployment-faithful local check. It builds `dist-browser/`, finalizes `index.html`, preserves the Pages CSP, and serves the result through `vite preview`.
+- When validating non-root Pages paths locally, pass the same `VITE_BASE_PATH` you expect in deployment and open that prefixed route in preview mode.
 
 ## Related Docs
 

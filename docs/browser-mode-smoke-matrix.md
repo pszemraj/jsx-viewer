@@ -4,6 +4,8 @@ Use these snippets directly in the deployed Pages/browser mode at:
 
 - `https://pszemraj.github.io/jsx-viewer/`
 
+For a local run that matches the finalized Pages artifact more closely, use `npm run preview:browser` instead of `npm run dev:browser`.
+
 Goal: verify that browser mode handles real single-file React artifacts, not just trivial `.jsx`.
 
 ## Expected Pass Cases

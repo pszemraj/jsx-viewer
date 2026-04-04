@@ -33,6 +33,8 @@ Expected network behavior for the hosted site:
 - browser mode should then only fetch same-origin runtime assets needed by the app
 - managed-browser diagnostics can show the observed origins to help debug policy issues
 
+For local reproduction of that hosted behavior, prefer `npm run preview:browser`. `npm run dev:browser` is a Vite development server and intentionally does not enforce the deployed CSP.
+
 ## Trust Model
 
 Browser mode runs uploaded code in a dedicated preview frame on the same origin. That improves teardown between previews, but it is still not a security sandbox.
