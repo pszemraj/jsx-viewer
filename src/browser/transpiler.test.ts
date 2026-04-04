@@ -64,17 +64,21 @@ allowTest(
   [/runtime\/react\.js/, /useState/],
 );
 
-rejectionTest(
-  "transpileArtifact rejects bare imports outside the browser-mode React runtime",
-  "BadLucideImport.tsx",
+allowTest(
+  "transpileArtifact rewrites non-React bare imports to the remote browser package runtime",
+  "LucideImport.tsx",
   `
     import { AlarmClock } from "lucide-react";
 
-    export default function BadLucideImport() {
+    export default function LucideImport() {
       return <AlarmClock />;
     }
   `,
-  /Unsupported bare import "lucide-react" in browser mode/,
+  [
+    /https:\/\/esm\.sh\/lucide-react\?/,
+    /external=react(?:%2C|,)react-dom(?:%2C|,)react-dom%2Fclient/,
+    /target=es2022/,
+  ],
 );
 
 rejectionTest(

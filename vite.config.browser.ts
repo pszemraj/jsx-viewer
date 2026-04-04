@@ -7,11 +7,12 @@ import { fileURLToPath } from "node:url";
 import { normalizeBrowserBasePath } from "./src/browser/basePath";
 import { rewriteBrowserDevRootRequest } from "./src/browser/devEntryUrl";
 import { BROWSER_RUNTIME_ENTRIES } from "./src/browser/runtimeManifest";
+import { buildBrowserRuntimeImportMap } from "./src/browser/runtimeImportMap";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BROWSER_CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "script-src 'self' blob:",
+  "script-src 'self' blob: https://esm.sh",
   "connect-src 'self'",
   "img-src 'self' blob: data:",
   "style-src 'self' 'unsafe-inline'",
@@ -48,6 +49,35 @@ function browserContentSecurityPolicy(): Plugin {
   };
 }
 
+function browserPreviewImportMap(): Plugin {
+  return {
+    name: "browser-preview-import-map",
+    transformIndexHtml(_html, context) {
+      if (!context.filename.endsWith("preview-frame.html")) {
+        return;
+      }
+
+      return [
+        {
+          tag: "script",
+          attrs: {
+            type: "importmap",
+          },
+          children: JSON.stringify(
+            buildBrowserRuntimeImportMap(
+              process.env.VITE_BASE_PATH,
+              context.server !== undefined,
+            ),
+            null,
+            2,
+          ),
+          injectTo: "head-prepend" as const,
+        },
+      ];
+    },
+  };
+}
+
 function browserDevEntrypoint(): Plugin {
   return {
     name: "browser-dev-entrypoint",
@@ -74,7 +104,12 @@ export default defineConfig({
   base: normalizeBrowserBasePath(process.env.VITE_BASE_PATH),
   // Keep the source HTML free of CSP so Vite's dev preamble can bootstrap.
   // The production Pages artifact gets the policy injected at build time.
-  plugins: [react(), browserContentSecurityPolicy(), browserDevEntrypoint()],
+  plugins: [
+    react(),
+    browserPreviewImportMap(),
+    browserContentSecurityPolicy(),
+    browserDevEntrypoint(),
+  ],
   build: {
     outDir: "dist-browser",
     emptyOutDir: true,

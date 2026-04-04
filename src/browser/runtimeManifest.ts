@@ -35,6 +35,14 @@ export const BROWSER_ARTIFACT_RUNTIME_SPECIFIERS = [
   "react/jsx-dev-runtime",
 ] as const satisfies readonly BrowserRuntimeSpecifier[];
 
+export const BROWSER_RUNTIME_IMPORT_MAP_SPECIFIERS = [
+  "react",
+  "react-dom",
+  "react-dom/client",
+  "react/jsx-runtime",
+  "react/jsx-dev-runtime",
+] as const satisfies readonly BrowserRuntimeSpecifier[];
+
 export const BROWSER_RUNTIME_DISPLAY_SPECIFIERS = [
   "react",
   "react-dom",

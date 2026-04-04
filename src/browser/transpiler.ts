@@ -2,6 +2,7 @@ import {
   BROWSER_ARTIFACT_RUNTIME_SPECIFIERS,
 } from "./runtimeManifest";
 import { resolveCurrentRuntimeModuleUrl } from "./browserRuntimeContext";
+import { resolveRemotePackageUrl } from "./remotePackageUrl";
 import { toError } from "../viewerShared";
 
 interface BabelTransformResult {
@@ -228,11 +229,7 @@ function resolveImportSpecifier(specifier: string) {
   }
 
   if (!BROWSER_ARTIFACT_RUNTIME_IMPORT_SET.has(specifier)) {
-    throw new Error(
-      `Unsupported bare import "${specifier}" in browser mode. ` +
-        `Supported imports: ${SUPPORTED_IMPORTS}. ` +
-        "Use the local Node/Vite viewer for anything beyond the built-in React runtime.",
-    );
+    return resolveRemotePackageUrl(specifier);
   }
 
   return getRuntimeModuleUrl(specifier);

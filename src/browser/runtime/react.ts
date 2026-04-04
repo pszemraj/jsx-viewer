@@ -7,6 +7,7 @@ const ReactInterop = ReactNamespace as typeof ReactNamespace & {
 };
 
 export default React;
+const ReactModuleExports = React;
 export const {
   Children,
   Component,
@@ -43,6 +44,7 @@ export const {
   useTransition,
   version,
 } = ReactNamespace;
+export { ReactModuleExports as "module.exports" };
 export const unstable_act = ReactInterop.unstable_act;
 export const __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED =
   ReactInterop.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
