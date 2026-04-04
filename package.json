@@ -28,6 +28,7 @@
     "src/main.tsx",
     "src/browser/AppBrowser.tsx",
     "src/browser/corporatePreflight.ts",
+    "src/browser/devEntryUrl.ts",
     "src/browser/global.d.ts",
     "src/browser/index-browser.css",
     "src/browser/main-browser.tsx",
