@@ -4,6 +4,7 @@ import type { ServerResponse } from "node:http";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { normalizeBrowserBasePath } from "./src/browser/basePath";
 import { rewriteBrowserDevRootRequest } from "./src/browser/devEntryUrl";
 import { BROWSER_RUNTIME_ENTRIES } from "./src/browser/runtimeManifest";
 
@@ -20,15 +21,6 @@ const BROWSER_CONTENT_SECURITY_POLICY = [
   "form-action 'none'",
   "upgrade-insecure-requests",
 ].join("; ");
-
-function normalizeBasePath(value: string | undefined) {
-  if (typeof value !== "string" || value.length === 0 || value === "/") {
-    return "/";
-  }
-
-  const trimmed = value.replace(/^\/+|\/+$/g, "");
-  return trimmed.length === 0 ? "/" : `/${trimmed}/`;
-}
 
 const runtimeInputs = Object.values(BROWSER_RUNTIME_ENTRIES).reduce<
   Record<string, string>
@@ -68,7 +60,7 @@ function browserDevEntrypoint(): Plugin {
           next: Connect.NextFunction,
         ) => {
           if (req.url) {
-            req.url = rewriteBrowserDevRootRequest(req.url);
+            req.url = rewriteBrowserDevRootRequest(req.url, server.config.base);
           }
 
           next();
@@ -79,7 +71,7 @@ function browserDevEntrypoint(): Plugin {
 }
 
 export default defineConfig({
-  base: normalizeBasePath(process.env.VITE_BASE_PATH),
+  base: normalizeBrowserBasePath(process.env.VITE_BASE_PATH),
   // Keep the source HTML free of CSP so Vite's dev preamble can bootstrap.
   // The production Pages artifact gets the policy injected at build time.
   plugins: [react(), browserContentSecurityPolicy(), browserDevEntrypoint()],

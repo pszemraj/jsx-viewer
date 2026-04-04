@@ -1,7 +1,7 @@
 import {
-  BROWSER_RUNTIME_ENTRIES,
   BROWSER_RUNTIME_SPECIFIERS,
 } from "./runtimeManifest";
+import { resolveRuntimeModuleUrl } from "./runtimeUrl";
 
 interface BabelTransformResult {
   code?: string | null;
@@ -193,10 +193,14 @@ function getViteEnv() {
 }
 
 function getRuntimeModuleUrl(specifier: string) {
-  const entry =
-    BROWSER_RUNTIME_ENTRIES[specifier as keyof typeof BROWSER_RUNTIME_ENTRIES];
+  const env = getViteEnv();
+  const runtimeUrl = resolveRuntimeModuleUrl(specifier, {
+    basePath: env?.BASE_URL,
+    dev: env?.DEV,
+    origin: getTranspilerOrigin(),
+  });
 
-  if (!entry) {
+  if (!runtimeUrl) {
     throw new Error(
       `Unsupported bare import "${specifier}" in browser mode. ` +
         `Supported imports: ${SUPPORTED_IMPORTS}. ` +
@@ -204,15 +208,7 @@ function getRuntimeModuleUrl(specifier: string) {
     );
   }
 
-  const env = getViteEnv();
-  const origin = getTranspilerOrigin();
-
-  if (env?.DEV) {
-    return new URL(entry.devPath, origin).toString();
-  }
-
-  const baseUrl = new URL(env?.BASE_URL ?? "/", origin);
-  return new URL(`${entry.entryName}.js`, baseUrl).toString();
+  return runtimeUrl;
 }
 
 function resolveImportSpecifier(specifier: string) {

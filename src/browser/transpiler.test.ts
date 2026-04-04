@@ -1,6 +1,28 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { transpileArtifact } from "./transpiler";
+import { resolveRuntimeModuleUrl } from "./runtimeUrl";
+
+test("resolveRuntimeModuleUrl prefixes Vite base for dev runtime modules", () => {
+  assert.equal(
+    resolveRuntimeModuleUrl("react", {
+      basePath: "/jsx-viewer/",
+      dev: true,
+      origin: "https://example.com",
+    }),
+    "https://example.com/jsx-viewer/src/browser/runtime/react.ts",
+  );
+});
+
+test("resolveRuntimeModuleUrl prefixes Vite base for built runtime modules", () => {
+  assert.equal(
+    resolveRuntimeModuleUrl("react", {
+      basePath: "/jsx-viewer/",
+      origin: "https://example.com",
+    }),
+    "https://example.com/jsx-viewer/runtime/react.js",
+  );
+});
 
 test("transpileArtifact rejects actual import.meta.env access", async () => {
   await assert.rejects(

@@ -1,9 +1,19 @@
-export function rewriteBrowserDevRootRequest(requestUrl: string) {
-  const url = new URL(requestUrl, "http://localhost");
+import {
+  matchesBrowserBasePath,
+  normalizeBrowserBasePath,
+} from "./basePath";
 
-  if (url.pathname !== "/") {
+export function rewriteBrowserDevRootRequest(
+  requestUrl: string,
+  basePath?: string,
+) {
+  const url = new URL(requestUrl, "http://localhost");
+  const normalizedBasePath = normalizeBrowserBasePath(basePath);
+
+  if (!matchesBrowserBasePath(url.pathname, normalizedBasePath)) {
     return requestUrl;
   }
 
-  return `/index.browser.html${url.search}`;
+  url.pathname = `${normalizedBasePath}index.browser.html`;
+  return `${url.pathname}${url.search}`;
 }
