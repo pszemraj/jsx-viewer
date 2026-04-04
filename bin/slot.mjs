@@ -259,14 +259,6 @@ function clearManagedRuntimePortDirs(
   }
 }
 
-export function clearRuntimeSlots() {
-  clearManagedRuntimePortDirs(getRuntimeSlotsRoot());
-}
-
-export function clearRuntimeCaches() {
-  clearManagedRuntimePortDirs(getRuntimeCacheRoot());
-}
-
 /**
  * @param {unknown} value
  * @returns {value is RuntimeOwnerRecord}

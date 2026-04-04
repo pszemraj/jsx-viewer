@@ -81,9 +81,6 @@ let cleanupPromise = null;
 let scheduledExitCode = 0;
 /** @type {QueuedArtifactReload | null} */
 let queuedWatchedFileReload = null;
-/** @type {Array<"add" | "change">} */
-export const WATCHED_ARTIFACT_EVENTS = ["add", "change"];
-
 /**
  * @param {ServerMessage} message
  * @returns {void}
@@ -176,28 +173,6 @@ export function createQueuedArtifactReload(
 }
 
 /**
- * @param {ArtifactWatcher} fileWatcher
- * @param {() => void} onArtifactEvent
- * @returns {void}
- */
-export function registerWatchedArtifactEvents(fileWatcher, onArtifactEvent) {
-  for (const eventName of WATCHED_ARTIFACT_EVENTS) {
-    fileWatcher.on(eventName, onArtifactEvent);
-  }
-}
-
-/**
- * Preserve the highest-priority exit code across overlapping cleanup requests.
- *
- * @param {number} currentExitCode
- * @param {number} [nextExitCode]
- * @returns {number}
- */
-export function mergeCleanupExitCode(currentExitCode, nextExitCode = 0) {
-  return Math.max(currentExitCode, nextExitCode);
-}
-
-/**
  * @param {PromiseLike<unknown> | undefined | null} pendingClose
  * @param {number} [timeoutMs]
  * @returns {Promise<void>}
@@ -246,7 +221,8 @@ function startWatching(filePath) {
     }
   });
 
-  registerWatchedArtifactEvents(watcher, queuedWatchedFileReload);
+  watcher.on("add", queuedWatchedFileReload);
+  watcher.on("change", queuedWatchedFileReload);
 }
 
 /**
@@ -254,7 +230,7 @@ function startWatching(filePath) {
  * @returns {Promise<void>}
  */
 async function cleanup(exitCode = 0) {
-  scheduledExitCode = mergeCleanupExitCode(scheduledExitCode, exitCode);
+  scheduledExitCode = Math.max(scheduledExitCode, exitCode);
 
   if (cleanupPromise) {
     return cleanupPromise;

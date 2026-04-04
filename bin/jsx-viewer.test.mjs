@@ -28,7 +28,6 @@ import {
 } from "./jsx-viewer-cli.mjs";
 import {
   clearRuntimeArtifacts,
-  clearRuntimeSlots,
   PLACEHOLDER,
   TRACKED_SLOT_PATH,
   getRuntimeCacheDir,
@@ -45,11 +44,8 @@ import {
   writeSlot,
 } from "./slot.mjs";
 import {
-  WATCHED_ARTIFACT_EVENTS,
   createQueuedArtifactReload,
   getViteServerConfig,
-  mergeCleanupExitCode,
-  registerWatchedArtifactEvents,
   waitForCloseOperation,
 } from "./jsx-viewer-runtime.mjs";
 
@@ -320,37 +316,6 @@ test(
   },
 );
 
-test("clearRuntimeSlots removes only viewer-managed port directories", () => {
-  const runtimeSlotsBase = mkdtempSync(path.join(os.tmpdir(), "jsx-viewer-slots-"));
-  const siblingPath = path.join(runtimeSlotsBase, "keep.txt");
-  writeFileSync(siblingPath, "keep", "utf8");
-
-  try {
-    withRuntimeSlotsDir(runtimeSlotsBase, () => {
-      const runtimeSlotsRoot = getRuntimeSlotsRoot();
-      const managedSlotDir = path.join(runtimeSlotsRoot, "port-3142");
-      const unmanagedDir = path.join(runtimeSlotsRoot, "notes");
-      const lookalikeDir = path.join(runtimeSlotsRoot, "port-not-a-number");
-
-      mkdirSync(path.join(managedSlotDir, "component"), { recursive: true });
-      writeFileSync(path.join(managedSlotDir, "component", "View.tsx"), PLACEHOLDER, "utf8");
-      mkdirSync(unmanagedDir, { recursive: true });
-      writeFileSync(path.join(unmanagedDir, "keep.txt"), "keep", "utf8");
-      mkdirSync(lookalikeDir, { recursive: true });
-      writeFileSync(path.join(lookalikeDir, "keep.txt"), "keep", "utf8");
-
-      clearRuntimeSlots();
-
-      assert.equal(existsSync(managedSlotDir), false);
-      assert.equal(existsSync(unmanagedDir), true);
-      assert.equal(existsSync(lookalikeDir), true);
-      assert.equal(readFileSync(siblingPath, "utf8"), "keep");
-    });
-  } finally {
-    rmSync(runtimeSlotsBase, { recursive: true, force: true });
-  }
-});
-
 test("slotMatchesPlaceholder accepts the tracked placeholder with CRLF line endings", () => {
   const tempDir = mkdtempSync(path.join(os.tmpdir(), "jsx-viewer-slot-"));
   const slotPath = path.join(tempDir, "View.tsx");
@@ -474,35 +439,6 @@ test("waitForCloseOperation waits for close completion but caps hanging shutdown
 
   assert.ok(elapsedMs >= 10);
   assert.ok(elapsedMs < 200);
-});
-
-test("mergeCleanupExitCode preserves failure status across overlapping shutdown requests", () => {
-  assert.equal(mergeCleanupExitCode(0, 0), 0);
-  assert.equal(mergeCleanupExitCode(0, 1), 1);
-  assert.equal(mergeCleanupExitCode(1, 0), 1);
-  assert.equal(mergeCleanupExitCode(1, 1), 1);
-});
-
-test("registerWatchedArtifactEvents subscribes to add and change with one shared handler", () => {
-  /** @type {Array<{ event: string, listener: () => void }>} */
-  const registrations = [];
-  const listener = () => {};
-
-  registerWatchedArtifactEvents(
-    {
-      on(event, handler) {
-        registrations.push({ event, listener: handler });
-      },
-    },
-    listener,
-  );
-
-  assert.deepEqual(
-    registrations.map(({ event }) => event),
-    WATCHED_ARTIFACT_EVENTS,
-  );
-  assert.equal(registrations[0]?.listener, listener);
-  assert.equal(registrations[1]?.listener, listener);
 });
 
 test("createQueuedArtifactReload coalesces save bursts and cancels pending reloads", async () => {
