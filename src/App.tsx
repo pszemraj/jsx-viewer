@@ -3,17 +3,17 @@ import {
   useEffect,
   useRef,
   useState,
-  type ChangeEvent,
-  type DragEvent,
   type MouseEvent,
 } from "react";
 import { isSlotComponent, type SlotComponent } from "./slotComponent";
 import { SlotPreview } from "./SlotPreview";
 import {
+  useArtifactDropZone,
+  useArtifactFilePicker,
+} from "./useArtifactInput";
+import {
   MONO,
   SANS,
-  getFirstFile,
-  readArtifactFile,
   toError,
 } from "./viewerShared";
 import {
@@ -180,68 +180,22 @@ function useWebSocket(onMessage: (message: ServerMessage) => void) {
 }
 
 function DropZone({ onContent }: DropZoneProps) {
-  const [isDragging, setIsDragging] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  const handleFile = useCallback(
-    async (file: File) => {
-      const artifact = await readArtifactFile(file);
-      onContent(artifact.content, artifact.name);
-    },
-    [onContent],
-  );
-
-  const handleDrop = useCallback(
-    (event: DragEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      setIsDragging(false);
-
-      const file = getFirstFile(event.dataTransfer.files);
-      if (file) {
-        void handleFile(file);
-      }
-    },
-    [handleFile],
-  );
-
-  const handleFileSelect = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const file = getFirstFile(event.target.files);
-      if (file) {
-        void handleFile(file);
-      }
-      event.target.value = "";
-    },
-    [handleFile],
-  );
-
-  useEffect(() => {
-    containerRef.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    const handlePasteEvent = (event: ClipboardEvent) => {
-      const text = event.clipboardData?.getData("text/plain");
-      if (text?.trim()) {
-        event.preventDefault();
-        onContent(text, "pasted.tsx");
-      }
-    };
-
-    window.addEventListener("paste", handlePasteEvent);
-    return () => window.removeEventListener("paste", handlePasteEvent);
-  }, [onContent]);
+  const {
+    containerRef,
+    fileInputRef,
+    handleDragLeave,
+    handleDragOver,
+    handleDrop,
+    handleFileSelect,
+    isDragging,
+  } = useArtifactDropZone(onContent);
 
   return (
     <div
       ref={containerRef}
       tabIndex={0}
-      onDragOver={(event) => {
-        event.preventDefault();
-        setIsDragging(true);
-      }}
-      onDragLeave={() => setIsDragging(false)}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       style={{
         display: "flex",
@@ -354,19 +308,7 @@ function DropZone({ onContent }: DropZoneProps) {
 }
 
 function Toolbar({ filename, connected, onClear, onSwap }: ToolbarProps) {
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  const handleFileSelect = useCallback(
-    async (event: ChangeEvent<HTMLInputElement>) => {
-      const file = getFirstFile(event.target.files);
-      if (file) {
-        const artifact = await readArtifactFile(file);
-        onSwap(artifact.content, artifact.name);
-      }
-      event.target.value = "";
-    },
-    [onSwap],
-  );
+  const { fileInputRef, handleFileSelect } = useArtifactFilePicker(onSwap);
 
   return (
     <div
