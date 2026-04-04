@@ -208,6 +208,48 @@ test("transpileArtifact rejects import.meta env access through aliases assigned 
   );
 });
 
+test("transpileArtifact rejects helper-captured import.meta env access after later alias assignment", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        function readMode() {
+          return meta.env.MODE;
+        }
+
+        let meta = { url: "fallback" };
+        meta = import.meta;
+
+        export default function BadCapturedImportMetaEnv() {
+          return <div>{readMode()}</div>;
+        }
+      `,
+      "BadCapturedImportMetaEnv.tsx",
+    ),
+    /import\.meta\.env is Vite-specific/,
+  );
+});
+
+test("transpileArtifact rejects helper-captured bare import.meta aliases after later assignment", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        function getMeta() {
+          return meta;
+        }
+
+        let meta = { url: "fallback" };
+        meta = import.meta;
+
+        export default function BadCapturedImportMetaAlias() {
+          return getMeta();
+        }
+      `,
+      "BadCapturedImportMetaAlias.tsx",
+    ),
+    /Only import\.meta\.url is supported inside uploaded artifacts in browser mode/,
+  );
+});
+
 test("transpileArtifact allows import.meta aliases for supported properties", async () => {
   const { code } = await transpileArtifact(
     `
@@ -221,6 +263,27 @@ test("transpileArtifact allows import.meta aliases for supported properties", as
   );
 
   assert.match(code, /meta\.url/);
+});
+
+test("transpileArtifact allows helper-captured import.meta.url access after later alias assignment", async () => {
+  const { code } = await transpileArtifact(
+    `
+      function readUrl() {
+        return meta.url;
+      }
+
+      let meta = { url: "fallback" };
+      meta = import.meta;
+
+      export default function CapturedImportMetaUrl() {
+        return <div>{readUrl()}</div>;
+      }
+    `,
+    "CapturedImportMetaUrl.tsx",
+  );
+
+  assert.match(code, /meta\.url/);
+  assert.match(code, /readUrl\(\)/);
 });
 
 test("transpileArtifact allows import.meta.url through aliases assigned later", async () => {

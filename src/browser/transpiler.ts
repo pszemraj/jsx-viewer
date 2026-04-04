@@ -438,12 +438,21 @@ function getFutureRelevantReferencePaths(
   assignmentPath: BabelNodePath,
 ) {
   const assignmentStart = getNodeStart(assignmentPath.node);
+  const assignmentExecutionBoundary = getNearestExecutionBoundaryPath(
+    assignmentPath,
+  );
 
   return (binding.referencePaths ?? []).filter((referencePath) => {
     const referenceStart = getNodeStart(referencePath.node);
+    const referenceExecutionBoundary =
+      getNearestExecutionBoundaryPath(referencePath);
+    const sharesExecutionBoundary =
+      !assignmentExecutionBoundary ||
+      !referenceExecutionBoundary ||
+      assignmentExecutionBoundary === referenceExecutionBoundary;
 
     if (assignmentStart !== null && referenceStart !== null) {
-      if (referenceStart <= assignmentStart) {
+      if (sharesExecutionBoundary && referenceStart <= assignmentStart) {
         return false;
       }
     }
@@ -454,6 +463,22 @@ function getFutureRelevantReferencePaths(
 
     return isScopeAncestorOrSelf(assignmentPath.scope, referencePath.scope);
   });
+}
+
+function getNearestExecutionBoundaryPath(path: BabelNodePath) {
+  let currentPath: BabelNodePath | undefined = path;
+
+  while (currentPath) {
+    const nodeType = getNodeType(currentPath.node);
+
+    if (nodeType === "Program" || isDirectFunctionNode(currentPath.node)) {
+      return currentPath;
+    }
+
+    currentPath = currentPath.parentPath;
+  }
+
+  return null;
 }
 
 function getBindingValueTarget(
