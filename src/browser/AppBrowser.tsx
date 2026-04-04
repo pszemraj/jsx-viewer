@@ -51,6 +51,8 @@ interface DiagnosticsState {
   origins: string[];
 }
 
+type BrowserShellView = "dropzone" | "error" | "preview";
+
 function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
@@ -82,6 +84,22 @@ function createPreflightError(report: CorporatePreflightReport) {
 
 function mergeOrigins(...originGroups: readonly string[][]) {
   return Array.from(new Set(originGroups.flat())).sort();
+}
+
+export function getBrowserShellView(
+  state: Pick<BrowserArtifactState, "artifact" | "error">,
+): BrowserShellView {
+  if (state.error) {
+    return "error";
+  }
+
+  return state.artifact ? "preview" : "dropzone";
+}
+
+export function shouldShowLoadingOverlay(
+  state: Pick<BrowserArtifactState, "artifact" | "isLoading" | "status">,
+) {
+  return state.artifact !== null && state.isLoading && state.status !== null;
 }
 
 function getDiagnosticsMeta(diagnostics: DiagnosticsState) {
@@ -972,6 +990,8 @@ export default function AppBrowser() {
     "That lets clear and swap fully tear down module-scope state, but it is still a trusted-code path rather than a security sandbox. " +
     "Relative imports, remote URL imports, Vite-only globals, and CommonJS are intentionally rejected early. " +
     "Managed-browser diagnostics below show whether blob-backed module imports are allowed on this machine.";
+  const shellView = getBrowserShellView(state);
+  const showLoadingOverlay = shouldShowLoadingOverlay(state);
 
   return (
     <div
@@ -994,17 +1014,15 @@ export default function AppBrowser() {
         <DiagnosticsPanel diagnostics={diagnostics} compact />
       ) : null}
       <div style={{ flex: 1, position: "relative" }}>
-        {state.error ? (
+        {shellView === "error" ? (
           <ErrorPanel
             title="Browser Mode Error"
-            error={state.error}
+            error={state.error ?? new Error("Unknown browser-mode error.")}
             details={browserModeDetails}
           />
-        ) : state.isLoading && state.status ? (
-          <LoadingState status={state.status} />
-        ) : !state.artifact ? (
+        ) : shellView === "dropzone" ? (
           <DropZone diagnostics={diagnostics} onContent={loadArtifact} />
-        ) : (
+        ) : state.artifact ? (
           <>
             {runtimeError ? (
               <div
@@ -1022,46 +1040,59 @@ export default function AppBrowser() {
                   {runtimeError.message}
                 </div>
               ) : null}
-            <BrowserPreviewFrame
-              artifact={state.artifact}
-              onLoadError={(version, error, origins) => {
-                mergeDiagnosticsOrigins(origins);
-                setRuntimeError(null);
-                setState((current) =>
-                  current.version !== version
-                    ? current
-                    : {
-                        artifact: null,
-                        error,
-                        isLoading: false,
-                        status: null,
-                        version: current.version,
-                      },
-                );
-              }}
-              onReady={(version, origins) => {
-                mergeDiagnosticsOrigins(origins);
-                setRuntimeError(null);
-                setState((current) =>
-                  current.version !== version
-                    ? current
-                    : {
-                        ...current,
-                        error: null,
-                        isLoading: false,
-                        status: null,
-                      },
-                );
-              }}
-              onRuntimeError={(version, error, origins) => {
-                mergeDiagnosticsOrigins(origins);
-                setRuntimeError((current) =>
-                  previewVersionRef.current === version ? error : current,
-                );
-              }}
-            />
+            <div style={{ minHeight: "calc(100vh - 49px)", position: "relative" }}>
+              <BrowserPreviewFrame
+                artifact={state.artifact}
+                onLoadError={(version, error, origins) => {
+                  mergeDiagnosticsOrigins(origins);
+                  setRuntimeError(null);
+                  setState((current) =>
+                    current.version !== version
+                      ? current
+                      : {
+                          artifact: null,
+                          error,
+                          isLoading: false,
+                          status: null,
+                          version: current.version,
+                        },
+                  );
+                }}
+                onReady={(version, origins) => {
+                  mergeDiagnosticsOrigins(origins);
+                  setRuntimeError(null);
+                  setState((current) =>
+                    current.version !== version
+                      ? current
+                      : {
+                          ...current,
+                          error: null,
+                          isLoading: false,
+                          status: null,
+                        },
+                  );
+                }}
+                onRuntimeError={(version, error, origins) => {
+                  mergeDiagnosticsOrigins(origins);
+                  setRuntimeError((current) =>
+                    previewVersionRef.current === version ? error : current,
+                  );
+                }}
+              />
+              {showLoadingOverlay ? (
+                <div
+                  style={{
+                    inset: 0,
+                    pointerEvents: "none",
+                    position: "absolute",
+                  }}
+                >
+                  <LoadingState status={state.status ?? "Loading preview"} />
+                </div>
+              ) : null}
+            </div>
           </>
-        )}
+        ) : null}
       </div>
     </div>
   );

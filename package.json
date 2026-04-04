@@ -65,7 +65,7 @@
     "build:browser": "vite build --config vite.config.browser.ts && node ./bin/finalize-browser-build.mjs",
     "dev:browser": "vite --config vite.config.browser.ts",
     "preview:browser": "npm run build:browser && vite preview --config vite.config.browser.ts",
-    "test": "node --import tsx --test bin/jsx-viewer.test.mjs bin/node-version.test.mjs bin/setup-hooks.test.mjs shared/protocol.test.ts src/browser/browserEntryHtml.test.ts src/browser/corporatePreflight.test.ts src/browser/devEntryUrl.test.ts src/browser/lodashRuntime.test.ts src/browser/papaparseRuntime.test.ts src/browser/previewFrameDocument.test.ts src/browser/reactRuntime.test.ts src/browser/runtimeFacadeParity.test.ts src/browser/transpiler.test.ts src/hotReload.test.ts src/loadTracker.test.ts src/runtimeConfig.test.ts src/slotComponent.test.ts src/SlotPreview.test.tsx",
+    "test": "node --import tsx --test bin/jsx-viewer.test.mjs bin/node-version.test.mjs bin/setup-hooks.test.mjs shared/protocol.test.ts src/browser/AppBrowser.test.ts src/browser/browserEntryHtml.test.ts src/browser/corporatePreflight.test.ts src/browser/devEntryUrl.test.ts src/browser/lodashRuntime.test.ts src/browser/papaparseRuntime.test.ts src/browser/previewFrameDocument.test.ts src/browser/reactRuntime.test.ts src/browser/runtimeFacadeParity.test.ts src/browser/transpiler.test.ts src/hotReload.test.ts src/loadTracker.test.ts src/runtimeConfig.test.ts src/slotComponent.test.ts src/SlotPreview.test.tsx",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.runtime.json",
     "prepare": "node ./bin/setup-hooks.mjs"
