@@ -8,6 +8,11 @@ test("rewriteBrowserDevRootRequest sends the dev root to the browser entry html"
     rewriteBrowserDevRootRequest("/?source=toolbar"),
     "/index.browser.html?source=toolbar",
   );
+  assert.equal(rewriteBrowserDevRootRequest("/index.html"), "/index.browser.html");
+  assert.equal(
+    rewriteBrowserDevRootRequest("/index.html?source=toolbar"),
+    "/index.browser.html?source=toolbar",
+  );
 });
 
 test("rewriteBrowserDevRootRequest rewrites a configured base-path root", () => {
@@ -19,6 +24,17 @@ test("rewriteBrowserDevRootRequest rewrites a configured base-path root", () => 
     rewriteBrowserDevRootRequest("/jsx-viewer?source=toolbar", "/jsx-viewer/"),
     "/jsx-viewer/index.browser.html?source=toolbar",
   );
+  assert.equal(
+    rewriteBrowserDevRootRequest("/jsx-viewer/index.html", "/jsx-viewer/"),
+    "/jsx-viewer/index.browser.html",
+  );
+  assert.equal(
+    rewriteBrowserDevRootRequest(
+      "/jsx-viewer/index.html?source=toolbar",
+      "/jsx-viewer/",
+    ),
+    "/jsx-viewer/index.browser.html?source=toolbar",
+  );
 });
 
 test("rewriteBrowserDevRootRequest leaves non-root requests untouched", () => {
@@ -28,6 +44,7 @@ test("rewriteBrowserDevRootRequest leaves non-root requests untouched", () => {
   );
   assert.equal(rewriteBrowserDevRootRequest("/src/main.tsx"), "/src/main.tsx");
   assert.equal(rewriteBrowserDevRootRequest("/@vite/client"), "/@vite/client");
+  assert.equal(rewriteBrowserDevRootRequest("/other/index.html"), "/other/index.html");
   assert.equal(
     rewriteBrowserDevRootRequest("/jsx-viewer/src/main.tsx", "/jsx-viewer/"),
     "/jsx-viewer/src/main.tsx",

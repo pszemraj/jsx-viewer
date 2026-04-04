@@ -3,6 +3,14 @@ import {
   normalizeBrowserBasePath,
 } from "./basePath";
 
+function isBrowserDevEntryRequest(pathname: string, basePath: string) {
+  if (matchesBrowserBasePath(pathname, basePath)) {
+    return true;
+  }
+
+  return pathname === `${basePath}index.html`;
+}
+
 export function rewriteBrowserDevRootRequest(
   requestUrl: string,
   basePath?: string,
@@ -10,7 +18,7 @@ export function rewriteBrowserDevRootRequest(
   const url = new URL(requestUrl, "http://localhost");
   const normalizedBasePath = normalizeBrowserBasePath(basePath);
 
-  if (!matchesBrowserBasePath(url.pathname, normalizedBasePath)) {
+  if (!isBrowserDevEntryRequest(url.pathname, normalizedBasePath)) {
     return requestUrl;
   }
 
