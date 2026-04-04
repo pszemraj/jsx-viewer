@@ -20,6 +20,12 @@ interface BrowserPreviewFrameProps {
   onRuntimeError: (version: number, error: Error, origins: string[]) => void;
 }
 
+interface BrowserPreviewFrameCallbacks {
+  onLoadError: BrowserPreviewFrameProps["onLoadError"];
+  onReady: BrowserPreviewFrameProps["onReady"];
+  onRuntimeError: BrowserPreviewFrameProps["onRuntimeError"];
+}
+
 function toError(error: unknown) {
   return error instanceof Error ? error : new Error(String(error));
 }
@@ -39,7 +45,20 @@ export function BrowserPreviewFrame({
   onRuntimeError,
 }: BrowserPreviewFrameProps) {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
+  const callbacksRef = useRef<BrowserPreviewFrameCallbacks>({
+    onLoadError,
+    onReady,
+    onRuntimeError,
+  });
   const runtimeModuleUrls = useMemo(() => getPreviewFrameRuntimeModuleUrls(), []);
+
+  useEffect(() => {
+    callbacksRef.current = {
+      onLoadError,
+      onReady,
+      onRuntimeError,
+    };
+  }, [onLoadError, onReady, onRuntimeError]);
 
   useEffect(() => {
     const frame = frameRef.current;
@@ -61,28 +80,8 @@ export function BrowserPreviewFrame({
     const previewDocumentUrl = new URL(getPreviewFrameDocumentUrl());
     previewDocumentUrl.searchParams.set("preview-version", String(artifact.version));
 
-    const handleLoad = () => {
-      const frameWindow = frame.contentWindow;
-      if (!frameWindow) {
-        return;
-      }
-
-      frameWindow.postMessage(initMessage, window.location.origin);
-    };
-
-    frame.addEventListener("load", handleLoad);
-    frame.src = previewDocumentUrl.toString();
-
-    return () => {
-      frame.removeEventListener("load", handleLoad);
-      frame.src = "about:blank";
-      URL.revokeObjectURL(artifactUrl);
-    };
-  }, [artifact, runtimeModuleUrls.reactDomClientUrl, runtimeModuleUrls.reactUrl]);
-
-  useEffect(() => {
     const handleMessage = (event: MessageEvent<PreviewFrameStatusMessage>) => {
-      if (event.source !== frameRef.current?.contentWindow) {
+      if (event.source !== frame.contentWindow) {
         return;
       }
 
@@ -95,27 +94,47 @@ export function BrowserPreviewFrame({
         return;
       }
 
+      const callbacks = callbacksRef.current;
       const message = toError(data.message ?? "Unknown preview error");
       const origins = toOrigins(data.origins);
 
       if (data.type === "ready") {
-        onReady(artifact.version, origins);
+        callbacks.onReady(artifact.version, origins);
         return;
       }
 
       if (data.type === "load-error") {
-        onLoadError(artifact.version, message, origins);
+        callbacks.onLoadError(artifact.version, message, origins);
         return;
       }
 
       if (data.type === "runtime-error") {
-        onRuntimeError(artifact.version, message, origins);
+        callbacks.onRuntimeError(artifact.version, message, origins);
       }
     };
 
+    const handleLoad = () => {
+      const frameWindow = frame.contentWindow;
+      if (!frameWindow) {
+        return;
+      }
+
+      frameWindow.postMessage(initMessage, window.location.origin);
+    };
+
+    // Register the message listener before navigating the frame so fast
+    // ready/load-error responses from a cached preview document are not missed.
     window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
-  }, [artifact.version, onLoadError, onReady, onRuntimeError]);
+    frame.addEventListener("load", handleLoad);
+    frame.src = previewDocumentUrl.toString();
+
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      frame.removeEventListener("load", handleLoad);
+      frame.src = "about:blank";
+      URL.revokeObjectURL(artifactUrl);
+    };
+  }, [artifact, runtimeModuleUrls.reactDomClientUrl, runtimeModuleUrls.reactUrl]);
 
   return (
     <iframe
