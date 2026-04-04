@@ -9,6 +9,7 @@ AGENTS.md
 # local validation artifacts
 .npm-cache/
 .tmp/
+/.tmp-*
 demo.out
 demo.err
 cli.out
