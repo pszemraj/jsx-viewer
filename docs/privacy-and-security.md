@@ -35,7 +35,7 @@ Expected network behavior for the hosted site:
 
 ## Trust Model
 
-Browser mode direct-renders uploaded code in the same page as the viewer. That is convenient, but it is not a sandbox.
+Browser mode runs uploaded code in a dedicated preview frame on the same origin. That improves teardown between previews, but it is still not a security sandbox.
 
 Use the hosted mode for trusted single-file artifacts. Use the local viewer when you need broader package resolution, multi-file support, or a more controlled preview path.
 

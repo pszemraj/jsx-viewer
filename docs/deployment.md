@@ -29,15 +29,15 @@ Using the configured base path avoids hardcoding the repository name and keeps t
 
 ## Design Notes
 
-The Pages mode does not use an iframe. It:
+The Pages mode runs the uploaded artifact inside a dedicated preview frame. It:
 
 1. accepts pasted, uploaded, or dropped `.jsx` and `.tsx`
 2. transpiles the artifact in the browser
 3. rewrites supported bare imports to repo-owned runtime modules
 4. imports the compiled result from a `blob:` URL
-5. renders the component directly into the app shell
+5. renders the component inside an isolated preview document on the same origin
 
-That gives a more literal in-page preview, but it also means browser mode is a trusted-artifact path rather than a sandbox.
+That keeps clear and swap from leaking module-scope timers or listeners across previews, but browser mode is still a trusted-artifact path rather than a security sandbox.
 
 ## Validation
 

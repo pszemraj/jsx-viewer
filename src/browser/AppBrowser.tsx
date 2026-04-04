@@ -1,15 +1,17 @@
 import {
   useCallback,
   useEffect,
-  useRef,
   useState,
+  useRef,
   type ChangeEvent,
   type DragEvent,
   type MouseEvent,
 } from "react";
-import { SlotPreview } from "../SlotPreview";
 import { createLoadTracker } from "../loadTracker";
-import { isSlotComponent, type SlotComponent } from "../slotComponent";
+import {
+  BrowserPreviewFrame,
+  type BrowserPreviewArtifact,
+} from "./BrowserPreviewFrame";
 import {
   collectContactedOrigins,
   runCorporatePreflight,
@@ -22,7 +24,7 @@ const MONO = '"JetBrains Mono", "Fira Code", "SF Mono", monospace';
 const SANS = '"Inter", -apple-system, "Helvetica Neue", sans-serif';
 
 interface BrowserArtifactState {
-  Component: SlotComponent | null;
+  artifact: BrowserPreviewArtifact | null;
   error: Error | null;
   isLoading: boolean;
   status: string | null;
@@ -78,6 +80,10 @@ function createPreflightError(report: CorporatePreflightReport) {
   return new Error(lines.join("\n"));
 }
 
+function mergeOrigins(...originGroups: readonly string[][]) {
+  return Array.from(new Set(originGroups.flat())).sort();
+}
+
 function getDiagnosticsMeta(diagnostics: DiagnosticsState) {
   const isReady = diagnostics.status === "ready";
   const isBlocked = isReady && diagnostics.report !== null && !diagnostics.report.ok;
@@ -100,7 +106,7 @@ function getDiagnosticsMeta(diagnostics: DiagnosticsState) {
     summary: !isReady
       ? "Blob-backed ES module import support is still being probed."
       : isBlocked
-        ? "Blob-backed ES module imports are unavailable here, so direct-render browser mode cannot execute uploaded artifacts."
+        ? "Blob-backed ES module imports are unavailable here, so the dedicated browser preview frame cannot execute uploaded artifacts."
         : "Blob-backed imports are available. After initial load, this Pages app should only fetch same-origin runtime assets.",
   };
 }
@@ -236,8 +242,9 @@ function LoadingState({
             margin: 0,
           }}
         >
-          Browser mode compiles the artifact client-side, then imports it
-          directly into this page. This is a trusted-code path, not a sandbox.
+          Browser mode compiles the artifact client-side, then boots it inside a
+          dedicated preview frame on the same origin. This is a trusted-code
+          path, not a sandbox.
         </p>
       </div>
     </div>
@@ -394,37 +401,6 @@ function DiagnosticsToggle({
       </span>
     </button>
   );
-}
-
-function useGlobalRuntimeError(resetKey: number) {
-  const [runtimeState, setRuntimeState] = useState<{
-    error: Error | null;
-    resetKey: number;
-  }>({
-    error: null,
-    resetKey,
-  });
-
-  useEffect(() => {
-    const handleError = (event: ErrorEvent) => {
-      const message = event.error ?? event.message ?? "Unknown runtime error";
-      setRuntimeState({ error: toError(message), resetKey });
-    };
-
-    const handleRejection = (event: PromiseRejectionEvent) => {
-      setRuntimeState({ error: toError(event.reason), resetKey });
-    };
-
-    window.addEventListener("error", handleError);
-    window.addEventListener("unhandledrejection", handleRejection);
-
-    return () => {
-      window.removeEventListener("error", handleError);
-      window.removeEventListener("unhandledrejection", handleRejection);
-    };
-  }, [resetKey]);
-
-  return runtimeState.resetKey === resetKey ? runtimeState.error : null;
 }
 
 function DropZone({ diagnostics, onContent }: DropZoneProps) {
@@ -729,7 +705,7 @@ function Toolbar({
       <div style={{ flex: 1 }} />
       <span
         style={{ color: "#666" }}
-        title="Loaded code runs in the same page as the viewer."
+        title="Loaded code runs in a dedicated preview frame on the same origin."
       >
         trusted artifact only
       </span>
@@ -806,26 +782,25 @@ function Toolbar({
 
 export default function AppBrowser() {
   const loadTrackerRef = useRef(createLoadTracker());
-  const artifactUrlRef = useRef<string | null>(null);
+  const previewVersionRef = useRef(0);
   const preflightPromiseRef = useRef<Promise<CorporatePreflightReport> | null>(
     null,
   );
   const [filename, setFilename] = useState<string | null>(null);
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
+  const [runtimeError, setRuntimeError] = useState<Error | null>(null);
   const [diagnostics, setDiagnostics] = useState<DiagnosticsState>({
     status: "checking",
     report: null,
     origins: collectContactedOrigins(),
   });
   const [state, setState] = useState<BrowserArtifactState>({
-    Component: null,
+    artifact: null,
     error: null,
     isLoading: false,
     status: null,
     version: 0,
   });
-
-  const runtimeError = useGlobalRuntimeError(state.version);
 
   useEffect(() => {
     if (diagnostics.status === "ready" && diagnostics.report && !diagnostics.report.ok) {
@@ -837,9 +812,10 @@ export default function AppBrowser() {
     const origins = collectContactedOrigins();
 
     setDiagnostics((current) => {
+      const mergedOrigins = mergeOrigins(current.origins, origins);
       const sameOrigins =
-        current.origins.length === origins.length &&
-        current.origins.every((origin, index) => origin === origins[index]);
+        current.origins.length === mergedOrigins.length &&
+        current.origins.every((origin, index) => origin === mergedOrigins[index]);
 
       if (sameOrigins) {
         return current;
@@ -847,8 +823,31 @@ export default function AppBrowser() {
 
       return {
         ...current,
-        origins,
-        report: current.report ? { ...current.report, origins } : null,
+        origins: mergedOrigins,
+        report: current.report
+          ? { ...current.report, origins: mergedOrigins }
+          : null,
+      };
+    });
+  }, []);
+
+  const mergeDiagnosticsOrigins = useCallback((origins: readonly string[]) => {
+    setDiagnostics((current) => {
+      const mergedOrigins = mergeOrigins(current.origins, [...origins]);
+      const sameOrigins =
+        current.origins.length === mergedOrigins.length &&
+        current.origins.every((origin, index) => origin === mergedOrigins[index]);
+
+      if (sameOrigins) {
+        return current;
+      }
+
+      return {
+        ...current,
+        origins: mergedOrigins,
+        report: current.report
+          ? { ...current.report, origins: mergedOrigins }
+          : null,
       };
     });
   }, []);
@@ -868,52 +867,46 @@ export default function AppBrowser() {
     return preflightPromiseRef.current;
   }, []);
 
-  const disposeArtifactUrl = useCallback(() => {
-    if (artifactUrlRef.current !== null) {
-      URL.revokeObjectURL(artifactUrlRef.current);
-      artifactUrlRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      disposeArtifactUrl();
-    };
-  }, [disposeArtifactUrl]);
-
   useEffect(() => {
     void ensurePreflight();
   }, [ensurePreflight]);
 
+  const bumpPreviewVersion = useCallback(() => {
+    previewVersionRef.current += 1;
+    return previewVersionRef.current;
+  }, []);
+
   const resetToEmpty = useCallback(() => {
     loadTrackerRef.current.begin();
-    disposeArtifactUrl();
     setFilename(null);
-    setState((current) => ({
-      ...current,
-      Component: null,
+    setRuntimeError(null);
+    const nextVersion = bumpPreviewVersion();
+    setState({
+      artifact: null,
       error: null,
       isLoading: false,
       status: null,
-      version: current.version + 1,
-    }));
+      version: nextVersion,
+    });
     refreshDiagnosticsOrigins();
-  }, [disposeArtifactUrl, refreshDiagnosticsOrigins]);
+  }, [bumpPreviewVersion, refreshDiagnosticsOrigins]);
 
   const loadArtifact = useCallback(
     async (content: string, name: string) => {
       const loadToken = loadTrackerRef.current.begin();
+      const loadingVersion = bumpPreviewVersion();
       setFilename(name);
-      setState((current) => ({
-        ...current,
-        Component: null,
+      setRuntimeError(null);
+      setState({
+        artifact: null,
         error: null,
         isLoading: true,
         status:
           diagnostics.status === "ready"
             ? "Compiling artifact in the browser"
             : "Checking managed-browser compatibility",
-      }));
+        version: loadingVersion,
+      });
 
       try {
         const preflightReport = await ensurePreflight();
@@ -938,74 +931,45 @@ export default function AppBrowser() {
           return;
         }
 
-        setState((current) => ({
-          ...current,
+        const artifactVersion = bumpPreviewVersion();
+        setState({
+          artifact: {
+            code,
+            filename: name,
+            version: artifactVersion,
+          },
+          error: null,
           isLoading: true,
-          status: "Loading compiled module",
-        }));
-
-        const artifactUrl = URL.createObjectURL(
-          new Blob([`${code}\n//# sourceURL=${name}.browser.js`], {
-            type: "text/javascript",
-          }),
-        );
-
-        try {
-          const mod = (await import(
-            /* @vite-ignore */ artifactUrl
-          )) as { default?: unknown };
-
-          if (!loadTrackerRef.current.isCurrent(loadToken)) {
-            URL.revokeObjectURL(artifactUrl);
-            return;
-          }
-
-          const component = mod.default;
-          if (!isSlotComponent(component)) {
-            throw new Error(
-              "Loaded artifact must default-export a React component.",
-            );
-          }
-
-          disposeArtifactUrl();
-          artifactUrlRef.current = artifactUrl;
-
-          setState((current) => ({
-            ...current,
-            Component: component,
-            error: null,
-            isLoading: false,
-            status: null,
-            version: current.version + 1,
-          }));
-        } catch (error) {
-          URL.revokeObjectURL(artifactUrl);
-          throw error;
-        }
+          status: "Booting preview frame",
+          version: artifactVersion,
+        });
       } catch (error) {
         if (!loadTrackerRef.current.isCurrent(loadToken)) {
           return;
         }
 
-        disposeArtifactUrl();
-        setState((current) => ({
-          ...current,
-          Component: null,
+        setState({
+          artifact: null,
           error: toError(error),
           isLoading: false,
           status: null,
-          version: current.version + 1,
-        }));
+          version: bumpPreviewVersion(),
+        });
       } finally {
         refreshDiagnosticsOrigins();
       }
     },
-    [diagnostics.status, disposeArtifactUrl, ensurePreflight, refreshDiagnosticsOrigins],
+    [
+      bumpPreviewVersion,
+      diagnostics.status,
+      ensurePreflight,
+      refreshDiagnosticsOrigins,
+    ],
   );
 
   const browserModeDetails =
-    "This mode renders the loaded component directly into the app shell. " +
-    "That keeps the UX simple and avoids iframe boundaries, but it also means there is no security isolation. " +
+    "This mode runs the loaded component inside a dedicated preview frame on the same origin. " +
+    "That lets clear and swap fully tear down module-scope state, but it is still a trusted-code path rather than a security sandbox. " +
     "Relative imports, remote URL imports, Vite-only globals, and CommonJS are intentionally rejected early. " +
     "Managed-browser diagnostics below show whether blob-backed module imports are allowed on this machine.";
 
@@ -1038,7 +1002,7 @@ export default function AppBrowser() {
           />
         ) : state.isLoading && state.status ? (
           <LoadingState status={state.status} />
-        ) : !state.Component ? (
+        ) : !state.artifact ? (
           <DropZone diagnostics={diagnostics} onContent={loadArtifact} />
         ) : (
           <>
@@ -1054,11 +1018,48 @@ export default function AppBrowser() {
                   lineHeight: 1.6,
                 }}
               >
-                <strong style={{ color: "#fca5a5" }}>Uncaught runtime error:</strong>{" "}
-                {runtimeError.message}
-              </div>
-            ) : null}
-            <SlotPreview Component={state.Component} version={state.version} />
+                  <strong style={{ color: "#fca5a5" }}>Uncaught runtime error:</strong>{" "}
+                  {runtimeError.message}
+                </div>
+              ) : null}
+            <BrowserPreviewFrame
+              artifact={state.artifact}
+              onLoadError={(version, error, origins) => {
+                mergeDiagnosticsOrigins(origins);
+                setRuntimeError(null);
+                setState((current) =>
+                  current.version !== version
+                    ? current
+                    : {
+                        artifact: null,
+                        error,
+                        isLoading: false,
+                        status: null,
+                        version: current.version,
+                      },
+                );
+              }}
+              onReady={(version, origins) => {
+                mergeDiagnosticsOrigins(origins);
+                setRuntimeError(null);
+                setState((current) =>
+                  current.version !== version
+                    ? current
+                    : {
+                        ...current,
+                        error: null,
+                        isLoading: false,
+                        status: null,
+                      },
+                );
+              }}
+              onRuntimeError={(version, error, origins) => {
+                mergeDiagnosticsOrigins(origins);
+                setRuntimeError((current) =>
+                  previewVersionRef.current === version ? error : current,
+                );
+              }}
+            />
           </>
         )}
       </div>

@@ -5,7 +5,7 @@
 - local viewer: the default Node/Vite/WebSocket workflow
 - website/browser mode: the GitHub Pages-hosted single-file viewer
 
-The website path is direct-render and same-page. It is a trusted-artifact path, not a sandbox.
+The website path uses a dedicated same-origin preview frame. It is a trusted-artifact path, not a sandbox.
 
 ## Capability Matrix
 
@@ -38,7 +38,7 @@ Browser mode is meant to handle real single-file React artifacts well. That incl
 - wrapped default exports such as `memo`, `forwardRef`, and `lazy`
 - allowlisted bare imports rewritten to repo-shipped runtime modules
 - standard `import.meta.url` access inside the uploaded module
-- direct rendering into the app shell without an iframe
+- rendering inside a dedicated preview frame so clear and swap fully tear down prior module state
 
 ## What Browser Mode Rejects
 
