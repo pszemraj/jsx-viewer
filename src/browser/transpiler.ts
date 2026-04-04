@@ -305,8 +305,11 @@ function isDirectFunctionNode(node: unknown) {
   const type = getNodeType(unwrapTransparentExpression(node));
   return (
     type === "ArrowFunctionExpression" ||
+    type === "ClassMethod" ||
+    type === "ClassPrivateMethod" ||
     type === "FunctionDeclaration" ||
-    type === "FunctionExpression"
+    type === "FunctionExpression" ||
+    type === "ObjectMethod"
   );
 }
 

@@ -251,6 +251,52 @@ test("transpileArtifact rejects helper-captured import.meta env access after lat
   );
 });
 
+test("transpileArtifact rejects class-method import.meta env access after later alias assignment", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        class Reader {
+          readMode() {
+            return meta.env.MODE;
+          }
+        }
+
+        let meta = { url: "fallback" };
+        meta = import.meta;
+
+        export default function BadClassMethodImportMetaEnv() {
+          return <div>{new Reader().readMode()}</div>;
+        }
+      `,
+      "BadClassMethodImportMetaEnv.tsx",
+    ),
+    /import\.meta\.env is Vite-specific/,
+  );
+});
+
+test("transpileArtifact rejects object-method bare import.meta aliases after later assignment", async () => {
+  await assert.rejects(
+    transpileArtifact(
+      `
+        const reader = {
+          getMeta() {
+            return meta;
+          },
+        };
+
+        let meta = { url: "fallback" };
+        meta = import.meta;
+
+        export default function BadObjectMethodImportMetaAlias() {
+          return <div>{String(Boolean(reader.getMeta()))}</div>;
+        }
+      `,
+      "BadObjectMethodImportMetaAlias.tsx",
+    ),
+    /Only import\.meta\.url is supported inside uploaded artifacts in browser mode/,
+  );
+});
+
 test("transpileArtifact rejects helper-captured bare import.meta aliases after later assignment", async () => {
   await assert.rejects(
     transpileArtifact(
@@ -306,6 +352,29 @@ test("transpileArtifact allows helper-captured import.meta.url access after late
 
   assert.match(code, /meta\.url/);
   assert.match(code, /readUrl\(\)/);
+});
+
+test("transpileArtifact allows object-method import.meta.url access after later alias assignment", async () => {
+  const { code } = await transpileArtifact(
+    `
+      const reader = {
+        readUrl() {
+          return meta.url;
+        },
+      };
+
+      let meta = { url: "fallback" };
+      meta = import.meta;
+
+      export default function ObjectMethodImportMetaUrl() {
+        return <div>{reader.readUrl()}</div>;
+      }
+    `,
+    "ObjectMethodImportMetaUrl.tsx",
+  );
+
+  assert.match(code, /meta\.url/);
+  assert.match(code, /reader\.readUrl\(\)/);
 });
 
 test("transpileArtifact allows import.meta.url through aliases assigned later", async () => {
