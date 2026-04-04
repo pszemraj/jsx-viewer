@@ -32,27 +32,41 @@ These packages are available in the local viewer with no extra install step:
 
 If your local artifact imports something else, install it in the repo and restart the viewer.
 
-## Browser Mode Runtime Allowlist
+## Browser Mode Package Resolution
 
-The hosted Pages mode stays intentionally narrow. Uploaded artifacts can only
-import the repo-shipped React runtime modules needed for normal single-file
-React components:
+The hosted Pages mode keeps React on same-origin runtime modules so uploaded
+artifacts share the viewer's React instance. For bare imports beyond React, the
+browser transpiler rewrites package specifiers to `https://esm.sh/` and marks
+the React runtime specifiers as external so those CDN modules still resolve
+against the viewer's runtime.
 
 - `react`
 - `react-dom`
+- `react-dom/client`
 - `react/jsx-runtime`
 - `react/jsx-dev-runtime`
 
-`react-dom/client` is still shipped for the preview frame bootstrap itself, but
-uploaded artifacts should treat browser mode as React-only.
+That means browser mode can handle many npm-backed single-file artifacts such as
+icon packages or charting helpers without asking the user to run a local dev
+server first.
 
-Unsupported bare imports fail early with a direct error.
+It still does not resolve:
+
+- relative or absolute local imports
+- direct remote URL imports authored inside the artifact
+- browser-incompatible packages that depend on Node-only globals or APIs
 
 ## Tailwind
 
 The local viewer compiles Tailwind CSS v3 locally through PostCSS, so arbitrary utility classes in loaded artifacts work there without a CDN.
 
-The hosted Pages mode does not compile arbitrary Tailwind classes from uploaded artifacts. Prefer inline styles there, or use the local viewer when Tailwind compilation matters.
+The hosted Pages mode now detects class-based artifacts and loads Tailwind's
+browser runtime from `https://cdn.tailwindcss.com/` before rendering. That lets
+normal utility-class-heavy single-file artifacts render in the hosted site.
+
+The hosted path still does not read your local Tailwind config, custom plugins,
+or local design tokens. Use the local viewer when you need the repo's Tailwind
+pipeline rather than the browser runtime defaults.
 
 ## Related Docs
 

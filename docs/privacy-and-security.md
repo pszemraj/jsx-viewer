@@ -21,7 +21,9 @@ The website serves static assets from GitHub Pages. After the page loads:
 - transpilation happens in the browser on your machine
 - uploaded and pasted artifacts stay client-side in the app
 - the compiled artifact is imported from a `blob:` URL
-- runtime dependencies are loaded from same-origin Pages assets
+- React runtime dependencies are loaded from same-origin Pages assets
+- npm package imports can be fetched from `https://esm.sh/`
+- class-heavy artifacts can load Tailwind's browser runtime from `https://cdn.tailwindcss.com/`
 
 There is no app backend that receives your component source.
 
@@ -30,7 +32,9 @@ There is no app backend that receives your component source.
 Expected network behavior for the hosted site:
 
 - initial page load fetches static assets from `https://pszemraj.github.io/jsx-viewer/`
-- browser mode should then only fetch same-origin runtime assets needed by the app
+- React runtime modules are fetched from same-origin Pages assets
+- artifacts with npm package imports can fetch module code from `https://esm.sh/`
+- artifacts with Tailwind-style classes can fetch the Tailwind browser runtime from `https://cdn.tailwindcss.com/`
 
 For local reproduction of that hosted behavior, prefer `npm run preview:browser`. `npm run dev:browser` is a Vite development server and intentionally does not enforce the deployed CSP.
 
@@ -38,7 +42,9 @@ For local reproduction of that hosted behavior, prefer `npm run preview:browser`
 
 Browser mode runs uploaded code in a dedicated preview frame on the same origin. That improves teardown between previews, but it is still not a security sandbox.
 
-Use the hosted mode for trusted single-file artifacts. Use the local viewer when you need broader package resolution, multi-file support, or a more controlled preview path.
+Use the hosted mode for trusted single-file artifacts. Use the local viewer when
+you need multi-file support, repo-local package resolution, or a more
+controlled preview path.
 
 ## Related Docs
 

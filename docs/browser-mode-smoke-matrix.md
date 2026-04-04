@@ -6,7 +6,7 @@ Use these snippets directly in the deployed Pages/browser mode at:
 
 For a local run that matches the finalized Pages artifact more closely, use `npm run preview:browser` instead of `npm run dev:browser`.
 
-Goal: verify that browser mode handles real single-file React artifacts, not just trivial `.jsx`.
+Goal: verify that browser mode handles real single-file React artifacts, package-backed files, and utility-class-heavy uploads, not just trivial `.jsx`.
 
 ## Expected Pass Cases
 
@@ -104,11 +104,7 @@ Expected:
 - renders without the previous `react-jsx-runtime` export error
 - timer behavior works in-page
 
-## Expected Fail Cases
-
-These should fail loudly, because browser mode is intentionally not a full bundler.
-
-### 6. Unsupported Package Import
+### 6. Package Import + Tailwind Utilities
 
 Paste or upload:
 
@@ -117,11 +113,11 @@ import { AlarmClock } from "lucide-react";
 
 export default function LucideCase() {
   return (
-    <div
-      style={{ padding: 24, display: "flex", gap: 12, alignItems: "center" }}
-    >
-      <AlarmClock size={20} />
-      <span>allowlisted import works</span>
+    <div className="min-h-screen bg-slate-900 text-slate-100 p-6">
+      <div className="inline-flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-800 px-4 py-3">
+        <AlarmClock size={20} />
+        <span>browser mode now resolves package imports and utility classes</span>
+      </div>
     </div>
   );
 }
@@ -129,7 +125,13 @@ export default function LucideCase() {
 
 Expected:
 
-- clear browser-mode error about unsupported bare imports outside the React runtime
+- package import resolves without a browser-mode transpile error
+- Tailwind utility classes style the card and page background
+- no duplicate-React or invalid-hook runtime error
+
+## Expected Fail Cases
+
+These should still fail loudly, because browser mode is still not a full local bundler.
 
 ### 7. Relative Import
 
@@ -174,5 +176,6 @@ Expected:
 ## Notes
 
 - Browser mode is for **trusted single-file artifacts**.
+- Browser mode may fetch `esm.sh` and `cdn.tailwindcss.com` when the uploaded artifact needs npm package resolution or Tailwind utility styling.
 - If the deployed site behaves strangely after a fix, do a hard refresh or use a fresh/private window so stable runtime URLs are not served from stale browser cache.
 - If a pass case fails, capture the exact error panel text or a screenshot and compare it against the deployed runtime files under `/runtime/*.js`.

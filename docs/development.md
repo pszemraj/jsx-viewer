@@ -49,6 +49,7 @@ JSX_VIEWER_ENABLE_GIT_HOOKS=1 npm install
 
 - `npm run dev:browser` is the fast inner loop for transpiler/runtime work. It intentionally serves the source `index.browser.html` without the deployed CSP so Vite can inject its dev client.
 - `npm run preview:browser` is the deployment-faithful local check. It builds `dist-browser/`, finalizes `index.html`, preserves the Pages CSP, and serves the result through `vite preview`.
+- Browser-mode validation can now include CDN-backed npm packages and Tailwind utility classes, so expect live requests to `esm.sh` and `cdn.tailwindcss.com` during those checks.
 - When validating non-root Pages paths locally, pass the same `VITE_BASE_PATH` you expect in deployment and open that prefixed route in preview mode.
 
 ## Related Docs

@@ -18,11 +18,11 @@ The website path uses a dedicated same-origin preview frame. It is a trusted-art
 | `React.memo`, `forwardRef`, `lazy` default exports | Yes | Yes |
 | Drag and drop, upload, paste | Yes | Yes |
 | Standard React imports (`react`, `react-dom`) | Yes | Yes |
-| Additional repo packages (`recharts`, `d3`, `three`, etc.) | Yes | No |
+| CDN-backed npm package imports | Yes | Yes |
 | Multi-file relative imports | Yes | No |
 | Arbitrary local npm package resolution | Yes | No |
 | CommonJS, `process.*`, unsupported `import.meta.*` helpers in uploaded artifact | Yes | No |
-| Arbitrary Tailwind utility compilation from uploaded artifact | Yes | No |
+| Tailwind utility classes in uploaded artifact | Yes | Yes |
 | CLI preload | Yes | No |
 | Live file watching / HMR on save | Yes | No |
 | Stronger isolation requirements | Better fit | Not the goal |
@@ -37,6 +37,8 @@ Browser mode is meant to handle real single-file React artifacts well. That incl
 - fragments and multi-child JSX
 - wrapped default exports such as `memo`, `forwardRef`, and `lazy`
 - React runtime imports rewritten to repo-shipped runtime modules
+- many bare npm package imports rewritten to CDN-backed ESM modules
+- Tailwind utility classes through the Tailwind browser runtime when the uploaded artifact is class-based
 - standard `import.meta.url` access inside the uploaded module
 - rendering inside a dedicated preview frame so clear and swap fully tear down prior module state
 
@@ -46,22 +48,22 @@ Browser mode intentionally fails fast on:
 
 - relative imports such as `./Foo`
 - absolute path imports such as `/foo`
-- remote URL imports
+- direct remote URL imports
 - CommonJS (`require`, `module.*`, `exports.*`)
 - `process` globals such as `process.env` or `process.version`
 - `import.meta` helpers other than `import.meta.url` such as `import.meta.env` or `import.meta.glob`
-- arbitrary package imports outside the browser-mode React runtime
+- browser-incompatible packages even after CDN resolution
 
 If you need those capabilities, use the local viewer instead.
 
 ## Why The Browser Mode Is Narrower
 
-The browser mode is meant to stay predictable. Once it starts resolving arbitrary package graphs, relative imports, or environment-dependent code, it stops being a simple single-file viewer and turns into a browser bundler. That is not the goal for the hosted Pages path.
+The browser mode is still meant to stay predictable. It now reaches farther by resolving many npm packages through `esm.sh` and by loading Tailwind's browser runtime for class-heavy artifacts, but it is still not a local project bundler.
 
 Reasonable future expansion would be:
 
-- widening the React-only runtime allowlist to additional repo-shipped packages
 - adding more compatibility coverage for common React patterns
+- tightening package compatibility heuristics and error reporting
 - supporting a real multi-file upload flow with a virtual module graph
 
 ## Related Docs

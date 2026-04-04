@@ -11,9 +11,10 @@ You get a `.tsx` or `.jsx` artifact from Claude, ChatGPT, or wherever. To actual
 Go to **[pszemraj.github.io/jsx-viewer](https://pszemraj.github.io/jsx-viewer/)** and use it, web-app style.
 
 Paste, upload, or drag-and-drop a single `.jsx`/`.tsx` file. Transpilation and rendering happen entirely client-side - nothing is sent to a backend, no analytics, no telemetry. Supports default-exported React 18 components plus the repo-shipped React runtime imports used by normal single-file artifacts.
+Paste, upload, or drag-and-drop a single `.jsx`/`.tsx` file. Transpilation and rendering happen entirely client-side - nothing is sent to a backend, no analytics, no telemetry. Hosted mode keeps React on same-origin runtime modules, can resolve many npm package imports through `esm.sh`, and can opt into Tailwind's browser runtime when the uploaded artifact uses utility classes.
 
 > [!NOTE]
-> The hosted site cannot resolve multi-file imports, arbitrary npm packages, or arbitrary Tailwind classes, and does not sandbox uploaded code. More detail in [Modes and limitations](docs/modes.md) and [Privacy and security](docs/privacy-and-security.md).
+> The hosted site still does not resolve multi-file relative imports and does not sandbox uploaded code. Package-heavy or class-heavy artifacts can trigger network fetches to `esm.sh` and `cdn.tailwindcss.com`. More detail in [Modes and limitations](docs/modes.md) and [Privacy and security](docs/privacy-and-security.md).
 
 ## Local Viewer
 
@@ -45,7 +46,7 @@ See the [usage guide](docs/usage.md) for all input methods (drag-and-drop, paste
 | Mode         | Best for                                               | Notable limits                                           |
 | ------------ | ------------------------------------------------------ | -------------------------------------------------------- |
 | Local viewer | Day-to-day development, multi-file work, live watching | Requires Node and a local dev server                     |
-| Hosted site  | Quick single-file preview and sharing                  | No multi-file imports, no arbitrary packages, no sandbox |
+| Hosted site  | Quick single-file preview and sharing                  | No multi-file imports, trusted code only, CDN-backed package/style runtime |
 
 ## Docs
 
