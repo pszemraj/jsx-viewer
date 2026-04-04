@@ -50,6 +50,33 @@ test("resolveRuntimeModuleUrl prefixes Vite base for built runtime modules", () 
   );
 });
 
+allowTest(
+  "transpileArtifact rewrites supported react imports to the browser runtime",
+  "ReactImport.tsx",
+  `
+    import { useState } from "react";
+
+    export default function ReactImport() {
+      const [count] = useState(1);
+      return <div>{count}</div>;
+    }
+  `,
+  [/runtime\/react\.js/, /useState/],
+);
+
+rejectionTest(
+  "transpileArtifact rejects bare imports outside the browser-mode React runtime",
+  "BadLucideImport.tsx",
+  `
+    import { AlarmClock } from "lucide-react";
+
+    export default function BadLucideImport() {
+      return <AlarmClock />;
+    }
+  `,
+  /Unsupported bare import "lucide-react" in browser mode/,
+);
+
 rejectionTest(
   "transpileArtifact rejects actual import.meta.env access",
   "BadEnv.tsx",

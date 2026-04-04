@@ -10,7 +10,7 @@ You get a `.tsx` or `.jsx` artifact from Claude, ChatGPT, or wherever. To actual
 
 Go to **[pszemraj.github.io/jsx-viewer](https://pszemraj.github.io/jsx-viewer/)** and use it, web-app style.
 
-Paste, upload, or drag-and-drop a single `.jsx`/`.tsx` file. Transpilation and rendering happen entirely client-side - nothing is sent to a backend, no analytics, no telemetry. Supports default-exported React 18 components and a [built-in allowlist of runtime packages](docs/runtime-and-packages.md).
+Paste, upload, or drag-and-drop a single `.jsx`/`.tsx` file. Transpilation and rendering happen entirely client-side - nothing is sent to a backend, no analytics, no telemetry. Supports default-exported React 18 components plus the repo-shipped React runtime imports used by normal single-file artifacts.
 
 > [!NOTE]
 > The hosted site cannot resolve multi-file imports, arbitrary npm packages, or arbitrary Tailwind classes, and does not sandbox uploaded code. More detail in [Modes and limitations](docs/modes.md) and [Privacy and security](docs/privacy-and-security.md).

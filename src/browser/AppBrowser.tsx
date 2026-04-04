@@ -18,7 +18,7 @@ import {
   BrowserPreviewFrame,
   type BrowserPreviewArtifact,
 } from "./BrowserPreviewFrame";
-import { BROWSER_RUNTIME_SPECIFIERS } from "./runtimeManifest";
+import { BROWSER_RUNTIME_DISPLAY_SPECIFIERS } from "./runtimeManifest";
 import { transpileArtifact } from "./transpiler";
 
 interface BrowserArtifactState {
@@ -270,7 +270,7 @@ function DropZone({ onContent }: DropZoneProps) {
         >
           GitHub Pages mode compiles the artifact in the browser and renders it
           directly inside this site. It supports trusted, single-file React 18
-          components that import from the repo runtime allowlist.
+          components with standard React imports.
         </p>
         <button
           onClick={() => fileInputRef.current?.click()}
@@ -322,7 +322,7 @@ function DropZone({ onContent }: DropZoneProps) {
           }}
         >
           <div style={{ color: "#f5f5f5", fontFamily: MONO, marginBottom: "8px" }}>
-            supported imports
+            browser-mode imports
           </div>
           <div
             style={{
@@ -333,7 +333,9 @@ function DropZone({ onContent }: DropZoneProps) {
               wordBreak: "break-word",
             }}
           >
-            {BROWSER_RUNTIME_SPECIFIERS.join(", ")}
+            {BROWSER_RUNTIME_DISPLAY_SPECIFIERS.join(", ")}
+            <br />
+            JSX runtime modules are injected automatically
           </div>
         </div>
         <div
@@ -564,7 +566,7 @@ export default function AppBrowser() {
   const browserModeDetails =
     "This mode runs the loaded component inside a dedicated preview frame on the same origin. " +
     "That lets clear and swap fully tear down module-scope state, but it is still a trusted-code path rather than a security sandbox. " +
-    "Relative imports, remote URL imports, Vite-only globals, and CommonJS are intentionally rejected early.";
+    "Relative imports, non-React package imports, remote URL imports, Vite-only globals, and CommonJS are intentionally rejected early.";
   const shellView = getBrowserShellView(state);
   const showLoadingOverlay = shouldShowLoadingOverlay(state);
 

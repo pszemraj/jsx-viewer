@@ -1,5 +1,5 @@
 import {
-  BROWSER_RUNTIME_SPECIFIERS,
+  BROWSER_ARTIFACT_RUNTIME_SPECIFIERS,
 } from "./runtimeManifest";
 import { resolveCurrentRuntimeModuleUrl } from "./browserRuntimeContext";
 import { toError } from "../viewerShared";
@@ -162,7 +162,10 @@ interface ResolvedNodeTarget {
   path: BabelNodePath;
 }
 
-const SUPPORTED_IMPORTS = BROWSER_RUNTIME_SPECIFIERS.join(", ");
+const BROWSER_ARTIFACT_RUNTIME_IMPORT_SET = new Set<string>(
+  BROWSER_ARTIFACT_RUNTIME_SPECIFIERS,
+);
+const SUPPORTED_IMPORTS = BROWSER_ARTIFACT_RUNTIME_SPECIFIERS.join(", ");
 let babelApiPromise: Promise<BabelTransformApi> | null = null;
 
 function getBabelApi() {
@@ -214,6 +217,14 @@ function resolveImportSpecifier(specifier: string) {
   if (specifier.startsWith("data:") || specifier.startsWith("blob:")) {
     throw new Error(
       `Non-file URL imports are not supported in browser mode: "${specifier}".`,
+    );
+  }
+
+  if (!BROWSER_ARTIFACT_RUNTIME_IMPORT_SET.has(specifier)) {
+    throw new Error(
+      `Unsupported bare import "${specifier}" in browser mode. ` +
+        `Supported imports: ${SUPPORTED_IMPORTS}. ` +
+        "Use the local Node/Vite viewer for anything beyond the built-in React runtime.",
     );
   }
 

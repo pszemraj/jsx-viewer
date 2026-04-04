@@ -62,11 +62,6 @@ await assertNamedExports("runtime/react-dom-client.js", [
   "createRoot",
   "hydrateRoot",
 ]);
-await assertNamedExports("runtime/papaparse.js", [
-  "parse",
-  "unparse",
-  "BAD_DELIMITERS",
-]);
 assertTextIncludes(targetHtml, 'http-equiv="Content-Security-Policy"');
 assertTextIncludes(targetHtml, "script-src &#39;self&#39; blob:");
 assertTextIncludes(previewFrameHtml, 'http-equiv="Content-Security-Policy"');

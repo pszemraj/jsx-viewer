@@ -92,7 +92,23 @@ Expected:
 - renders normally
 - default-export wrapper is accepted
 
-### 5. Allowlisted Package Import
+### 5. Realistic TSX Single-File Artifact
+
+Suggested artifact:
+
+- `MinuteRice.jsx`
+
+Expected:
+
+- uploads cleanly
+- renders without the previous `react-jsx-runtime` export error
+- timer behavior works in-page
+
+## Expected Fail Cases
+
+These should fail loudly, because browser mode is intentionally not a full bundler.
+
+### 6. Unsupported Package Import
 
 Paste or upload:
 
@@ -113,24 +129,7 @@ export default function LucideCase() {
 
 Expected:
 
-- icon renders
-- no unsupported bare import error
-
-### 6. Realistic TSX Single-File Artifact
-
-Suggested artifact:
-
-- `MinuteRice.jsx`
-
-Expected:
-
-- uploads cleanly
-- renders without the previous `react-jsx-runtime` export error
-- timer behavior works in-page
-
-## Expected Fail Cases
-
-These should fail loudly, because browser mode is intentionally not a full bundler.
+- clear browser-mode error about unsupported bare imports outside the React runtime
 
 ### 7. Relative Import
 

@@ -34,22 +34,17 @@ If your local artifact imports something else, install it in the repo and restar
 
 ## Browser Mode Runtime Allowlist
 
-The hosted Pages mode only supports repo-shipped runtime modules for this allowlist:
+The hosted Pages mode stays intentionally narrow. Uploaded artifacts can only
+import the repo-shipped React runtime modules needed for normal single-file
+React components:
 
 - `react`
 - `react-dom`
-- `react-dom/client`
 - `react/jsx-runtime`
 - `react/jsx-dev-runtime`
-- `recharts`
-- `lucide-react`
-- `d3`
-- `three`
-- `lodash`
-- `mathjs`
-- `papaparse`
-- `chart.js`
-- `tone`
+
+`react-dom/client` is still shipped for the preview frame bootstrap itself, but
+uploaded artifacts should treat browser mode as React-only.
 
 Unsupported bare imports fail early with a direct error.
 

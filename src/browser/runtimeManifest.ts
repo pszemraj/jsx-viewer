@@ -24,46 +24,18 @@ export const BROWSER_RUNTIME_ENTRIES = {
     entryName: "runtime/react-jsx-dev-runtime",
     devPath: "/src/browser/runtime/react-jsx-dev-runtime.ts",
   },
-  recharts: {
-    entryName: "runtime/recharts",
-    devPath: "/src/browser/runtime/recharts.ts",
-  },
-  "lucide-react": {
-    entryName: "runtime/lucide-react",
-    devPath: "/src/browser/runtime/lucide-react.ts",
-  },
-  d3: {
-    entryName: "runtime/d3",
-    devPath: "/src/browser/runtime/d3.ts",
-  },
-  three: {
-    entryName: "runtime/three",
-    devPath: "/src/browser/runtime/three.ts",
-  },
-  lodash: {
-    entryName: "runtime/lodash",
-    devPath: "/src/browser/runtime/lodash.ts",
-  },
-  mathjs: {
-    entryName: "runtime/mathjs",
-    devPath: "/src/browser/runtime/mathjs.ts",
-  },
-  papaparse: {
-    entryName: "runtime/papaparse",
-    devPath: "/src/browser/runtime/papaparse.ts",
-  },
-  "chart.js": {
-    entryName: "runtime/chartjs",
-    devPath: "/src/browser/runtime/chartjs.ts",
-  },
-  tone: {
-    entryName: "runtime/tone",
-    devPath: "/src/browser/runtime/tone.ts",
-  },
 } as const satisfies Record<string, BrowserRuntimeEntry>;
 
 export type BrowserRuntimeSpecifier = keyof typeof BROWSER_RUNTIME_ENTRIES;
 
-export const BROWSER_RUNTIME_SPECIFIERS = Object.keys(
-  BROWSER_RUNTIME_ENTRIES,
-) as BrowserRuntimeSpecifier[];
+export const BROWSER_ARTIFACT_RUNTIME_SPECIFIERS = [
+  "react",
+  "react-dom",
+  "react/jsx-runtime",
+  "react/jsx-dev-runtime",
+] as const satisfies readonly BrowserRuntimeSpecifier[];
+
+export const BROWSER_RUNTIME_DISPLAY_SPECIFIERS = [
+  "react",
+  "react-dom",
+] as const satisfies readonly BrowserRuntimeSpecifier[];
