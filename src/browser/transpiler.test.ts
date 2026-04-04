@@ -162,6 +162,28 @@ rejectionTest(
 );
 
 rejectionTest(
+  "transpileArtifact rejects globalThis process.env access",
+  "BadGlobalThisProcessEnv.tsx",
+  `
+    export default function BadGlobalThisProcessEnv() {
+      return <div>{globalThis.process.env.NODE_ENV}</div>;
+    }
+  `,
+  /process\.env is not available in browser mode/,
+);
+
+rejectionTest(
+  "transpileArtifact rejects window process env access",
+  "BadWindowProcessEnv.tsx",
+  `
+    export default function BadWindowProcessEnv() {
+      return <div>{window.process?.env?.NODE_ENV}</div>;
+    }
+  `,
+  /process\.env is not available in browser mode/,
+);
+
+rejectionTest(
   "transpileArtifact rejects bare process value references",
   "BadProcessValue.tsx",
   `
@@ -186,6 +208,19 @@ allowTest(
     }
   `,
   [/typeof process/, /typeof require/, /typeof module/, /typeof exports/],
+);
+
+allowTest(
+  "transpileArtifact allows member access on locally shadowed global object names",
+  "LocalWindowProcessEnv.tsx",
+  `
+    const window = { process: { env: { NODE_ENV: "test" } } };
+
+    export default function LocalWindowProcessEnv() {
+      return <div>{window.process.env.NODE_ENV}</div>;
+    }
+  `,
+  [/window\.process\.env\.NODE_ENV/],
 );
 
 rejectionTest(
@@ -621,11 +656,35 @@ rejectionTest(
 );
 
 rejectionTest(
+  "transpileArtifact rejects self require() calls",
+  "BadSelfRequire.tsx",
+  `
+    export default function BadSelfRequire() {
+      return <div>{self.require?.("react")}</div>;
+    }
+  `,
+  /CommonJS require\(\) is not supported in browser mode/,
+);
+
+rejectionTest(
   "transpileArtifact rejects aliased require() calls",
   "BadAliasedRequire.tsx",
   `
     export default function BadAliasedRequire() {
       const req = require;
+
+      return <div>{req("react")}</div>;
+    }
+  `,
+  /CommonJS require\(\) is not supported in browser mode/,
+);
+
+rejectionTest(
+  "transpileArtifact rejects aliased globalThis require() calls",
+  "BadAliasedGlobalThisRequire.tsx",
+  `
+    export default function BadAliasedGlobalThisRequire() {
+      const req = globalThis.require;
 
       return <div>{req("react")}</div>;
     }
@@ -761,6 +820,18 @@ rejectionTest(
 );
 
 rejectionTest(
+  "transpileArtifact rejects globalThis module.exports access",
+  "BadGlobalThisModuleExports.tsx",
+  `
+    export default function BadGlobalThisModuleExports() {
+      globalThis.module.exports = {};
+      return null;
+    }
+  `,
+  /CommonJS exports are not supported in browser mode/,
+);
+
+rejectionTest(
   "transpileArtifact rejects module.require() member access",
   "BadModuleRequire.tsx",
   `
@@ -803,6 +874,18 @@ rejectionTest(
   `
     export default function BadBareExports() {
       return exports;
+    }
+  `,
+  /CommonJS exports are not supported in browser mode/,
+);
+
+rejectionTest(
+  "transpileArtifact rejects self exports member access",
+  "BadSelfExports.tsx",
+  `
+    export default function BadSelfExports() {
+      self.exports.answer = 1;
+      return null;
     }
   `,
   /CommonJS exports are not supported in browser mode/,

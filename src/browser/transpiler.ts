@@ -166,6 +166,13 @@ const BROWSER_ARTIFACT_RUNTIME_IMPORT_SET = new Set<string>(
   BROWSER_ARTIFACT_RUNTIME_SPECIFIERS,
 );
 const SUPPORTED_IMPORTS = BROWSER_ARTIFACT_RUNTIME_SPECIFIERS.join(", ");
+const GLOBAL_OBJECT_ALIASES = new Set(["globalThis", "window", "self"]);
+const UNSUPPORTED_GLOBAL_REFERENCE_NAMES = new Set([
+  "process",
+  "require",
+  "module",
+  "exports",
+]);
 let babelApiPromise: Promise<BabelTransformApi> | null = null;
 
 function getBabelApi() {
@@ -570,6 +577,82 @@ function resolveCallableTarget(
   );
 }
 
+function getUnboundIdentifierName(
+  node: unknown,
+  path: BabelNodePath,
+  types: BabelApi["types"],
+) {
+  if (!types.isIdentifier(node)) {
+    return null;
+  }
+
+  const name = (node as { name?: unknown }).name;
+
+  if (typeof name !== "string" || hasBinding(path, name)) {
+    return null;
+  }
+
+  return name;
+}
+
+function resolveUnsupportedGlobalAliasMemberSource(
+  node: BabelMemberExpressionNode,
+  path: BabelNodePath,
+  types: BabelApi["types"],
+) {
+  const objectName = getUnboundIdentifierName(node.object, path, types);
+
+  if (objectName === null || !GLOBAL_OBJECT_ALIASES.has(objectName)) {
+    return null;
+  }
+
+  const propertyName = getPropertyName(node.property, types);
+
+  if (
+    propertyName !== null &&
+    UNSUPPORTED_GLOBAL_REFERENCE_NAMES.has(propertyName)
+  ) {
+    return propertyName as Exclude<UnsupportedReferenceSource, "import.meta">;
+  }
+
+  return null;
+}
+
+function resolveUnsupportedChainedMemberSource(
+  node: BabelMemberExpressionNode,
+  path: BabelNodePath,
+  types: BabelApi["types"],
+  seenNames: Set<string>,
+) {
+  const objectSource = resolveUnsupportedReferenceSource(
+    node.object,
+    path,
+    types,
+    seenNames,
+  );
+
+  if (
+    objectSource === null ||
+    objectSource === "import.meta"
+  ) {
+    return null;
+  }
+
+  const propertyName = getPropertyName(node.property, types);
+
+  if (objectSource === "module") {
+    if (propertyName === "exports") {
+      return "exports";
+    }
+
+    if (propertyName === "require") {
+      return "require";
+    }
+  }
+
+  return objectSource;
+}
+
 function resolveUnsupportedReferenceSource(
   node: unknown,
   path: BabelNodePath,
@@ -608,6 +691,18 @@ function resolveUnsupportedReferenceSource(
       callableTarget.path,
       types,
       seenNames,
+    );
+  }
+
+  if (
+    getNodeType(unwrappedNode) === "MemberExpression" ||
+    getNodeType(unwrappedNode) === "OptionalMemberExpression"
+  ) {
+    const memberNode = unwrappedNode as BabelMemberExpressionNode;
+
+    return (
+      resolveUnsupportedGlobalAliasMemberSource(memberNode, path, types) ??
+      resolveUnsupportedChainedMemberSource(memberNode, path, types, seenNames)
     );
   }
 
@@ -1018,11 +1113,22 @@ function createBrowserGuardsPlugin() {
     const guardMemberExpression = (
       path: BabelNodePath<BabelMemberExpressionNode>,
     ) => {
-      const source = resolveUnsupportedReferenceSource(
-        path.node.object,
-        path,
-        types,
-      );
+      const objectType = getNodeType(path.node.object);
+      const sourceFromGlobalAliasObject =
+        objectType === "MemberExpression" ||
+        objectType === "OptionalMemberExpression"
+          ? resolveUnsupportedGlobalAliasMemberSource(
+              path.node.object as BabelMemberExpressionNode,
+              path,
+              types,
+            )
+          : null;
+      const source =
+        sourceFromGlobalAliasObject ??
+        (objectType === "MemberExpression" || objectType === "OptionalMemberExpression"
+          ? null
+          : resolveUnsupportedReferenceSource(path.node.object, path, types)) ??
+        resolveUnsupportedGlobalAliasMemberSource(path.node, path, types);
 
       const propertyName = getPropertyName(path.node.property, types);
 
@@ -1207,6 +1313,31 @@ function createImportRewritePlugin() {
       source.value = resolveImportSpecifier(value);
     };
 
+    const guardCallExpression = (path: BabelNodePath<BabelCallExpressionNode>) => {
+      const callee = path.node.callee;
+
+      if (types.isImport(callee)) {
+        const [argument] = path.node.arguments;
+
+        if (!types.isStringLiteral(argument)) {
+          throw path.buildCodeFrameError(
+            "Dynamic import() must use a string literal in browser mode.",
+          );
+        }
+
+        (argument as { value: string }).value = resolveImportSpecifier(
+          (argument as { value: string }).value,
+        );
+        return;
+      }
+
+      if (resolveUnsupportedReferenceSource(callee, path, types) === "require") {
+        throw path.buildCodeFrameError(
+          "CommonJS require() is not supported in browser mode.",
+        );
+      }
+    };
+
     return {
       name: "jsx-viewer-browser-import-rewrite",
       visitor: {
@@ -1220,30 +1351,10 @@ function createImportRewritePlugin() {
           rewriteSource(path);
         },
         CallExpression(path: BabelNodePath<BabelCallExpressionNode>) {
-          const callee = path.node.callee;
-
-          if (types.isImport(callee)) {
-            const [argument] = path.node.arguments;
-
-            if (!types.isStringLiteral(argument)) {
-              throw path.buildCodeFrameError(
-                "Dynamic import() must use a string literal in browser mode.",
-              );
-            }
-
-            (argument as { value: string }).value = resolveImportSpecifier(
-              (argument as { value: string }).value,
-            );
-            return;
-          }
-
-          if (
-            resolveUnsupportedReferenceSource(callee, path, types) === "require"
-          ) {
-            throw path.buildCodeFrameError(
-              "CommonJS require() is not supported in browser mode.",
-            );
-          }
+          guardCallExpression(path);
+        },
+        OptionalCallExpression(path: BabelNodePath<BabelCallExpressionNode>) {
+          guardCallExpression(path);
         },
       },
     };
