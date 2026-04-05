@@ -619,6 +619,106 @@ function resolveUnsupportedGlobalAliasMemberSource(
   return null;
 }
 
+function resolveGlobalObjectAliasSource(
+  node: unknown,
+  path: BabelNodePath,
+  types: BabelApi["types"],
+  seenNames = new Set<string>(),
+) {
+  const unwrappedNode = unwrapTransparentExpression(node);
+
+  if (
+    getNodeType(unwrappedNode) === "CallExpression" ||
+    getNodeType(unwrappedNode) === "OptionalCallExpression"
+  ) {
+    const callableTarget = resolveCallableTarget(
+      (unwrappedNode as BabelCallExpressionNode).callee,
+      path,
+      types,
+      seenNames,
+    );
+
+    if (!callableTarget) {
+      return null;
+    }
+
+    const returnedNode = getDirectFunctionReturnValueNode(callableTarget.node);
+
+    if (!returnedNode) {
+      return null;
+    }
+
+    return resolveGlobalObjectAliasSource(
+      returnedNode,
+      callableTarget.path,
+      types,
+      seenNames,
+    );
+  }
+
+  if (
+    getNodeType(unwrappedNode) === "MemberExpression" ||
+    getNodeType(unwrappedNode) === "OptionalMemberExpression"
+  ) {
+    const memberNode = unwrappedNode as BabelMemberExpressionNode;
+    const objectSource = resolveGlobalObjectAliasSource(
+      memberNode.object,
+      path,
+      types,
+      seenNames,
+    );
+
+    if (objectSource === null) {
+      return null;
+    }
+
+    const propertyName = getPropertyName(memberNode.property, types);
+    return propertyName !== null && GLOBAL_OBJECT_ALIASES.has(propertyName)
+      ? propertyName
+      : null;
+  }
+
+  if (!types.isIdentifier(unwrappedNode)) {
+    return null;
+  }
+
+  const name = (unwrappedNode as { name?: unknown }).name;
+
+  if (typeof name !== "string") {
+    return null;
+  }
+
+  if (GLOBAL_OBJECT_ALIASES.has(name) && !hasBinding(path, name)) {
+    return name;
+  }
+
+  if (seenNames.has(name)) {
+    return null;
+  }
+
+  const binding = getBinding(path, name);
+
+  if (!binding) {
+    return null;
+  }
+
+  const valueTarget = getBindingValueTarget(binding, name, path, types);
+
+  if (!valueTarget) {
+    return null;
+  }
+
+  const nextSeenNames = new Set(seenNames);
+  nextSeenNames.add(name);
+
+  return resolveGlobalObjectAliasSource(
+    valueTarget.node,
+    valueTarget.path,
+    types,
+    nextSeenNames,
+  );
+}
+
 function resolveUnsupportedChainedMemberSource(
   node: BabelMemberExpressionNode,
   path: BabelNodePath,
@@ -771,6 +871,113 @@ function objectPatternHasEnvProperty(node: unknown, types: BabelApi["types"]) {
       ) === "env";
     },
   );
+}
+
+function getUnsupportedNestedPatternMessage(
+  pattern: unknown,
+  source: UnsupportedWriteTarget,
+  types: BabelApi["types"],
+): string | null {
+  const unwrappedPattern = unwrapTransparentExpression(pattern);
+
+  if (getNodeType(unwrappedPattern) === "AssignmentPattern") {
+    return getUnsupportedNestedPatternMessage(
+      (unwrappedPattern as BabelAssignmentPatternNode).left,
+      source,
+      types,
+    );
+  }
+
+  if (!types.isObjectPattern(unwrappedPattern)) {
+    return null;
+  }
+
+  for (const property of (unwrappedPattern as BabelObjectPatternNode).properties ??
+    []) {
+    if (!types.isObjectProperty(property)) {
+      continue;
+    }
+
+    const propertyNode = property as BabelObjectPropertyWithValueNode;
+    const propertyName = getStaticObjectPropertyName(propertyNode, types);
+
+    if (source === "process" && propertyName === "env") {
+      return getUnsupportedEnvMessage("process");
+    }
+
+    if (source === "module") {
+      if (propertyName === "exports") {
+        return getUnsupportedReferenceMessage("exports");
+      }
+
+      if (propertyName === "require") {
+        return getUnsupportedReferenceMessage("require");
+      }
+    }
+
+    const nestedMessage = getUnsupportedNestedPatternMessage(
+      propertyNode.value,
+      source,
+      types,
+    );
+
+    if (nestedMessage) {
+      return nestedMessage;
+    }
+  }
+
+  return null;
+}
+
+function getUnsupportedGlobalAliasDestructureMessage(
+  pattern: unknown,
+  sourceNode: unknown,
+  path: BabelNodePath,
+  types: BabelApi["types"],
+) {
+  if (resolveGlobalObjectAliasSource(sourceNode, path, types) === null) {
+    return null;
+  }
+
+  const unwrappedPattern = unwrapTransparentExpression(pattern);
+
+  if (!types.isObjectPattern(unwrappedPattern)) {
+    return null;
+  }
+
+  for (const property of (unwrappedPattern as BabelObjectPatternNode).properties ??
+    []) {
+    if (!types.isObjectProperty(property)) {
+      continue;
+    }
+
+    const propertyNode = property as BabelObjectPropertyWithValueNode;
+    const propertyName = getStaticObjectPropertyName(propertyNode, types);
+
+    if (propertyName === "process") {
+      return (
+        getUnsupportedNestedPatternMessage(propertyNode.value, "process", types) ??
+        getUnsupportedReferenceMessage("process")
+      );
+    }
+
+    if (propertyName === "require") {
+      return getUnsupportedReferenceMessage("require");
+    }
+
+    if (propertyName === "module") {
+      return (
+        getUnsupportedNestedPatternMessage(propertyNode.value, "module", types) ??
+        getUnsupportedReferenceMessage("module")
+      );
+    }
+
+    if (propertyName === "exports") {
+      return getUnsupportedReferenceMessage("exports");
+    }
+  }
+
+  return null;
 }
 
 function getPropertyName(
@@ -1171,6 +1378,18 @@ function createBrowserGuardsPlugin() {
       pattern: unknown,
       sourceNode: unknown,
     ) => {
+      const unsupportedGlobalAliasDestructureMessage =
+        getUnsupportedGlobalAliasDestructureMessage(
+          pattern,
+          sourceNode,
+          path,
+          types,
+        );
+
+      if (unsupportedGlobalAliasDestructureMessage) {
+        throw path.buildCodeFrameError(unsupportedGlobalAliasDestructureMessage);
+      }
+
       const source = resolveUnsupportedReferenceSource(sourceNode, path, types);
 
       if (!source) {

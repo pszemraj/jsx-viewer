@@ -256,6 +256,47 @@ rejectionTest(
   /process is not available in browser mode/,
 );
 
+rejectionTest(
+  "transpileArtifact rejects destructured globalThis process aliases",
+  "BadDestructuredGlobalThisProcess.tsx",
+  `
+    export default function BadDestructuredGlobalThisProcess() {
+      const { process } = globalThis;
+
+      return <div>{process.env.NODE_ENV}</div>;
+    }
+  `,
+  /process is not available in browser mode/,
+);
+
+rejectionTest(
+  "transpileArtifact rejects destructured require aliases from global object aliases",
+  "BadDestructuredAliasedGlobalRequire.tsx",
+  `
+    export default function BadDestructuredAliasedGlobalRequire() {
+      const root = window;
+      const { require } = root;
+
+      return <div>{require("react")}</div>;
+    }
+  `,
+  /CommonJS require\(\) is not supported in browser mode/,
+);
+
+rejectionTest(
+  "transpileArtifact rejects assignment destructuring unsupported globals from self",
+  "BadAssignedSelfModule.tsx",
+  `
+    export default function BadAssignedSelfModule() {
+      let runtimeModule;
+      ({ module: runtimeModule } = self);
+
+      return <div>{String(Boolean(runtimeModule))}</div>;
+    }
+  `,
+  /CommonJS module is not supported in browser mode/,
+);
+
 allowTest(
   "transpileArtifact allows typeof probes for unsupported globals",
   "SafeTypeofProbes.tsx",
@@ -270,6 +311,20 @@ allowTest(
     }
   `,
   [/typeof process/, /typeof require/, /typeof module/, /typeof exports/],
+);
+
+allowTest(
+  "transpileArtifact allows destructuring on locally shadowed global object names",
+  "LocalWindowProcessDestructure.tsx",
+  `
+    const window = { process: { env: { NODE_ENV: "test" } } };
+
+    export default function LocalWindowProcessDestructure() {
+      const { process } = window;
+      return <div>{process.env.NODE_ENV}</div>;
+    }
+  `,
+  [/const\s*\{\s*process\s*\}\s*=\s*window/, /process\.env\.NODE_ENV/],
 );
 
 allowTest(
