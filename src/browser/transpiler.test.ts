@@ -1,12 +1,22 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { BROWSER_REMOTE_PACKAGE_VERSIONS } from "./remotePackageUrl";
+import { BROWSER_REMOTE_PEER_DEPENDENCY_VERSIONS } from "./remotePackageUrl";
 import { transpileArtifact } from "./transpiler";
 import { resolveRuntimeModuleUrl } from "./runtimeUrl";
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function buildRemoteDepsPattern() {
+  return new RegExp(
+    `deps=react(?:@|%40)${escapeRegExp(
+      BROWSER_REMOTE_PEER_DEPENDENCY_VERSIONS.react,
+    )}(?:%2C|,)react-dom(?:@|%40)${escapeRegExp(
+      BROWSER_REMOTE_PEER_DEPENDENCY_VERSIONS["react-dom"],
+    )}`,
+  );
 }
 
 function rejectionTest(
@@ -107,14 +117,24 @@ allowTest(
     }
   `,
   [
-    new RegExp(
-      `https://esm\\.sh/lucide-react@${escapeRegExp(
-        BROWSER_REMOTE_PACKAGE_VERSIONS["lucide-react"],
-      )}\\?`,
-    ),
+    /https:\/\/esm\.sh\/lucide-react\?/,
+    buildRemoteDepsPattern(),
     /external=react(?:%2C|,)react-dom(?:%2C|,)react-dom%2Fclient/,
     /target=es2022/,
   ],
+);
+
+allowTest(
+  "transpileArtifact rewrites react-dom/client imports to the browser runtime",
+  "ReactDomClientImport.tsx",
+  `
+    import { createRoot } from "react-dom/client";
+
+    export default function ReactDomClientImport() {
+      return <div>{String(Boolean(createRoot))}</div>;
+    }
+  `,
+  [/runtime\/react-dom-client\.js/, /createRoot/],
 );
 
 allowExampleTest(
@@ -142,16 +162,9 @@ allowExampleTest(
     enableTailwindRuntime: true,
     matches: [
       /runtime\/react\.js/,
-      new RegExp(
-        `https://esm\\.sh/lucide-react@${escapeRegExp(
-          BROWSER_REMOTE_PACKAGE_VERSIONS["lucide-react"],
-        )}\\?`,
-      ),
-      new RegExp(
-        `https://esm\\.sh/recharts@${escapeRegExp(
-          BROWSER_REMOTE_PACKAGE_VERSIONS.recharts,
-        )}\\?`,
-      ),
+      /https:\/\/esm\.sh\/lucide-react\?/,
+      /https:\/\/esm\.sh\/recharts\?/,
+      buildRemoteDepsPattern(),
     ],
   },
 );

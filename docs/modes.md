@@ -36,7 +36,8 @@ Browser mode is meant to handle real single-file React artifacts well. That incl
 - fragments and multi-child JSX
 - wrapped default exports such as `memo`, `forwardRef`, and `lazy`
 - React runtime imports resolved through repo-shipped same-origin runtime modules
-- the supported bare npm package imports rewritten to repo-pinned CDN-backed ESM modules that can run in a plain browser
+- bare npm package imports rewritten to CDN-backed ESM modules that can run in a plain browser
+- React peer resolution pinned to the viewer-owned React 18 runtime so CDN packages share that same React instance
 - Tailwind utility classes through the Tailwind browser runtime when the uploaded artifact is class-based
 - standard `import.meta.url` access inside the uploaded module
 - rendering inside a dedicated preview frame so clear and swap fully tear down prior module state
@@ -51,14 +52,13 @@ Browser mode intentionally fails fast on:
 - CommonJS (`require`, `module.*`, `exports.*`)
 - `process` globals such as `process.env` or `process.version`
 - `import.meta` helpers other than `import.meta.url` such as `import.meta.env` or `import.meta.glob`
-- bare package imports outside the repo-supported browser package set
 - packages that still depend on unsupported browser or Node globals even after CDN resolution
 
 If you need those capabilities, use the local viewer instead.
 
 ## Why The Browser Mode Is Narrower
 
-The browser mode is still meant to stay predictable. It now reaches farther by resolving a curated, repo-pinned package set through `esm.sh` and by loading Tailwind's browser runtime for class-heavy artifacts, but it is still not a local project bundler.
+The browser mode is still meant to stay predictable. It now reaches farther by resolving bare npm imports through `esm.sh`, while pinning React peers to the viewer runtime and loading Tailwind's browser runtime for class-heavy artifacts, but it is still not a local project bundler.
 
 Reasonable future expansion would be:
 

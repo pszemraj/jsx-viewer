@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   BROWSER_REMOTE_EXTERNAL_SPECIFIERS,
-  BROWSER_REMOTE_PACKAGE_VERSIONS,
+  BROWSER_REMOTE_PEER_DEPENDENCY_VERSIONS,
   resolveRemotePackageUrl,
 } from "./remotePackageUrl";
 
@@ -13,50 +13,46 @@ const packageLock = JSON.parse(
   packages?: Record<string, { version?: string }>;
 };
 
-test(
-  "browser remote package versions stay aligned with the checked-in lockfile",
-  () => {
-    for (const [packageName, version] of Object.entries(
-      BROWSER_REMOTE_PACKAGE_VERSIONS,
-    )) {
-      assert.equal(
-        packageLock.packages?.[`node_modules/${packageName}`]?.version,
-        version,
-      );
-    }
-  },
-);
+const expectedDepsQuery = Object.entries(BROWSER_REMOTE_PEER_DEPENDENCY_VERSIONS)
+  .map(([packageName, version]) => `${packageName}@${version}`)
+  .join(",");
 
-test("resolveRemotePackageUrl pins supported packages to repo-tested versions", () => {
+test("browser remote peer versions stay aligned with the checked-in lockfile", () => {
+  for (const [packageName, version] of Object.entries(
+    BROWSER_REMOTE_PEER_DEPENDENCY_VERSIONS,
+  )) {
+    assert.equal(
+      packageLock.packages?.[`node_modules/${packageName}`]?.version,
+      version,
+    );
+  }
+});
+
+test("resolveRemotePackageUrl keeps arbitrary package imports open", () => {
   const packageUrl = new URL(resolveRemotePackageUrl("lucide-react"));
 
-  assert.equal(
-    packageUrl.pathname,
-    `/lucide-react@${BROWSER_REMOTE_PACKAGE_VERSIONS["lucide-react"]}`,
-  );
+  assert.equal(packageUrl.pathname, "/lucide-react");
   assert.equal(packageUrl.searchParams.get("target"), "es2022");
+  assert.equal(packageUrl.searchParams.get("deps"), expectedDepsQuery);
   assert.equal(
     packageUrl.searchParams.get("external"),
     BROWSER_REMOTE_EXTERNAL_SPECIFIERS.join(","),
   );
 });
 
-test("resolveRemotePackageUrl preserves package subpaths while pinning versions", () => {
-  const packageUrl = new URL(resolveRemotePackageUrl("chart.js/auto"));
-
-  assert.equal(
-    packageUrl.pathname,
-    `/chart.js@${BROWSER_REMOTE_PACKAGE_VERSIONS["chart.js"]}/auto`,
+test("resolveRemotePackageUrl preserves subpaths, versions, and existing flags", () => {
+  const packageUrl = new URL(
+    resolveRemotePackageUrl("chart.js@4.4.3/auto?bundle=false"),
   );
+
+  assert.equal(packageUrl.pathname, "/chart.js@4.4.3/auto");
+  assert.equal(packageUrl.searchParams.get("bundle"), "false");
+  assert.equal(packageUrl.searchParams.get("deps"), expectedDepsQuery);
 });
 
-test("resolveRemotePackageUrl rejects unsupported browser-mode packages", () => {
-  assert.throws(
-    () => resolveRemotePackageUrl("left-pad"),
-    /Unsupported bare import "left-pad" in browser mode/,
-  );
-  assert.throws(
-    () => resolveRemotePackageUrl("@babel/standalone"),
-    /Supported CDN-backed packages:/,
-  );
+test("resolveRemotePackageUrl supports scoped packages", () => {
+  const packageUrl = new URL(resolveRemotePackageUrl("@radix-ui/react-dialog"));
+
+  assert.equal(packageUrl.pathname, "/@radix-ui/react-dialog");
+  assert.equal(packageUrl.searchParams.get("deps"), expectedDepsQuery);
 });

@@ -31,6 +31,7 @@ export type BrowserRuntimeSpecifier = keyof typeof BROWSER_RUNTIME_ENTRIES;
 export const BROWSER_ARTIFACT_RUNTIME_SPECIFIERS = [
   "react",
   "react-dom",
+  "react-dom/client",
   "react/jsx-runtime",
   "react/jsx-dev-runtime",
 ] as const satisfies readonly BrowserRuntimeSpecifier[];

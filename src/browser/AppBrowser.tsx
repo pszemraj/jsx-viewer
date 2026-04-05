@@ -270,7 +270,7 @@ function DropZone({ onContent }: DropZoneProps) {
         >
           GitHub Pages mode compiles the artifact in the browser and renders it
           directly inside this site. It supports trusted, single-file React 18
-          components, repo-pinned CDN package imports, and Tailwind utility
+          components, browser-capable CDN package imports, and Tailwind utility
           classes.
         </p>
         <button
@@ -336,9 +336,9 @@ function DropZone({ onContent }: DropZoneProps) {
           >
             {BROWSER_RUNTIME_DISPLAY_SPECIFIERS.join(", ")}
             <br />
-            supported bare imports resolve through esm.sh
+            other bare imports resolve through esm.sh
             <br />
-            JSX runtime modules stay local
+            React 18 runtime modules stay local
           </div>
         </div>
         <div
@@ -571,7 +571,7 @@ export default function AppBrowser() {
     "This mode runs the loaded component inside a dedicated preview frame on the same origin. " +
     "That lets clear and swap fully tear down module-scope state, but it is still a trusted-code path rather than a security sandbox. " +
     "Relative imports, direct remote URL imports, Vite-only globals, and CommonJS are intentionally rejected early. " +
-    "Supported package imports resolve through esm.sh at repo-tested versions, and class-heavy artifacts can load Tailwind's browser runtime.";
+    "Bare package imports resolve through esm.sh, with React peer dependencies pinned to the viewer runtime, and class-heavy artifacts can load Tailwind's browser runtime.";
   const shellView = getBrowserShellView(state);
   const showLoadingOverlay = shouldShowLoadingOverlay(state);
 
