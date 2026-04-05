@@ -48,7 +48,8 @@ Browser mode intentionally fails fast on:
 
 - relative imports such as `./Foo`
 - absolute path imports such as `/foo`
-- direct remote URL imports
+- URL-scheme imports such as `http:`, `https:`, `file:`, `node:`, or `npm:`
+- package stylesheet imports such as `react-datepicker/dist/react-datepicker.css`
 - CommonJS (`require`, `module.*`, `exports.*`)
 - `process` globals such as `process.env` or `process.version`
 - `import.meta` helpers other than `import.meta.url` such as `import.meta.env` or `import.meta.glob`

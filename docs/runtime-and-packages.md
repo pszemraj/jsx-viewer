@@ -67,7 +67,8 @@ paths:
 It still does not resolve:
 
 - relative or absolute local imports
-- direct remote URL imports authored inside the artifact
+- URL-scheme imports authored inside the artifact such as `http:`, `https:`, `file:`, `node:`, or `npm:`
+- package stylesheet imports such as `react-datepicker/dist/react-datepicker.css`
 - browser-incompatible packages that depend on Node-only globals or APIs
 
 ## Tailwind

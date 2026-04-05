@@ -172,6 +172,16 @@ const BROWSER_ARTIFACT_RUNTIME_IMPORT_SET = new Set<string>(
 );
 const SUPPORTED_IMPORTS = BROWSER_ARTIFACT_RUNTIME_SPECIFIERS.join(", ");
 const GLOBAL_OBJECT_ALIASES = new Set(["globalThis", "window", "self"]);
+const UNSUPPORTED_PACKAGE_STYLESHEET_EXTENSIONS = new Set([
+  ".css",
+  ".less",
+  ".pcss",
+  ".postcss",
+  ".sass",
+  ".scss",
+  ".styl",
+  ".stylus",
+]);
 const UNSUPPORTED_GLOBAL_REFERENCE_NAMES = new Set([
   "process",
   "require",
@@ -204,6 +214,31 @@ function getRuntimeModuleUrl(specifier: string) {
   return runtimeUrl;
 }
 
+function getImportScheme(specifier: string) {
+  const match = specifier.match(/^([a-zA-Z][a-zA-Z\d+.-]*):/u);
+  return match?.[1]?.toLowerCase() ?? null;
+}
+
+function getSpecifierPathname(specifier: string) {
+  try {
+    return new URL(specifier, "https://jsx-viewer.invalid/").pathname;
+  } catch {
+    return specifier.split(/[?#]/u, 1)[0] ?? specifier;
+  }
+}
+
+function hasUnsupportedPackageStylesheetExtension(specifier: string) {
+  const pathname = getSpecifierPathname(specifier).toLowerCase();
+
+  for (const extension of UNSUPPORTED_PACKAGE_STYLESHEET_EXTENSIONS) {
+    if (pathname.endsWith(extension)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function resolveImportSpecifier(specifier: string) {
   if (specifier.startsWith("./") || specifier.startsWith("../")) {
     throw new Error(
@@ -219,20 +254,35 @@ function resolveImportSpecifier(specifier: string) {
     );
   }
 
-  if (specifier.startsWith("http://") || specifier.startsWith("https://")) {
-    throw new Error(
-      `Remote URL imports are intentionally disabled in browser mode: "${specifier}". ` +
-        "Add the dependency to the repo runtime allowlist or use the local Node/Vite viewer.",
-    );
-  }
+  const scheme = getImportScheme(specifier);
+  if (scheme) {
+    if (scheme === "http" || scheme === "https") {
+      throw new Error(
+        `Remote URL imports are intentionally disabled in browser mode: "${specifier}". ` +
+          "Add the dependency to the repo runtime allowlist or use the local Node/Vite viewer.",
+      );
+    }
 
-  if (specifier.startsWith("data:") || specifier.startsWith("blob:")) {
+    if (scheme === "data" || scheme === "blob") {
+      throw new Error(
+        `Non-file URL imports are not supported in browser mode: "${specifier}".`,
+      );
+    }
+
     throw new Error(
-      `Non-file URL imports are not supported in browser mode: "${specifier}".`,
+      `Unsupported import scheme "${scheme}:" in browser mode: "${specifier}". ` +
+        "Use bare package imports or the local Node/Vite viewer.",
     );
   }
 
   if (!BROWSER_ARTIFACT_RUNTIME_IMPORT_SET.has(specifier)) {
+    if (hasUnsupportedPackageStylesheetExtension(specifier)) {
+      throw new Error(
+        `Package stylesheet imports are not supported in browser mode: "${specifier}". ` +
+          "Keep the artifact self-contained or use the local Node/Vite viewer.",
+      );
+    }
+
     return resolveRemotePackageUrl(specifier);
   }
 

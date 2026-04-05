@@ -137,6 +137,57 @@ allowTest(
   [/runtime\/react-dom-client\.js/, /createRoot/],
 );
 
+rejectionTest(
+  "transpileArtifact rejects package stylesheet imports before runtime",
+  "PackageStylesheetImport.tsx",
+  `
+    import "react-datepicker/dist/react-datepicker.css";
+
+    export default function PackageStylesheetImport() {
+      return <div>datepicker</div>;
+    }
+  `,
+  /Package stylesheet imports are not supported in browser mode/,
+);
+
+rejectionTest(
+  "transpileArtifact rejects unsupported node scheme imports before esm.sh fallback",
+  "NodeSchemeImport.tsx",
+  `
+    import { Buffer } from "node:buffer";
+
+    export default function NodeSchemeImport() {
+      return <div>{String(Boolean(Buffer))}</div>;
+    }
+  `,
+  /Unsupported import scheme "node:" in browser mode/,
+);
+
+rejectionTest(
+  "transpileArtifact rejects unsupported file scheme imports before esm.sh fallback",
+  "FileSchemeImport.tsx",
+  `
+    import thing from "file:///tmp/example.js";
+
+    export default function FileSchemeImport() {
+      return <div>{String(Boolean(thing))}</div>;
+    }
+  `,
+  /Unsupported import scheme "file:" in browser mode/,
+);
+
+rejectionTest(
+  "transpileArtifact rejects unsupported npm scheme dynamic imports before esm.sh fallback",
+  "NpmSchemeDynamicImport.tsx",
+  `
+    export default async function NpmSchemeDynamicImport() {
+      const react = await import("npm:react");
+      return <div>{String(Boolean(react))}</div>;
+    }
+  `,
+  /Unsupported import scheme "npm:" in browser mode/,
+);
+
 allowExampleTest(
   "transpileArtifact accepts the shipped PolyField example",
   "PolyField.tsx",
