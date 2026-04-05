@@ -15,7 +15,11 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
-import browserViteConfig from "../vite.config.browser.ts";
+import browserViteConfig, {
+  buildBrowserContentSecurityPolicy,
+  buildPreviewImportMapScriptContents,
+  computeInlineScriptHash,
+} from "../vite.config.browser.ts";
 import { BROWSER_RUNTIME_ENTRIES } from "../src/browser/runtimeManifest.ts";
 import {
   CliUsageError,
@@ -154,6 +158,28 @@ test("browser preview script serves the finalized Pages artifact", () => {
     packageJson.scripts?.["preview:browser"],
     "npm run build:browser && vite preview --config vite.config.browser.ts",
   );
+});
+
+test("preview frame CSP hashes the inline import map instead of requiring unsafe-inline", () => {
+  const importMap = buildPreviewImportMapScriptContents("/jsx-viewer/", false);
+  const hash = computeInlineScriptHash(importMap);
+  const csp = buildBrowserContentSecurityPolicy({
+    inlineScriptHashes: [hash],
+  });
+  const scriptSrcDirective = csp
+    .split("; ")
+    .find((directive) => directive.startsWith("script-src "));
+
+  assert.ok(scriptSrcDirective);
+  assert.match(
+    scriptSrcDirective,
+    /script-src 'self' blob: https:\/\/esm\.sh https:\/\/cdn\.tailwindcss\.com 'sha256-/,
+  );
+  assert.match(
+    scriptSrcDirective,
+    new RegExp(hash.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+  );
+  assert.doesNotMatch(scriptSrcDirective, /unsafe-inline/);
 });
 
 test("cli reports the package version from package metadata", () => {

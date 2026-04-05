@@ -1,6 +1,7 @@
 import type { Connect, Plugin, ViteDevServer } from "vite";
 import { defineConfig } from "vite";
 import type { ServerResponse } from "node:http";
+import { createHash } from "node:crypto";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,18 +11,6 @@ import { BROWSER_RUNTIME_ENTRIES } from "./src/browser/runtimeManifest";
 import { buildBrowserRuntimeImportMap } from "./src/browser/runtimeImportMap";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const BROWSER_CONTENT_SECURITY_POLICY = [
-  "default-src 'self'",
-  "script-src 'self' blob: https://esm.sh https://cdn.tailwindcss.com",
-  "connect-src 'self' https://cdn.tailwindcss.com",
-  "img-src 'self' blob: data:",
-  "style-src 'self' 'unsafe-inline'",
-  "font-src 'self' data:",
-  "object-src 'none'",
-  "base-uri 'none'",
-  "form-action 'none'",
-  "upgrade-insecure-requests",
-].join("; ");
 
 const runtimeInputs = Object.values(BROWSER_RUNTIME_ENTRIES).reduce<
   Record<string, string>
@@ -30,17 +19,62 @@ const runtimeInputs = Object.values(BROWSER_RUNTIME_ENTRIES).reduce<
   return inputs;
 }, {});
 
+export function computeInlineScriptHash(contents: string) {
+  return `sha256-${createHash("sha256").update(contents, "utf8").digest("base64")}`;
+}
+
+export function buildBrowserContentSecurityPolicy(options?: {
+  inlineScriptHashes?: readonly string[];
+}) {
+  const inlineScriptHashes = options?.inlineScriptHashes ?? [];
+  const scriptSrc = [
+    "'self'",
+    "blob:",
+    "https://esm.sh",
+    "https://cdn.tailwindcss.com",
+    ...inlineScriptHashes.map((hash) => `'${hash}'`),
+  ];
+
+  return [
+    "default-src 'self'",
+    `script-src ${scriptSrc.join(" ")}`,
+    "connect-src 'self' https://cdn.tailwindcss.com",
+    "img-src 'self' blob: data:",
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self' data:",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+}
+
+export function buildPreviewImportMapScriptContents(
+  basePath: string | undefined,
+  dev: boolean,
+) {
+  return JSON.stringify(buildBrowserRuntimeImportMap(basePath, dev), null, 2);
+}
+
 function browserContentSecurityPolicy(): Plugin {
   return {
     name: "browser-content-security-policy",
     apply: "build" as const,
-    transformIndexHtml() {
+    transformIndexHtml(_html, context) {
+      const previewImportMap = context.filename.endsWith("preview-frame.html")
+        ? buildPreviewImportMapScriptContents(process.env.VITE_BASE_PATH, false)
+        : null;
+
       return [
         {
           tag: "meta",
           attrs: {
             "http-equiv": "Content-Security-Policy",
-            content: BROWSER_CONTENT_SECURITY_POLICY,
+            content: buildBrowserContentSecurityPolicy({
+              inlineScriptHashes: previewImportMap
+                ? [computeInlineScriptHash(previewImportMap)]
+                : [],
+            }),
           },
           injectTo: "head-prepend" as const,
         },
@@ -63,13 +97,9 @@ function browserPreviewImportMap(): Plugin {
           attrs: {
             type: "importmap",
           },
-          children: JSON.stringify(
-            buildBrowserRuntimeImportMap(
-              process.env.VITE_BASE_PATH,
-              context.server !== undefined,
-            ),
-            null,
-            2,
+          children: buildPreviewImportMapScriptContents(
+            process.env.VITE_BASE_PATH,
+            context.server !== undefined,
           ),
           injectTo: "head-prepend" as const,
         },
