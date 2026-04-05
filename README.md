@@ -10,7 +10,7 @@ You get a `.tsx` or `.jsx` artifact from Claude, ChatGPT, or wherever. To actual
 
 Go to **[pszemraj.github.io/jsx-viewer](https://pszemraj.github.io/jsx-viewer/)** and use it, web-app style.
 
-Paste, upload, or drag-and-drop a single `.jsx`/`.tsx` file. Transpilation and rendering happen entirely client-side - nothing is sent to a backend, no analytics, no telemetry. Hosted mode keeps React on same-origin runtime modules, resolves many bare npm package imports through `esm.sh`, and can opt into Tailwind's browser runtime when the uploaded artifact uses utility classes.
+Paste, upload, or drag-and-drop a single `.jsx`/`.tsx` file. Transpilation and rendering happen entirely client-side - nothing is sent to a backend, no analytics, no telemetry. Hosted mode keeps React on same-origin runtime modules, resolves a repo-pinned set of bare npm package imports through `esm.sh`, and can opt into Tailwind's browser runtime when the uploaded artifact uses utility classes.
 
 > [!NOTE]
 > The hosted site still does not resolve multi-file relative imports and does not sandbox uploaded code. Package-heavy or class-heavy artifacts can trigger network fetches to `esm.sh` and `cdn.tailwindcss.com`. More detail in [Modes and limitations](https://github.com/pszemraj/jsx-viewer/blob/main/docs/modes.md) and [Privacy and security](https://github.com/pszemraj/jsx-viewer/blob/main/docs/privacy-and-security.md).

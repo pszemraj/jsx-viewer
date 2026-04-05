@@ -37,8 +37,8 @@ If your local artifact imports something else, install it in the repo and restar
 The hosted Pages mode keeps React on same-origin runtime modules so uploaded
 artifacts share the viewer's React instance. The preview frame carries an import
 map for the React runtime specifiers, and the browser transpiler rewrites bare
-imports beyond React to `https://esm.sh/` so those modules can load in the
-browser without a local bundler.
+imports for the supported browser package set to `https://esm.sh/` so those
+modules can load in the browser without a local bundler.
 
 - `react`
 - `react-dom`
@@ -46,11 +46,13 @@ browser without a local bundler.
 - `react/jsx-runtime`
 - `react/jsx-dev-runtime`
 
-That means browser mode can handle many npm-backed single-file artifacts such as
+Those CDN URLs are pinned to the repo's checked-in dependency versions, so the
+hosted viewer uses the same package builds this repo validates locally.
+Browser mode can therefore handle many npm-backed single-file artifacts such as
 icon packages or charting helpers without asking the user to run a local dev
-server first. It does not promise that every npm package will work: packages
-still need to execute in a plain browser and tolerate the viewer-owned React
-runtime.
+server first. Imports outside that curated package set still need the local
+viewer, and supported packages still need to execute in a plain browser and
+tolerate the viewer-owned React runtime.
 
 Repo-shipped browser validation fixtures now span the three main hosted-mode
 paths:
@@ -63,6 +65,7 @@ It still does not resolve:
 
 - relative or absolute local imports
 - direct remote URL imports authored inside the artifact
+- bare package imports outside the repo-supported browser package set
 - browser-incompatible packages that depend on Node-only globals or APIs
 
 ## Tailwind

@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { BROWSER_REMOTE_PACKAGE_VERSIONS } from "./remotePackageUrl";
 import { transpileArtifact } from "./transpiler";
 import { resolveRuntimeModuleUrl } from "./runtimeUrl";
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 function rejectionTest(
   name: string,
@@ -102,7 +107,11 @@ allowTest(
     }
   `,
   [
-    /https:\/\/esm\.sh\/lucide-react\?/,
+    new RegExp(
+      `https://esm\\.sh/lucide-react@${escapeRegExp(
+        BROWSER_REMOTE_PACKAGE_VERSIONS["lucide-react"],
+      )}\\?`,
+    ),
     /external=react(?:%2C|,)react-dom(?:%2C|,)react-dom%2Fclient/,
     /target=es2022/,
   ],
@@ -133,8 +142,16 @@ allowExampleTest(
     enableTailwindRuntime: true,
     matches: [
       /runtime\/react\.js/,
-      /https:\/\/esm\.sh\/lucide-react\?/,
-      /https:\/\/esm\.sh\/recharts\?/,
+      new RegExp(
+        `https://esm\\.sh/lucide-react@${escapeRegExp(
+          BROWSER_REMOTE_PACKAGE_VERSIONS["lucide-react"],
+        )}\\?`,
+      ),
+      new RegExp(
+        `https://esm\\.sh/recharts@${escapeRegExp(
+          BROWSER_REMOTE_PACKAGE_VERSIONS.recharts,
+        )}\\?`,
+      ),
     ],
   },
 );
