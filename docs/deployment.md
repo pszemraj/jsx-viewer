@@ -35,7 +35,7 @@ The Pages mode runs the uploaded artifact inside a dedicated preview frame. It:
 
 1. accepts pasted, uploaded, or dropped `.jsx` and `.tsx`
 2. transpiles the artifact in the browser
-3. keeps React on repo-owned same-origin runtime modules and rewrites other bare package imports to `esm.sh`
+3. keeps React on repo-owned same-origin runtime modules, rewrites other bare package imports to `esm.sh`, and pins React peer resolution to the viewer runtime
 4. imports the compiled result from a `blob:` URL
 5. renders the component inside an isolated preview document on the same origin
 
