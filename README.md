@@ -10,11 +10,10 @@ You get a `.tsx` or `.jsx` artifact from Claude, ChatGPT, or wherever. To actual
 
 Go to **[pszemraj.github.io/jsx-viewer](https://pszemraj.github.io/jsx-viewer/)** and use it, web-app style.
 
-Paste, upload, or drag-and-drop a single `.jsx`/`.tsx` file. Transpilation and rendering happen entirely client-side - nothing is sent to a backend, no analytics, no telemetry. Supports default-exported React 18 components plus the repo-shipped React runtime imports used by normal single-file artifacts.
-Paste, upload, or drag-and-drop a single `.jsx`/`.tsx` file. Transpilation and rendering happen entirely client-side - nothing is sent to a backend, no analytics, no telemetry. Hosted mode keeps React on same-origin runtime modules, can resolve many npm package imports through `esm.sh`, and can opt into Tailwind's browser runtime when the uploaded artifact uses utility classes.
+Paste, upload, or drag-and-drop a single `.jsx`/`.tsx` file. Transpilation and rendering happen entirely client-side - nothing is sent to a backend, no analytics, no telemetry. Hosted mode keeps React on same-origin runtime modules, resolves many bare npm package imports through `esm.sh`, and can opt into Tailwind's browser runtime when the uploaded artifact uses utility classes.
 
 > [!NOTE]
-> The hosted site still does not resolve multi-file relative imports and does not sandbox uploaded code. Package-heavy or class-heavy artifacts can trigger network fetches to `esm.sh` and `cdn.tailwindcss.com`. More detail in [Modes and limitations](docs/modes.md) and [Privacy and security](docs/privacy-and-security.md).
+> The hosted site still does not resolve multi-file relative imports and does not sandbox uploaded code. Package-heavy or class-heavy artifacts can trigger network fetches to `esm.sh` and `cdn.tailwindcss.com`. More detail in [Modes and limitations](https://github.com/pszemraj/jsx-viewer/blob/main/docs/modes.md) and [Privacy and security](https://github.com/pszemraj/jsx-viewer/blob/main/docs/privacy-and-security.md).
 
 ## Local Viewer
 
@@ -45,7 +44,7 @@ Start with a file already loaded:
 node bin/jsx-viewer.mjs path/to/Component.tsx
 ```
 
-See the [usage guide](docs/usage.md) for all input methods (drag-and-drop, paste, upload), CLI options, and component requirements.
+See the [usage guide](https://github.com/pszemraj/jsx-viewer/blob/main/docs/usage.md) for all input methods (drag-and-drop, paste, upload), CLI options, and component requirements.
 
 ## Modes at a Glance
 
@@ -56,13 +55,13 @@ See the [usage guide](docs/usage.md) for all input methods (drag-and-drop, paste
 
 ## Docs
 
-- [Usage guide](docs/usage.md)
-- [Modes and limitations](docs/modes.md)
-- [Runtime and supported packages](docs/runtime-and-packages.md)
-- [Privacy and security](docs/privacy-and-security.md)
-- [GitHub Pages deployment](docs/deployment.md)
-- [Development and maintenance](docs/development.md)
-- [Browser mode smoke matrix](docs/browser-mode-smoke-matrix.md)
+- [Usage guide](https://github.com/pszemraj/jsx-viewer/blob/main/docs/usage.md)
+- [Modes and limitations](https://github.com/pszemraj/jsx-viewer/blob/main/docs/modes.md)
+- [Runtime and supported packages](https://github.com/pszemraj/jsx-viewer/blob/main/docs/runtime-and-packages.md)
+- [Privacy and security](https://github.com/pszemraj/jsx-viewer/blob/main/docs/privacy-and-security.md)
+- [GitHub Pages deployment](https://github.com/pszemraj/jsx-viewer/blob/main/docs/deployment.md)
+- [Development and maintenance](https://github.com/pszemraj/jsx-viewer/blob/main/docs/development.md)
+- [Browser mode smoke matrix](https://github.com/pszemraj/jsx-viewer/blob/main/docs/browser-mode-smoke-matrix.md)
 
 ## License
 

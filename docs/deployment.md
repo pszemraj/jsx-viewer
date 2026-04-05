@@ -35,12 +35,12 @@ The Pages mode runs the uploaded artifact inside a dedicated preview frame. It:
 
 1. accepts pasted, uploaded, or dropped `.jsx` and `.tsx`
 2. transpiles the artifact in the browser
-3. rewrites supported bare imports to repo-owned runtime modules
+3. keeps React on repo-owned same-origin runtime modules and rewrites other bare package imports to `esm.sh`
 4. imports the compiled result from a `blob:` URL
 5. renders the component inside an isolated preview document on the same origin
 
 That keeps clear and swap from leaking module-scope timers or listeners across previews, but browser mode is still a trusted-artifact path rather than a security sandbox.
-The preview document is emitted as `preview-frame.html` and initialized after load, which keeps the deployed CSP at `script-src 'self' blob:` without reintroducing inline bootstrap code.
+The preview document is emitted as `preview-frame.html` and uses a CSP-hashed inline import map plus external bootstrap code, which keeps the deployed policy locked down without relying on unrestricted inline scripts.
 
 ## Validation
 

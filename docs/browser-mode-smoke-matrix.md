@@ -192,4 +192,4 @@ Expected:
 - Browser mode is for **trusted single-file artifacts**.
 - Browser mode may fetch `esm.sh` and `cdn.tailwindcss.com` when the uploaded artifact needs npm package resolution or Tailwind utility styling.
 - If the deployed site behaves strangely after a fix, do a hard refresh or use a fresh/private window so stable runtime URLs are not served from stale browser cache.
-- If a pass case fails, capture the exact error panel text or a screenshot and compare it against the deployed runtime files under `/runtime/*.js`.
+- If a pass case fails, capture the exact error panel text or a screenshot and compare it against the deployed runtime files under `<basePath>/runtime/*.js`.

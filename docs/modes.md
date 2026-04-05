@@ -21,7 +21,6 @@ The website path uses a dedicated same-origin preview frame. It is a trusted-art
 | CDN-backed npm package imports | Yes | Yes |
 | Multi-file relative imports | Yes | No |
 | Arbitrary local npm package resolution | Yes | No |
-| CommonJS, `process.*`, unsupported `import.meta.*` helpers in uploaded artifact | Yes | No |
 | Tailwind utility classes in uploaded artifact | Yes | Yes |
 | CLI preload | Yes | No |
 | Live file watching / HMR on save | Yes | No |
@@ -36,8 +35,8 @@ Browser mode is meant to handle real single-file React artifacts well. That incl
 - hooks and normal event handlers
 - fragments and multi-child JSX
 - wrapped default exports such as `memo`, `forwardRef`, and `lazy`
-- React runtime imports rewritten to repo-shipped runtime modules
-- many bare npm package imports rewritten to CDN-backed ESM modules
+- React runtime imports resolved through repo-shipped same-origin runtime modules
+- many bare npm package imports rewritten to CDN-backed ESM modules that can run in a plain browser
 - Tailwind utility classes through the Tailwind browser runtime when the uploaded artifact is class-based
 - standard `import.meta.url` access inside the uploaded module
 - rendering inside a dedicated preview frame so clear and swap fully tear down prior module state
@@ -52,7 +51,7 @@ Browser mode intentionally fails fast on:
 - CommonJS (`require`, `module.*`, `exports.*`)
 - `process` globals such as `process.env` or `process.version`
 - `import.meta` helpers other than `import.meta.url` such as `import.meta.env` or `import.meta.glob`
-- browser-incompatible packages even after CDN resolution
+- packages that still depend on unsupported browser or Node globals even after CDN resolution
 
 If you need those capabilities, use the local viewer instead.
 

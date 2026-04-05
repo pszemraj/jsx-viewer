@@ -7,6 +7,18 @@
 
 See [modes and limitations](modes.md) for the full comparison.
 
+## Website / Browser Mode
+
+Use the hosted site when you want the fastest path from a single file to a visible preview:
+
+- public site: [pszemraj.github.io/jsx-viewer](https://pszemraj.github.io/jsx-viewer/)
+- local fast loop: `npm run dev:browser`
+- local deployment-faithful check: `npm run preview:browser`
+
+The browser path supports drag-and-drop, upload, and paste for trusted single-file `.jsx` and `.tsx` artifacts. React stays on same-origin runtime modules, many bare npm imports resolve through `esm.sh`, and class-heavy artifacts can load Tailwind's browser runtime.
+
+Use the local viewer instead when the artifact depends on relative imports, repo-local packages, or a full local Tailwind pipeline.
+
 ## Local Viewer
 
 Start with a file when you want the smoothest workflow. The viewer watches it for changes and refreshes in the browser as you save.
@@ -76,4 +88,5 @@ Wrapped defaults created with `React.memo(...)`, `forwardRef(...)`, and `lazy(..
 
 - [Modes and limitations](modes.md)
 - [Runtime and supported packages](runtime-and-packages.md)
+- [Privacy and security](privacy-and-security.md)
 - [GitHub Pages deployment](deployment.md)
