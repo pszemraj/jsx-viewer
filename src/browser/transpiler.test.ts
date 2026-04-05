@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { transpileArtifact } from "./transpiler";
 import { resolveRuntimeModuleUrl } from "./runtimeUrl";
@@ -24,6 +25,32 @@ function allowTest(
     const { code } = await transpileArtifact(source, filename);
 
     for (const pattern of matches) {
+      assert.match(code, pattern);
+    }
+  });
+}
+
+function allowExampleTest(
+  name: string,
+  relativePath: string,
+  options: {
+    enableTailwindRuntime: boolean;
+    matches: RegExp[];
+  },
+) {
+  test(name, async () => {
+    const source = readFileSync(
+      new URL(`../../example/${relativePath}`, import.meta.url),
+      "utf8",
+    );
+    const { code, features } = await transpileArtifact(source, relativePath);
+
+    assert.equal(
+      features.enableTailwindRuntime,
+      options.enableTailwindRuntime,
+    );
+
+    for (const pattern of options.matches) {
       assert.match(code, pattern);
     }
   });
@@ -79,6 +106,37 @@ allowTest(
     /external=react(?:%2C|,)react-dom(?:%2C|,)react-dom%2Fclient/,
     /target=es2022/,
   ],
+);
+
+allowExampleTest(
+  "transpileArtifact accepts the shipped PolyField example",
+  "PolyField.tsx",
+  {
+    enableTailwindRuntime: false,
+    matches: [/runtime\/react\.js/, /forwardRef/, /useImperativeHandle/],
+  },
+);
+
+allowExampleTest(
+  "transpileArtifact accepts the shipped DataTable example",
+  "DataTable.jsx",
+  {
+    enableTailwindRuntime: false,
+    matches: [/runtime\/react\.js/, /React\.Children/, /lazy\(\(\) => Promise\.resolve/],
+  },
+);
+
+allowExampleTest(
+  "transpileArtifact accepts the shipped Dashboard example",
+  "Dashboard.tsx",
+  {
+    enableTailwindRuntime: true,
+    matches: [
+      /runtime\/react\.js/,
+      /https:\/\/esm\.sh\/lucide-react\?/,
+      /https:\/\/esm\.sh\/recharts\?/,
+    ],
+  },
 );
 
 rejectionTest(
