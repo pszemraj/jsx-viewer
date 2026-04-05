@@ -182,6 +182,19 @@ test("preview frame CSP hashes the inline import map instead of requiring unsafe
   assert.doesNotMatch(scriptSrcDirective, /unsafe-inline/);
 });
 
+test("browser CSP allows standard HTTPS image and data requests for trusted artifacts", () => {
+  const csp = buildBrowserContentSecurityPolicy();
+  const connectSrcDirective = csp
+    .split("; ")
+    .find((directive) => directive.startsWith("connect-src "));
+  const imgSrcDirective = csp
+    .split("; ")
+    .find((directive) => directive.startsWith("img-src "));
+
+  assert.equal(connectSrcDirective, "connect-src 'self' https: wss:");
+  assert.equal(imgSrcDirective, "img-src 'self' https: blob: data:");
+});
+
 test("cli reports the package version from package metadata", () => {
   const stdout = execFileSync(process.execPath, [CLI_PATH, "--version"], {
     cwd: REPO_ROOT,

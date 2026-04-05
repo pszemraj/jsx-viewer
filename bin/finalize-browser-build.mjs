@@ -95,8 +95,12 @@ await assertNamedExports("runtime/react-dom-client.js", [
 ]);
 assertTextIncludes(targetHtml, 'http-equiv="Content-Security-Policy"');
 assertTextIncludes(targetHtml, "script-src &#39;self&#39; blob: https://esm.sh https://cdn.tailwindcss.com");
+assertTextIncludes(targetHtml, "connect-src &#39;self&#39; https: wss:");
+assertTextIncludes(targetHtml, "img-src &#39;self&#39; https: blob: data:");
 assertTextIncludes(previewFrameHtml, 'http-equiv="Content-Security-Policy"');
 assertTextIncludes(previewFrameHtml, "script-src &#39;self&#39; blob: https://esm.sh https://cdn.tailwindcss.com");
+assertTextIncludes(previewFrameHtml, "connect-src &#39;self&#39; https: wss:");
+assertTextIncludes(previewFrameHtml, "img-src &#39;self&#39; https: blob: data:");
 assertTextIncludes(previewFrameHtml, '<script type="importmap">');
 assertTextIncludes(
   previewFrameHtml,

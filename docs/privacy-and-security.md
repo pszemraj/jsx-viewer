@@ -35,6 +35,7 @@ Expected network behavior for the hosted site:
 - React runtime modules are fetched from same-origin Pages assets
 - artifacts with npm package imports can fetch module code from `https://esm.sh/`
 - artifacts with Tailwind-style classes can fetch the Tailwind browser runtime from `https://cdn.tailwindcss.com/`
+- uploaded artifacts can load remote HTTPS images and make normal browser `fetch` or WebSocket requests when their code does so, subject to the browser's own CORS, mixed-content, and permission rules
 
 For local reproduction of that hosted behavior, prefer `npm run preview:browser`. `npm run dev:browser` is a Vite development server and intentionally does not enforce the deployed CSP.
 

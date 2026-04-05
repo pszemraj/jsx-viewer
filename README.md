@@ -13,7 +13,7 @@ Go to **[pszemraj.github.io/jsx-viewer](https://pszemraj.github.io/jsx-viewer/)*
 Paste, upload, or drag-and-drop a single `.jsx`/`.tsx` file. Transpilation and rendering happen entirely client-side - nothing is sent to a backend, no analytics, no telemetry. Hosted mode keeps React on same-origin runtime modules, resolves browser-capable bare npm package imports through `esm.sh`, and pins React peer resolution to the viewer's React 18 runtime when the uploaded artifact uses external packages.
 
 > [!NOTE]
-> The hosted site still does not resolve multi-file relative imports and does not sandbox uploaded code. Package-heavy or class-heavy artifacts can trigger network fetches to `esm.sh` and `cdn.tailwindcss.com`. More detail in [Modes and limitations](https://github.com/pszemraj/jsx-viewer/blob/main/docs/modes.md) and [Privacy and security](https://github.com/pszemraj/jsx-viewer/blob/main/docs/privacy-and-security.md).
+> The hosted site still does not resolve multi-file relative imports and does not sandbox uploaded code. Trusted artifacts can trigger normal browser network activity such as package resolution through `esm.sh`, Tailwind runtime loading from `cdn.tailwindcss.com`, remote images, and artifact-authored `fetch`/WebSocket requests. More detail in [Modes and limitations](https://github.com/pszemraj/jsx-viewer/blob/main/docs/modes.md) and [Privacy and security](https://github.com/pszemraj/jsx-viewer/blob/main/docs/privacy-and-security.md).
 
 ## Local Viewer
 

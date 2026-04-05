@@ -34,12 +34,16 @@ export function buildBrowserContentSecurityPolicy(options?: {
     "https://cdn.tailwindcss.com",
     ...inlineScriptHashes.map((hash) => `'${hash}'`),
   ];
+  // Hosted mode is a trusted-artifact browser path, so preserve normal HTTPS
+  // image/data requests while still constraining executable script origins.
+  const connectSrc = ["'self'", "https:", "wss:"];
+  const imgSrc = ["'self'", "https:", "blob:", "data:"];
 
   return [
     "default-src 'self'",
     `script-src ${scriptSrc.join(" ")}`,
-    "connect-src 'self' https://cdn.tailwindcss.com",
-    "img-src 'self' blob: data:",
+    `connect-src ${connectSrc.join(" ")}`,
+    `img-src ${imgSrc.join(" ")}`,
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self' data:",
     "object-src 'none'",
