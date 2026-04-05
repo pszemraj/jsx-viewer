@@ -651,9 +651,7 @@ function resolveUnsupportedGlobalAliasMemberSource(
   path: BabelNodePath,
   types: BabelApi["types"],
 ) {
-  const objectName = getUnboundIdentifierName(node.object, path, types);
-
-  if (objectName === null || !GLOBAL_OBJECT_ALIASES.has(objectName)) {
+  if (resolveGlobalObjectAliasSource(node.object, path, types) === null) {
     return null;
   }
 
@@ -1155,6 +1153,28 @@ function getMeaningfulReferenceContext(referencePath: BabelNodePath) {
   };
 }
 
+function isDirectTypeofOperand(path: BabelNodePath) {
+  const { currentPath, parentPath } = getMeaningfulReferenceContext(path);
+
+  return (
+    getNodeType(parentPath?.node) === "UnaryExpression" &&
+    (parentPath?.node as BabelUnaryExpressionNode).operator === "typeof" &&
+    (parentPath?.node as BabelUnaryExpressionNode).argument === currentPath.node
+  );
+}
+
+function isSafeGlobalProcessTypeofProbe(
+  path: BabelNodePath<BabelMemberExpressionNode>,
+  propertyName: string | null,
+  types: BabelApi["types"],
+) {
+  return (
+    propertyName === "process" &&
+    isDirectTypeofOperand(path) &&
+    resolveGlobalObjectAliasSource(path.node.object, path, types) !== null
+  );
+}
+
 function getUnsupportedImportMetaAliasReference(
   referencePath: BabelNodePath,
   types: BabelApi["types"],
@@ -1345,14 +1365,8 @@ function createBrowserGuardsPlugin() {
         }
       }
 
-      const parentNode = path.parentPath?.node ?? path.parent;
-
-      if (
+      if (isDirectTypeofOperand(path)) {
         // Allow feature detection without letting uploaded code evaluate the global.
-        getNodeType(parentNode) === "UnaryExpression" &&
-        (parentNode as BabelUnaryExpressionNode).operator === "typeof" &&
-        (parentNode as BabelUnaryExpressionNode).argument === path.node
-      ) {
         return;
       }
 
@@ -1401,6 +1415,10 @@ function createBrowserGuardsPlugin() {
       }
 
       if (source === "process") {
+        if (isSafeGlobalProcessTypeofProbe(path, propertyName, types)) {
+          return;
+        }
+
         throw path.buildCodeFrameError(
           propertyName === "env"
             ? getUnsupportedEnvMessage("process")

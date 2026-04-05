@@ -316,6 +316,19 @@ rejectionTest(
 );
 
 rejectionTest(
+  "transpileArtifact rejects process env access through aliased global objects",
+  "BadAliasedGlobalProcessEnv.tsx",
+  `
+    export default function BadAliasedGlobalProcessEnv() {
+      const root = globalThis;
+
+      return <div>{root.process?.env?.NODE_ENV}</div>;
+    }
+  `,
+  /process\.env is not available in browser mode/,
+);
+
+rejectionTest(
   "transpileArtifact rejects window process env access",
   "BadWindowProcessEnv.tsx",
   `
@@ -392,6 +405,29 @@ allowTest(
     }
   `,
   [/typeof process/, /typeof require/, /typeof module/, /typeof exports/],
+);
+
+allowTest(
+  "transpileArtifact allows direct typeof probes on global-object process aliases",
+  "SafeGlobalProcessTypeofProbes.tsx",
+  `
+    export default function SafeGlobalProcessTypeofProbes() {
+      const root = globalThis;
+
+      return <div>{[
+        typeof globalThis.process,
+        typeof window["process"],
+        typeof self.process,
+        typeof root.process,
+      ].join(",")}</div>;
+    }
+  `,
+  [
+    /typeof globalThis\.process/,
+    /typeof window\["process"\]/,
+    /typeof self\.process/,
+    /typeof root\.process/,
+  ],
 );
 
 allowTest(
