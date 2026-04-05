@@ -33,6 +33,12 @@ npm start        # empty drop/upload/paste UI
 
 The viewer opens in your browser (*with instructions*). You're done.
 
+Additional repo-shipped example artifacts:
+
+- `example/PolyField.tsx` for advanced TSX typing, `forwardRef`, context, and imperative handles
+- `example/DataTable.jsx` for compound components, render props, context, and `Suspense`
+- `example/Dashboard.tsx` for CDN-backed package imports and Tailwind utilities
+
 Start with a file already loaded:
 
 ```bash

@@ -129,11 +129,25 @@ Expected:
 - Tailwind utility classes style the card and page background
 - no duplicate-React or invalid-hook runtime error
 
+### 7. Repo-Shipped Hard Fixtures
+
+Suggested artifacts:
+
+- `example/PolyField.tsx`
+- `example/DataTable.jsx`
+- `example/Dashboard.tsx`
+
+Expected:
+
+- `PolyField.tsx` compiles advanced TSX patterns such as polymorphic components, generic `forwardRef`, context, and `useImperativeHandle`
+- `DataTable.jsx` renders compound components, render props, keyed fragments, and `Suspense`
+- `Dashboard.tsx` resolves `lucide-react` and `recharts` while Tailwind utility classes style the page
+
 ## Expected Fail Cases
 
 These should still fail loudly, because browser mode is still not a full local bundler.
 
-### 7. Relative Import
+### 8. Relative Import
 
 ```jsx
 import "./other-file";
@@ -147,7 +161,7 @@ Expected:
 
 - clear browser-mode error about relative imports not being supported
 
-### 8. Vite Env Access
+### 9. Vite Env Access
 
 ```jsx
 export default function BadEnv() {
@@ -159,7 +173,7 @@ Expected:
 
 - clear browser-mode error about `import.meta.env`
 
-### 9. CommonJS
+### 10. CommonJS
 
 ```jsx
 const React = require("react");

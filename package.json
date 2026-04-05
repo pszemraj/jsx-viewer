@@ -16,6 +16,8 @@
     "bin/slot.mjs",
     "component/View.tsx",
     "example/Dashboard.tsx",
+    "example/DataTable.jsx",
+    "example/PolyField.tsx",
     "index.browser.html",
     "index.html",
     "preview-frame.html",

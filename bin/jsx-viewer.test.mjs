@@ -631,6 +631,11 @@ test("npm pack only ships runtime package files", () => {
     "src/browser/browserRuntimeContext.ts",
     "src/browser/runtimeUrl.ts",
   ];
+  const requiredExamplePackFiles = [
+    "example/Dashboard.tsx",
+    "example/DataTable.jsx",
+    "example/PolyField.tsx",
+  ];
 
   assert.equal(packedPaths.some((entry) => entry.includes(".test.")), false);
   assert.equal(packedPaths.includes(".githooks/pre-commit"), false);
@@ -643,6 +648,10 @@ test("npm pack only ships runtime package files", () => {
   assert.deepEqual(
     requiredBrowserPackFiles.filter((entry) => packedPaths.includes(entry)),
     requiredBrowserPackFiles,
+  );
+  assert.deepEqual(
+    requiredExamplePackFiles.filter((entry) => packedPaths.includes(entry)),
+    requiredExamplePackFiles,
   );
   assert.equal(packedPaths.includes("src/browser/devEntryUrl.ts"), true);
   assert.equal(packedPaths.includes("src/hotReload.ts"), true);

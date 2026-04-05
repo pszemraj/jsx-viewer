@@ -50,6 +50,13 @@ That means browser mode can handle many npm-backed single-file artifacts such as
 icon packages or charting helpers without asking the user to run a local dev
 server first.
 
+Repo-shipped browser validation fixtures now span the three main hosted-mode
+paths:
+
+- `example/PolyField.tsx` for React-only advanced TSX patterns
+- `example/DataTable.jsx` for compound JSX patterns without external packages
+- `example/Dashboard.tsx` for npm package resolution plus Tailwind utilities
+
 It still does not resolve:
 
 - relative or absolute local imports

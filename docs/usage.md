@@ -33,7 +33,13 @@ Then load an artifact by:
 
 When a file is already loaded, use `swap file` to replace it or `clear` to return to the empty state.
 
-An example dashboard is included:
+Repo-shipped example artifacts:
+
+- `example/PolyField.tsx` exercises advanced TSX typing, `forwardRef`, context, and imperative handles
+- `example/DataTable.jsx` exercises compound components, render props, context, and `Suspense`
+- `example/Dashboard.tsx` exercises package imports and Tailwind-heavy styling
+
+Quickest preload:
 
 ```bash
 npm run demo
