@@ -628,24 +628,6 @@ function resolveCallableTarget(
   );
 }
 
-function getUnboundIdentifierName(
-  node: unknown,
-  path: BabelNodePath,
-  types: BabelApi["types"],
-) {
-  if (!types.isIdentifier(node)) {
-    return null;
-  }
-
-  const name = (node as { name?: unknown }).name;
-
-  if (typeof name !== "string" || hasBinding(path, name)) {
-    return null;
-  }
-
-  return name;
-}
-
 function resolveUnsupportedGlobalAliasMemberSource(
   node: BabelMemberExpressionNode,
   path: BabelNodePath,
