@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -7,7 +8,6 @@ const distDir = path.resolve(process.cwd(), "dist-browser");
 const sourceHtml = path.join(distDir, "index.browser.html");
 const targetHtml = path.join(distDir, "index.html");
 const previewFrameHtml = path.join(distDir, "preview-frame.html");
-const normalizedBasePath = normalizeBrowserBasePath(process.env.VITE_BASE_PATH);
 
 if (!existsSync(sourceHtml)) {
   throw new Error(`Expected browser entry at ${sourceHtml}, but it was not found.`);
@@ -24,6 +24,10 @@ if (!existsSync(previewFrameHtml)) {
 renameSync(sourceHtml, targetHtml);
 writeFileSync(path.join(distDir, ".nojekyll"), "");
 
+function readUtf8(filePath) {
+  return readFileSync(filePath, "utf8");
+}
+
 async function assertNamedExports(relativePath, expectedExports) {
   const moduleUrl = pathToFileURL(path.join(distDir, relativePath)).href;
   const mod = await import(moduleUrl);
@@ -37,34 +41,12 @@ async function assertNamedExports(relativePath, expectedExports) {
   }
 }
 
-function assertTextIncludes(filePath, expectedText) {
-  const contents = readFileSync(filePath, "utf8");
-
-  if (!contents.includes(expectedText)) {
-    throw new Error(
-      `Expected ${path.basename(filePath)} to include "${expectedText}", but it did not.`,
-    );
-  }
-}
-
-function normalizeBrowserBasePath(basePath) {
-  if (!basePath) {
-    return "/";
-  }
-
-  const trimmed = basePath.trim();
-  const withLeadingSlash = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
-  return withLeadingSlash.endsWith("/")
-    ? withLeadingSlash
-    : `${withLeadingSlash}/`;
-}
-
 function computeInlineScriptHash(contents) {
   return createHash("sha256").update(contents, "utf8").digest("base64");
 }
 
 function extractPreviewImportMapContents(filePath) {
-  const contents = readFileSync(filePath, "utf8");
+  const contents = readUtf8(filePath);
   const match = contents.match(/<script type="importmap">([\s\S]*?)<\/script>/);
 
   if (!match) {
@@ -74,6 +56,68 @@ function extractPreviewImportMapContents(filePath) {
   }
 
   return match[1];
+}
+
+function decodeHtmlAttribute(value) {
+  return value
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&");
+}
+
+function extractAttribute(tag, attributeName) {
+  const match = tag.match(new RegExp(`\\s${attributeName}="([^"]*)"`, "iu"));
+  return match ? decodeHtmlAttribute(match[1]) : null;
+}
+
+function extractContentSecurityPolicy(filePath) {
+  const contents = readUtf8(filePath);
+  const metaTags = contents.match(/<meta\b[^>]*>/giu) ?? [];
+
+  for (const tag of metaTags) {
+    if (extractAttribute(tag, "http-equiv") === "Content-Security-Policy") {
+      const content = extractAttribute(tag, "content");
+      assert.ok(content, `Expected ${path.basename(filePath)} CSP meta to include content.`);
+      return content;
+    }
+  }
+
+  throw new Error(`Expected ${path.basename(filePath)} to include a CSP meta tag.`);
+}
+
+function getCspDirective(csp, name) {
+  const directive = csp
+    .split("; ")
+    .find((candidate) => candidate.startsWith(`${name} `));
+
+  assert.ok(directive, `Expected CSP to include ${name}.`);
+  return directive;
+}
+
+function assertBrowserCsp(filePath, options = {}) {
+  const csp = extractContentSecurityPolicy(filePath);
+  const scriptHashSuffix = options.inlineScriptHash
+    ? ` '${options.inlineScriptHash}'`
+    : "";
+
+  assert.equal(
+    getCspDirective(csp, "script-src"),
+    `script-src 'self' blob: https://esm.sh https://cdn.tailwindcss.com${scriptHashSuffix}`,
+  );
+  assert.equal(getCspDirective(csp, "connect-src"), "connect-src 'self' https: wss:");
+  assert.equal(getCspDirective(csp, "img-src"), "img-src 'self' https: blob: data:");
+}
+
+function assertPreviewImportMap(filePath) {
+  const importMapContents = extractPreviewImportMapContents(filePath);
+  const importMap = JSON.parse(importMapContents);
+  const reactDomClientUrl = importMap.imports?.["react-dom/client"];
+
+  assert.equal(typeof reactDomClientUrl, "string");
+  assert.equal(reactDomClientUrl.startsWith("/"), true);
+  assert.equal(reactDomClientUrl.endsWith("runtime/react-dom-client.js"), true);
+
+  return importMapContents;
 }
 
 await assertNamedExports("runtime/react-jsx-runtime.js", [
@@ -93,20 +137,9 @@ await assertNamedExports("runtime/react-dom-client.js", [
   "createRoot",
   "hydrateRoot",
 ]);
-assertTextIncludes(targetHtml, 'http-equiv="Content-Security-Policy"');
-assertTextIncludes(targetHtml, "script-src &#39;self&#39; blob: https://esm.sh https://cdn.tailwindcss.com");
-assertTextIncludes(targetHtml, "connect-src &#39;self&#39; https: wss:");
-assertTextIncludes(targetHtml, "img-src &#39;self&#39; https: blob: data:");
-assertTextIncludes(previewFrameHtml, 'http-equiv="Content-Security-Policy"');
-assertTextIncludes(previewFrameHtml, "script-src &#39;self&#39; blob: https://esm.sh https://cdn.tailwindcss.com");
-assertTextIncludes(previewFrameHtml, "connect-src &#39;self&#39; https: wss:");
-assertTextIncludes(previewFrameHtml, "img-src &#39;self&#39; https: blob: data:");
-assertTextIncludes(previewFrameHtml, '<script type="importmap">');
-assertTextIncludes(
-  previewFrameHtml,
-  `"react-dom/client": "${normalizedBasePath}runtime/react-dom-client.js"`,
-);
-assertTextIncludes(
-  previewFrameHtml,
-  `sha256-${computeInlineScriptHash(extractPreviewImportMapContents(previewFrameHtml))}`,
-);
+
+const previewImportMapContents = assertPreviewImportMap(previewFrameHtml);
+assertBrowserCsp(targetHtml);
+assertBrowserCsp(previewFrameHtml, {
+  inlineScriptHash: `sha256-${computeInlineScriptHash(previewImportMapContents)}`,
+});
