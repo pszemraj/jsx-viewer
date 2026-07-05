@@ -22,7 +22,14 @@ const nodeGlobals = {
 
 export default [
   {
-    ignores: ["dist/**", "dist-browser/**", "node_modules/**", ".tmp/**"],
+    ignores: [
+      "dist/**",
+      "dist-browser/**",
+      "node_modules/**",
+      ".npm-cache/**",
+      ".tmp/**",
+      ".tmp-*/**",
+    ],
   },
   js.configs.recommended,
   {

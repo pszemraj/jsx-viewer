@@ -463,18 +463,34 @@ export default function App() {
             USEIMPERATIVEHANDLE — FieldHandle API
           </p>
           <Box as="div" sx={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {(
-              [
-                ['Focus email',   () => emailRef.current?.focus()],
-                ['Set email',     () => emailRef.current?.setValue('demo@example.com')],
-                ['Clear email',   () => emailRef.current?.clear()],
-                ['Alert value',   () => alert(`email: "${emailRef.current?.getValue()}"`)],
-              ] as [string, () => void][]
-            ).map(([label, action]) => (
-              <ActionBtn key={label} type="button" variant="ghost" onClick={action}>
-                {label}
-              </ActionBtn>
-            ))}
+            <ActionBtn
+              type="button"
+              variant="ghost"
+              onClick={() => emailRef.current?.focus()}
+            >
+              Focus email
+            </ActionBtn>
+            <ActionBtn
+              type="button"
+              variant="ghost"
+              onClick={() => emailRef.current?.setValue('demo@example.com')}
+            >
+              Set email
+            </ActionBtn>
+            <ActionBtn
+              type="button"
+              variant="ghost"
+              onClick={() => emailRef.current?.clear()}
+            >
+              Clear email
+            </ActionBtn>
+            <ActionBtn
+              type="button"
+              variant="ghost"
+              onClick={() => alert(`email: "${emailRef.current?.getValue()}"`)}
+            >
+              Alert value
+            </ActionBtn>
           </Box>
         </Box>
       </Box>
