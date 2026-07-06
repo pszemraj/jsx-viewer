@@ -92,17 +92,36 @@ Expected:
 - renders normally
 - default-export wrapper is accepted
 
-### 5. Realistic TSX Single-File Artifact
+### 5. Remote Image + Data Request
 
-Suggested artifact:
+Paste or upload:
 
-- `MinuteRice.jsx`
+```jsx
+import { useEffect, useState } from "react";
+
+export default function RemoteNetworkCase() {
+  const [message, setMessage] = useState("loading");
+
+  useEffect(() => {
+    fetch("https://api.github.com/zen")
+      .then((response) => response.text())
+      .then(setMessage)
+      .catch((error) => setMessage(error.message));
+  }, []);
+
+  return (
+    <div style={{ padding: 24, display: "grid", gap: 12 }}>
+      <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub mark" width="48" />
+      <p>{message}</p>
+    </div>
+  );
+}
+```
 
 Expected:
 
-- uploads cleanly
-- renders without the previous `react-jsx-runtime` export error
-- timer behavior works in-page
+- remote image loads
+- `fetch` completes or returns a service error from the remote endpoint, not a CSP violation
 
 ### 6. Package Import + Tailwind Utilities
 

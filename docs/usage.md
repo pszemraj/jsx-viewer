@@ -15,7 +15,7 @@ Use the hosted site when you want the fastest path from a single file to a visib
 - local fast loop: `npm run dev:browser`
 - local deployment-faithful check: `npm run preview:browser`
 
-The browser path supports drag-and-drop, upload, and paste for trusted single-file `.jsx` and `.tsx` artifacts. React stays on same-origin runtime modules, browser-capable bare npm imports resolve through `esm.sh`, and React peer resolution is pinned to the viewer's React 18 runtime so CDN packages share that same React instance. Class-heavy artifacts can also load Tailwind's browser runtime.
+The browser path supports drag-and-drop, upload, and paste for trusted single-file `.jsx` and `.tsx` artifacts. Browser-mode support and rejection rules are listed in [modes and limitations](modes.md), package behavior is covered in [runtime and supported packages](runtime-and-packages.md), and network behavior is covered in [privacy and security](privacy-and-security.md#network-behavior).
 
 Use the local viewer instead when the artifact depends on relative imports, repo-local packages, or a full local Tailwind pipeline.
 

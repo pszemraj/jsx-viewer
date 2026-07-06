@@ -40,6 +40,7 @@ Browser mode is meant to handle real single-file React artifacts well. That incl
 - React peer resolution pinned to the viewer-owned React 18 runtime so CDN packages share that same React instance
 - Tailwind utility classes through the Tailwind browser runtime when the uploaded artifact is class-based
 - standard `import.meta.url` access inside the uploaded module
+- normal browser HTTPS image loads, `fetch`, and WebSocket requests, subject to browser CORS and permission rules
 - rendering inside a dedicated preview frame so clear and swap fully tear down prior module state
 
 ## What Browser Mode Rejects
@@ -59,7 +60,7 @@ If you need those capabilities, use the local viewer instead.
 
 ## Why The Browser Mode Is Narrower
 
-The browser mode is still meant to stay predictable. It now reaches farther by resolving bare npm imports through `esm.sh`, while pinning React peers to the viewer runtime and loading Tailwind's browser runtime for class-heavy artifacts, but it is still not a local project bundler.
+The browser mode stays predictable by resolving bare npm imports through `esm.sh`, pinning React peers to the viewer runtime, and loading Tailwind's browser runtime for class-heavy artifacts without becoming a local project bundler.
 
 Reasonable future expansion would be:
 

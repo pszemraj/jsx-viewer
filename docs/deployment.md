@@ -29,13 +29,13 @@ The Pages workflow does the following:
 
 Using the configured base path avoids hardcoding the repository name and keeps the deployment compatible with nested repo paths and a future custom domain.
 
-## Design Notes
+## Runtime Shape
 
 The Pages mode runs the uploaded artifact inside a dedicated preview frame. It:
 
 1. accepts pasted, uploaded, or dropped `.jsx` and `.tsx`
 2. transpiles the artifact in the browser
-3. keeps React on repo-owned same-origin runtime modules, rewrites other bare package imports to `esm.sh`, and pins React peer resolution to the viewer runtime
+3. applies the browser-mode runtime and package rules from [runtime and supported packages](runtime-and-packages.md#browser-mode-package-resolution)
 4. imports the compiled result from a `blob:` URL
 5. renders the component inside an isolated preview document on the same origin
 

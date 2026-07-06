@@ -56,20 +56,8 @@ icon packages or charting helpers without asking the user to run a local dev
 server first. If the artifact imports `package@version`, that version is
 preserved; otherwise `esm.sh` resolves the current package build. Packages still
 need to execute in a plain browser and tolerate the viewer-owned React runtime.
-
-Repo-shipped browser validation fixtures now span the three main hosted-mode
-paths:
-
-- `example/PolyField.tsx` for React-only advanced TSX patterns
-- `example/DataTable.jsx` for compound JSX patterns without external packages
-- `example/Dashboard.tsx` for npm package resolution plus Tailwind utilities
-
-It still does not resolve:
-
-- relative or absolute local imports
-- URL-scheme imports authored inside the artifact such as `http:`, `https:`, `file:`, `node:`, or `npm:`
-- package stylesheet imports such as `react-datepicker/dist/react-datepicker.css`
-- browser-incompatible packages that depend on Node-only globals or APIs
+Unsupported import forms and Node-only globals are listed in [modes and
+limitations](modes.md).
 
 ## Tailwind
 
@@ -87,4 +75,5 @@ pipeline rather than the browser runtime defaults.
 
 - [Modes and limitations](modes.md)
 - [Usage guide](usage.md)
+- [Browser mode smoke matrix](browser-mode-smoke-matrix.md)
 - [Development and maintenance](development.md)
