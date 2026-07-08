@@ -21,6 +21,8 @@ import {
 import { BROWSER_RUNTIME_DISPLAY_SPECIFIERS } from "./runtimeManifest";
 import { transpileArtifact } from "./transpiler";
 
+const REPOSITORY_URL = "https://github.com/pszemraj/jsx-viewer";
+
 interface BrowserArtifactState {
   artifact: BrowserPreviewArtifact | null;
   error: Error | null;
@@ -393,9 +395,27 @@ function Toolbar({ filename, onClear, onSwap }: ToolbarProps) {
         flexShrink: 0,
       }}
     >
-      <span style={{ color: "#555", fontWeight: 600, letterSpacing: "0.05em" }}>
+      <a
+        href={REPOSITORY_URL}
+        target="_blank"
+        rel="noreferrer"
+        aria-label="Open jsx-viewer repository on GitHub"
+        title="Open jsx-viewer repository on GitHub"
+        style={{
+          color: "#555",
+          fontWeight: 600,
+          letterSpacing: "0.05em",
+          textDecoration: "none",
+        }}
+        onMouseEnter={(event: MouseEvent<HTMLAnchorElement>) => {
+          event.currentTarget.style.color = "#ededed";
+        }}
+        onMouseLeave={(event: MouseEvent<HTMLAnchorElement>) => {
+          event.currentTarget.style.color = "#555";
+        }}
+      >
         JSX VIEWER
-      </span>
+      </a>
       <span style={{ color: "#333" }}>|</span>
       <span
         style={{
