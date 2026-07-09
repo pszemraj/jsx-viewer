@@ -1,46 +1,44 @@
 # jsx-viewer
 
-Render `.jsx` and `.tsx` files as easily as `.html`. One command, one file, rendered.
+Preview standalone React `.jsx` and `.tsx` files without scaffolding a temporary app.
 
 ![JSX Viewer Preview](assets/ui.png)
 
-You get a `.tsx` or `.jsx` artifact from Claude, ChatGPT, or wherever. To actually *see* it, you'd normally scaffold a React app, install deps, wire up imports, run a dev server. That's 5 minutes of ceremony for 2 seconds of viewing. `jsx-viewer` skips all of it.
+`jsx-viewer` is for AI-generated UI artifacts, quick prototypes, and component examples that need to be rendered before they are copied into a project. Use the hosted viewer for trusted single-file artifacts, or run the local viewer for watched files, local dependencies, relative imports, and Tailwind compilation.
 
-## Hosted Site (no install)
+## Hosted viewer
 
-Go to **[pszemraj.github.io/jsx-viewer](https://pszemraj.github.io/jsx-viewer/)** and use it, web-app style.
+Open [pszemraj.github.io/jsx-viewer](https://pszemraj.github.io/jsx-viewer/) and paste, upload, or drag and drop a trusted `.jsx` or `.tsx` file.
 
-Paste, upload, or drag-and-drop a single `.jsx`/`.tsx` file. Transpilation and rendering happen entirely client-side - nothing is sent to a backend, no analytics, no telemetry.
+The hosted viewer transpiles and renders in the browser. Source files are not uploaded to a backend, and the app has no analytics or telemetry. Browser mode is intentionally narrower than the local viewer; see [modes and limitations](docs/modes.md), [runtime and supported packages](docs/runtime-and-packages.md), and [privacy and security](docs/privacy-and-security.md).
 
-> [!NOTE]
-> The hosted site is for trusted single-file artifacts. See [Modes and limitations](docs/modes.md), [Runtime and supported packages](docs/runtime-and-packages.md), and [Privacy and security](docs/privacy-and-security.md) for the supported surface, package behavior, and network model.
+## Local viewer
 
-## Local Viewer
-
-For the full development workflow: multi-file imports, live file watching, local package resolution, and Tailwind compilation.
-
-Requires **Node 20.19.0+ or 22.12.0+**.
+Requires Node.js `^20.19.0` or `>=22.12.0` and npm.
 
 ```bash
 git clone https://github.com/pszemraj/jsx-viewer.git
 cd jsx-viewer
 npm install
 
-npm start        # empty drop/upload/paste UI
-# npm run demo   # preloads the example dashboard
+npm start
 ```
 
-The viewer opens in your browser (*with instructions*). You're done.
-
-Start with a file already loaded:
+Start with a file:
 
 ```bash
 node bin/jsx-viewer.mjs path/to/Component.tsx
 ```
 
+Run the example dashboard:
+
+```bash
+npm run demo
+```
+
 See the [usage guide](docs/usage.md) for input methods, CLI options, component requirements, and example artifacts.
 
-## Docs
+## Documentation
 
 - [Usage guide](docs/usage.md)
 - [Modes and limitations](docs/modes.md)
