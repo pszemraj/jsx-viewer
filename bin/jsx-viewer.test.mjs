@@ -15,10 +15,12 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
-import browserViteConfig, {
+import {
   buildBrowserContentSecurityPolicy,
-  buildPreviewImportMapScriptContents,
   computeInlineScriptHash,
+} from "../shared/browser-csp.mjs";
+import browserViteConfig, {
+  buildPreviewImportMapScriptContents,
 } from "../vite.config.browser.ts";
 import { BROWSER_RUNTIME_ENTRIES } from "../src/browser/runtimeManifest.ts";
 import {

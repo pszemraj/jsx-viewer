@@ -1,10 +1,13 @@
 import type { Connect, Plugin, ViteDevServer } from "vite";
 import { defineConfig } from "vite";
 import type { ServerResponse } from "node:http";
-import { createHash } from "node:crypto";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  buildBrowserContentSecurityPolicy,
+  computeInlineScriptHash,
+} from "./shared/browser-csp.mjs";
 import { normalizeBrowserBasePath } from "./src/browser/basePath";
 import { rewriteBrowserDevRootRequest } from "./src/browser/devEntryUrl";
 import {
@@ -21,48 +24,6 @@ const runtimeInputs = Object.values(BROWSER_RUNTIME_ENTRIES).reduce<
   inputs[entry.entryName] = path.resolve(__dirname, entry.devPath.slice(1));
   return inputs;
 }, {});
-
-export function computeInlineScriptHash(contents: string) {
-  return `sha256-${createHash("sha256").update(contents, "utf8").digest("base64")}`;
-}
-
-export function buildBrowserContentSecurityPolicy(options?: {
-  inlineScriptHashes?: readonly string[];
-}) {
-  const inlineScriptHashes = options?.inlineScriptHashes ?? [];
-  const scriptSrc = [
-    "'self'",
-    "blob:",
-    "https://esm.sh",
-    "https://cdn.tailwindcss.com",
-    ...inlineScriptHashes.map((hash) => `'${hash}'`),
-  ];
-  // Hosted mode is a trusted-artifact browser path, so preserve ordinary
-  // non-script HTTPS resources while constraining executable script origins.
-  const connectSrc = ["'self'", "https:", "wss:"];
-  const fontSrc = ["'self'", "https:", "blob:", "data:"];
-  const frameSrc = ["'self'", "https:"];
-  const imgSrc = ["'self'", "https:", "blob:", "data:"];
-  const mediaSrc = ["'self'", "https:", "blob:", "data:"];
-  const styleSrc = ["'self'", "'unsafe-inline'", "https:", "blob:"];
-  const workerSrc = ["'self'", "blob:"];
-
-  return [
-    "default-src 'self'",
-    `script-src ${scriptSrc.join(" ")}`,
-    `connect-src ${connectSrc.join(" ")}`,
-    `img-src ${imgSrc.join(" ")}`,
-    `style-src ${styleSrc.join(" ")}`,
-    `font-src ${fontSrc.join(" ")}`,
-    `media-src ${mediaSrc.join(" ")}`,
-    `frame-src ${frameSrc.join(" ")}`,
-    `worker-src ${workerSrc.join(" ")}`,
-    "object-src 'none'",
-    "base-uri 'none'",
-    "form-action 'none'",
-    "upgrade-insecure-requests",
-  ].join("; ");
-}
 
 export function buildPreviewImportMapScriptContents(
   basePath: string | undefined,

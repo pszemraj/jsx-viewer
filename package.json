@@ -21,6 +21,8 @@
     "index.browser.html",
     "index.html",
     "preview-frame.html",
+    "shared/browser-csp.d.mts",
+    "shared/browser-csp.mjs",
     "shared/protocol.d.mts",
     "shared/protocol.mjs",
     "shared/runtime-config.json",
