@@ -1,5 +1,5 @@
 import {
-  BROWSER_ARTIFACT_RUNTIME_SPECIFIERS,
+  BROWSER_RUNTIME_SPECIFIERS,
 } from "./runtimeManifest";
 import { resolveCurrentRuntimeModuleUrl } from "./browserRuntimeContext";
 import { resolveRemotePackageUrl } from "./remotePackageUrl";
@@ -168,9 +168,9 @@ interface ResolvedNodeTarget {
 }
 
 const BROWSER_ARTIFACT_RUNTIME_IMPORT_SET = new Set<string>(
-  BROWSER_ARTIFACT_RUNTIME_SPECIFIERS,
+  BROWSER_RUNTIME_SPECIFIERS,
 );
-const SUPPORTED_IMPORTS = BROWSER_ARTIFACT_RUNTIME_SPECIFIERS.join(", ");
+const SUPPORTED_IMPORTS = BROWSER_RUNTIME_SPECIFIERS.join(", ");
 const GLOBAL_OBJECT_ALIASES = new Set(["globalThis", "window", "self"]);
 const UNSUPPORTED_PACKAGE_STYLESHEET_EXTENSIONS = new Set([
   ".css",

@@ -1,13 +1,7 @@
+import { BROWSER_RUNTIME_SPECIFIERS } from "./runtimeManifest";
+
 const REMOTE_PACKAGE_CDN_ORIGIN = "https://esm.sh";
 const REMOTE_PACKAGE_TARGET = "es2022";
-
-export const BROWSER_REMOTE_EXTERNAL_SPECIFIERS = [
-  "react",
-  "react-dom",
-  "react-dom/client",
-  "react/jsx-runtime",
-  "react/jsx-dev-runtime",
-] as const;
 
 export const BROWSER_REMOTE_PEER_DEPENDENCY_VERSIONS = {
   react: "18.3.1",
@@ -26,7 +20,7 @@ export function resolveRemotePackageUrl(specifier: string) {
   packageUrl.searchParams.set("deps", REMOTE_PEER_DEPENDENCIES_QUERY);
   packageUrl.searchParams.set(
     "external",
-    BROWSER_REMOTE_EXTERNAL_SPECIFIERS.join(","),
+    BROWSER_RUNTIME_SPECIFIERS.join(","),
   );
   return packageUrl.toString();
 }

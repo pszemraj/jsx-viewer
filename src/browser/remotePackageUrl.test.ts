@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { BROWSER_RUNTIME_SPECIFIERS } from "./runtimeManifest";
 import {
-  BROWSER_REMOTE_EXTERNAL_SPECIFIERS,
   BROWSER_REMOTE_PEER_DEPENDENCY_VERSIONS,
   resolveRemotePackageUrl,
 } from "./remotePackageUrl";
@@ -36,7 +36,7 @@ test("resolveRemotePackageUrl keeps arbitrary package imports open", () => {
   assert.equal(packageUrl.searchParams.get("deps"), expectedDepsQuery);
   assert.equal(
     packageUrl.searchParams.get("external"),
-    BROWSER_REMOTE_EXTERNAL_SPECIFIERS.join(","),
+    BROWSER_RUNTIME_SPECIFIERS.join(","),
   );
 });
 

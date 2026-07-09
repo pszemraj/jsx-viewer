@@ -3,6 +3,16 @@ export interface BrowserRuntimeEntry {
   readonly devPath: `/${string}`;
 }
 
+export const BROWSER_RUNTIME_SPECIFIERS = [
+  "react",
+  "react-dom",
+  "react-dom/client",
+  "react/jsx-runtime",
+  "react/jsx-dev-runtime",
+] as const;
+
+export type BrowserRuntimeSpecifier = typeof BROWSER_RUNTIME_SPECIFIERS[number];
+
 export const BROWSER_RUNTIME_ENTRIES = {
   react: {
     entryName: "runtime/react",
@@ -24,25 +34,22 @@ export const BROWSER_RUNTIME_ENTRIES = {
     entryName: "runtime/react-jsx-dev-runtime",
     devPath: "/src/browser/runtime/react-jsx-dev-runtime.ts",
   },
-} as const satisfies Record<string, BrowserRuntimeEntry>;
+} as const satisfies Record<BrowserRuntimeSpecifier, BrowserRuntimeEntry>;
 
-export type BrowserRuntimeSpecifier = keyof typeof BROWSER_RUNTIME_ENTRIES;
+export function isBrowserRuntimeSpecifier(
+  specifier: string,
+): specifier is BrowserRuntimeSpecifier {
+  return specifier in BROWSER_RUNTIME_ENTRIES;
+}
 
-export const BROWSER_ARTIFACT_RUNTIME_SPECIFIERS = [
-  "react",
-  "react-dom",
-  "react-dom/client",
-  "react/jsx-runtime",
-  "react/jsx-dev-runtime",
-] as const satisfies readonly BrowserRuntimeSpecifier[];
+export function getBrowserRuntimeModulePath(
+  specifier: BrowserRuntimeSpecifier,
+  dev = false,
+) {
+  const entry = BROWSER_RUNTIME_ENTRIES[specifier];
 
-export const BROWSER_RUNTIME_IMPORT_MAP_SPECIFIERS = [
-  "react",
-  "react-dom",
-  "react-dom/client",
-  "react/jsx-runtime",
-  "react/jsx-dev-runtime",
-] as const satisfies readonly BrowserRuntimeSpecifier[];
+  return dev ? entry.devPath.slice(1) : `${entry.entryName}.js`;
+}
 
 export const BROWSER_RUNTIME_DISPLAY_SPECIFIERS = [
   "react",

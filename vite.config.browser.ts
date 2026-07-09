@@ -7,7 +7,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalizeBrowserBasePath } from "./src/browser/basePath";
 import { rewriteBrowserDevRootRequest } from "./src/browser/devEntryUrl";
-import { BROWSER_RUNTIME_ENTRIES } from "./src/browser/runtimeManifest";
+import {
+  BROWSER_RUNTIME_ENTRIES,
+  BROWSER_RUNTIME_SPECIFIERS,
+} from "./src/browser/runtimeManifest";
 import { buildBrowserRuntimeImportMap } from "./src/browser/runtimeImportMap";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -181,13 +184,6 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: [
-      "react",
-      "react-dom",
-      "react-dom/client",
-      "react/jsx-runtime",
-      "react/jsx-dev-runtime",
-      "@babel/standalone",
-    ],
+    include: [...BROWSER_RUNTIME_SPECIFIERS, "@babel/standalone"],
   },
 });
