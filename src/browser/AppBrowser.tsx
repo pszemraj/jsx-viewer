@@ -28,7 +28,6 @@ interface BrowserArtifactState {
   error: Error | null;
   isLoading: boolean;
   status: string | null;
-  version: number;
 }
 
 interface DropZoneProps {
@@ -514,7 +513,6 @@ export default function AppBrowser() {
     error: null,
     isLoading: false,
     status: null,
-    version: 0,
   });
 
   const bumpPreviewVersion = useCallback(() => {
@@ -526,20 +524,19 @@ export default function AppBrowser() {
     loadTrackerRef.current.begin();
     setFilename(null);
     setRuntimeError(null);
-    const nextVersion = bumpPreviewVersion();
+    bumpPreviewVersion();
     setState({
       artifact: null,
       error: null,
       isLoading: false,
       status: null,
-      version: nextVersion,
     });
   }, [bumpPreviewVersion]);
 
   const loadArtifact = useCallback(
     async (content: string, name: string) => {
       const loadToken = loadTrackerRef.current.begin();
-      const loadingVersion = bumpPreviewVersion();
+      bumpPreviewVersion();
       setFilename(name);
       setRuntimeError(null);
       setState({
@@ -547,7 +544,6 @@ export default function AppBrowser() {
         error: null,
         isLoading: true,
         status: "Compiling artifact in the browser",
-        version: loadingVersion,
       });
 
       try {
@@ -568,7 +564,6 @@ export default function AppBrowser() {
           error: null,
           isLoading: true,
           status: "Booting preview frame",
-          version: artifactVersion,
         });
       } catch (error) {
         if (!loadTrackerRef.current.isCurrent(loadToken)) {
@@ -580,8 +575,8 @@ export default function AppBrowser() {
           error: toError(error),
           isLoading: false,
           status: null,
-          version: bumpPreviewVersion(),
         });
+        bumpPreviewVersion();
       }
     },
     [bumpPreviewVersion],
@@ -642,21 +637,20 @@ export default function AppBrowser() {
                 onLoadError={(version, error) => {
                   setRuntimeError(null);
                   setState((current) =>
-                    current.version !== version
+                    current.artifact?.version !== version
                       ? current
                       : {
                           artifact: null,
                           error,
                           isLoading: false,
                           status: null,
-                          version: current.version,
                         },
                   );
                 }}
                 onReady={(version) => {
                   setRuntimeError(null);
                   setState((current) =>
-                    current.version !== version
+                    current.artifact?.version !== version
                       ? current
                       : {
                           ...current,

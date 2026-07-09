@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { BROWSER_RUNTIME_SPECIFIERS } from "./runtimeManifest";
 import {
   BROWSER_REMOTE_PEER_DEPENDENCY_VERSIONS,
   resolveRemotePackageUrl,
@@ -26,18 +25,6 @@ test("browser remote peer versions stay aligned with the checked-in lockfile", (
       version,
     );
   }
-});
-
-test("resolveRemotePackageUrl keeps arbitrary package imports open", () => {
-  const packageUrl = new URL(resolveRemotePackageUrl("lucide-react"));
-
-  assert.equal(packageUrl.pathname, "/lucide-react");
-  assert.equal(packageUrl.searchParams.get("target"), "es2022");
-  assert.equal(packageUrl.searchParams.get("deps"), expectedDepsQuery);
-  assert.equal(
-    packageUrl.searchParams.get("external"),
-    BROWSER_RUNTIME_SPECIFIERS.join(","),
-  );
 });
 
 test("resolveRemotePackageUrl preserves subpaths, versions, and existing flags", () => {

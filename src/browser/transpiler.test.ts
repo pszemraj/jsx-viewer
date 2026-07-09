@@ -220,6 +220,19 @@ allowExampleTest(
   },
 );
 
+test("transpileArtifact enables Tailwind runtime for object-style className props", async () => {
+  const { features } = await transpileArtifact(
+    `
+      export default function Example() {
+        return React.createElement("div", { className: "grid gap-4" }, "hi");
+      }
+    `,
+    "ObjectClassName.tsx",
+  );
+
+  assert.equal(features.enableTailwindRuntime, true);
+});
+
 rejectionTest(
   "transpileArtifact rejects actual import.meta.env access",
   "BadEnv.tsx",
