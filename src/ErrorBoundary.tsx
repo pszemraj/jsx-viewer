@@ -6,7 +6,6 @@ import {
 } from "react";
 
 interface ErrorBoundaryProps extends PropsWithChildren {
-  resetKey: number;
 }
 
 interface ErrorBoundaryState {
@@ -29,12 +28,6 @@ export class ErrorBoundary extends Component<
 
   override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.setState({ error, errorInfo });
-  }
-
-  override componentDidUpdate(prevProps: Readonly<ErrorBoundaryProps>) {
-    if (prevProps.resetKey !== this.props.resetKey) {
-      this.setState({ error: null, errorInfo: null });
-    }
   }
 
   override render(): ReactNode {

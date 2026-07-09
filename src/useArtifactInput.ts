@@ -13,7 +13,7 @@ type OnArtifactContent = (content: string, name: string) => void;
 export function useArtifactFilePicker(onContent: OnArtifactContent) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const handleFile = useCallback(
+  const handleArtifactFile = useCallback(
     async (file: File) => {
       const artifact = await readArtifactFile(file);
       onContent(artifact.content, artifact.name);
@@ -25,20 +25,21 @@ export function useArtifactFilePicker(onContent: OnArtifactContent) {
     (event: ChangeEvent<HTMLInputElement>) => {
       const file = getFirstFile(event.target.files);
       if (file) {
-        void handleFile(file);
+        void handleArtifactFile(file);
       }
       event.target.value = "";
     },
-    [handleFile],
+    [handleArtifactFile],
   );
 
-  return { fileInputRef, handleFileSelect };
+  return { fileInputRef, handleArtifactFile, handleFileSelect };
 }
 
 export function useArtifactDropZone(onContent: OnArtifactContent) {
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const { fileInputRef, handleFileSelect } = useArtifactFilePicker(onContent);
+  const { fileInputRef, handleArtifactFile, handleFileSelect } =
+    useArtifactFilePicker(onContent);
 
   const handleDrop = useCallback(
     async (event: DragEvent<HTMLDivElement>) => {
@@ -50,10 +51,9 @@ export function useArtifactDropZone(onContent: OnArtifactContent) {
         return;
       }
 
-      const artifact = await readArtifactFile(file);
-      onContent(artifact.content, artifact.name);
+      await handleArtifactFile(file);
     },
-    [onContent],
+    [handleArtifactFile],
   );
 
   const handleDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
