@@ -1,6 +1,6 @@
 # Usage Guide
 
-`jsx-viewer` supports two main workflows:
+`jsx-viewer` has two workflows:
 
 - local viewer: run the Vite/WebSocket app on your machine
 - website/browser mode: use the hosted Pages app for single-file artifacts
@@ -9,13 +9,13 @@ See [modes and limitations](modes.md) for the full comparison.
 
 ## Website / Browser Mode
 
-Use the hosted site when you want the fastest path from a single file to a visible preview:
+Use the hosted site for trusted single-file artifacts:
 
 - public site: [pszemraj.github.io/jsx-viewer](https://pszemraj.github.io/jsx-viewer/)
 - local fast loop: `npm run dev:browser`
 - local deployment-faithful check: `npm run preview:browser`
 
-The browser path supports drag-and-drop, upload, and paste for trusted single-file `.jsx` and `.tsx` artifacts. Browser-mode support and rejection rules are listed in [modes and limitations](modes.md), package behavior is covered in [runtime and supported packages](runtime-and-packages.md), and network behavior is covered in [privacy and security](privacy-and-security.md#network-behavior).
+The browser path supports drag-and-drop, upload, and paste. Browser-mode support and rejection rules are listed in [modes and limitations](modes.md).
 
 Use the local viewer instead when the artifact depends on relative imports, repo-local packages, or a full local Tailwind pipeline.
 
@@ -45,7 +45,7 @@ Then load an artifact by:
 
 When a file is already loaded, use `swap file` to replace it or `clear` to return to the empty state.
 
-Repo-shipped example artifacts:
+Example artifacts:
 
 - `example/PolyField.tsx` exercises advanced TSX typing, `forwardRef`, context, and imperative handles
 - `example/DataTable.jsx` exercises compound components, render props, context, and `Suspense`
@@ -57,7 +57,7 @@ Quickest preload:
 npm run demo
 ```
 
-## CLI Options
+## CLI options
 
 ```bash
 node bin/jsx-viewer.mjs [options] [file.jsx|file.tsx]
@@ -72,7 +72,7 @@ Pass zero or one `.jsx` or `.tsx` file. Unknown flags, duplicate `--port` argume
 
 The viewer auto-opens in the browser unless `CI` is already set.
 
-## Component Requirements
+## Component requirements
 
 Your artifact needs a default export that is renderable as a React component:
 

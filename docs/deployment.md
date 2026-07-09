@@ -31,16 +31,12 @@ Using the configured base path avoids hardcoding the repository name and keeps t
 
 ## Runtime Shape
 
-The Pages mode runs the uploaded artifact inside a dedicated preview frame. It:
+The deployed site uses the browser mode described in [modes and limitations](modes.md). Deployment adds two static HTML entries:
 
-1. accepts pasted, uploaded, or dropped `.jsx` and `.tsx`
-2. transpiles the artifact in the browser
-3. applies the browser-mode runtime and package rules from [runtime and supported packages](runtime-and-packages.md#browser-mode-package-resolution)
-4. imports the compiled result from a `blob:` URL
-5. renders the component inside an isolated preview document on the same origin
+- `index.html`, renamed from the built `index.browser.html`
+- `preview-frame.html`, the same-origin preview document used for loaded artifacts
 
-That keeps clear and swap from leaking module-scope timers or listeners across previews, but browser mode is still a trusted-artifact path rather than a security sandbox.
-The preview document is emitted as `preview-frame.html` and uses a CSP-hashed inline import map plus external bootstrap code, which keeps executable script origins constrained while still allowing ordinary HTTPS resources from trusted artifacts.
+The browser CSP is generated from `shared/browser-csp.mjs`. The finalizer checks the built runtime exports, preview import map, and generated CSP before the artifact is served or uploaded.
 
 ## Validation
 
@@ -53,7 +49,7 @@ Useful checks for this path:
 - `npm run build:browser`
 - manual verification against the [browser mode smoke matrix](browser-mode-smoke-matrix.md)
 
-Use `npm run dev:browser` for fast iteration on browser-mode code. Use `npm run preview:browser` when you need the deployment-faithful entry URL, finalized `index.html`, and production CSP.
+Use `npm run dev:browser` for fast iteration on browser-mode code. Use `npm run preview:browser` when you need the deployment-faithful entry URL, finalized `index.html`, preview document, and production CSP.
 
 ## Related Docs
 

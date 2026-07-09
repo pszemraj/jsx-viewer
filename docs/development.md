@@ -1,4 +1,4 @@
-# Development And Maintenance
+# Development and Maintenance
 
 ## Common Commands
 
@@ -43,14 +43,15 @@ JSX_VIEWER_ENABLE_GIT_HOOKS=1 npm install
 
 - `component/View.tsx` should remain the tracked placeholder, not a loaded artifact
 - `dist/` and `dist-browser/` are build outputs and should stay uncommitted
+- `npm run typecheck` covers TypeScript plus checked JavaScript under `bin/` and `shared/`, including the browser build finalizer
 - Pages deployment behavior is documented in [deployment.md](deployment.md)
 
 ## Browser Mode Validation Paths
 
-- `npm run dev:browser` is the fast inner loop for transpiler/runtime work. It intentionally serves the source `index.browser.html` without the deployed CSP so Vite can inject its dev client.
-- `npm run preview:browser` is the deployment-faithful local check. It builds `dist-browser/`, finalizes `index.html`, preserves the Pages CSP, and serves the result through `vite preview`.
-- Browser-mode validation can include CDN-backed npm packages, Tailwind utility classes, remote images, and artifact-authored data requests. Network behavior is covered in [privacy and security](privacy-and-security.md#network-behavior).
-- When validating non-root Pages paths locally, pass the same `VITE_BASE_PATH` you expect in deployment and open that prefixed route in preview mode.
+- Use `npm run dev:browser` for fast transpiler/runtime iteration. It serves source HTML without the deployed CSP so Vite can inject its dev client.
+- Use `npm run preview:browser` for deployment-faithful checks. It runs the finalized Pages artifact described in [deployment](deployment.md).
+- Validate package imports, Tailwind, remote images, and data requests with the [browser mode smoke matrix](browser-mode-smoke-matrix.md).
+- For non-root Pages paths, pass the deployed `VITE_BASE_PATH` and open that prefixed route in preview mode.
 
 ## Related Docs
 

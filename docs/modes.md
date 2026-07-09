@@ -1,4 +1,4 @@
-# Modes And Limitations
+# Modes and Limitations
 
 `jsx-viewer` ships two distinct paths:
 
@@ -17,8 +17,8 @@ The website path uses a dedicated same-origin preview frame. It is a trusted-art
 | Fragments / multi-child JSX | Yes | Yes |
 | `React.memo`, `forwardRef`, `lazy` default exports | Yes | Yes |
 | Drag and drop, upload, paste | Yes | Yes |
-| Standard React imports (`react`, `react-dom`) | Yes | Yes |
-| CDN-backed npm package imports | Yes | Yes |
+| Standard React imports (`react`, `react-dom`) | Local packages | Same-origin runtime modules |
+| npm package imports | Local `node_modules` | CDN-backed ESM |
 | Multi-file relative imports | Yes | No |
 | Arbitrary local npm package resolution | Yes | No |
 | Tailwind utility classes in uploaded artifact | Yes | Yes |
@@ -35,12 +35,10 @@ Browser mode is meant to handle real single-file React artifacts well. That incl
 - hooks and normal event handlers
 - fragments and multi-child JSX
 - wrapped default exports such as `memo`, `forwardRef`, and `lazy`
-- React runtime imports resolved through repo-shipped same-origin runtime modules
-- bare npm package imports rewritten to CDN-backed ESM modules that can run in a plain browser
-- React peer resolution pinned to the viewer-owned React 18 runtime so CDN packages share that same React instance
-- Tailwind utility classes through the Tailwind browser runtime when the uploaded artifact is class-based
+- React and npm package imports described in [runtime and supported packages](runtime-and-packages.md#browser-mode-package-resolution)
+- Tailwind utility classes described in [runtime and supported packages](runtime-and-packages.md#tailwind)
 - standard `import.meta.url` access inside the uploaded module
-- normal browser HTTPS image, style, font, media, frame, `fetch`, and WebSocket requests, subject to browser CORS and permission rules
+- browser network requests described in [privacy and security](privacy-and-security.md#network-behavior)
 - rendering inside a dedicated preview frame so clear and swap fully tear down prior module state
 
 ## What Browser Mode Rejects
@@ -60,7 +58,7 @@ If you need those capabilities, use the local viewer instead.
 
 ## Why The Browser Mode Is Narrower
 
-The browser mode stays predictable by resolving bare npm imports through `esm.sh`, pinning React peers to the viewer runtime, and loading Tailwind's browser runtime for class-heavy artifacts without becoming a local project bundler.
+Browser mode stays predictable by handling a single uploaded module instead of becoming a local project bundler.
 
 Reasonable future expansion would be:
 

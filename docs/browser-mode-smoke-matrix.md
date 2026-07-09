@@ -6,7 +6,7 @@ Use these snippets directly in the deployed Pages/browser mode at:
 
 For a local run that matches the finalized Pages artifact more closely, use `npm run preview:browser` instead of `npm run dev:browser`.
 
-Goal: verify that browser mode handles real single-file React artifacts, package-backed files, and utility-class-heavy uploads, not just trivial `.jsx`.
+These cases exercise single-file React artifacts, package-backed files, utility-class-heavy uploads, remote resources, and expected rejections.
 
 ## Expected Pass Cases
 
@@ -208,7 +208,7 @@ Expected:
 
 ## Notes
 
-- Browser mode is for **trusted single-file artifacts**.
-- Browser mode may fetch `esm.sh` and `cdn.tailwindcss.com` when the uploaded artifact needs npm package resolution or Tailwind utility styling.
+- Browser-mode rules are listed in [modes and limitations](modes.md).
+- Network behavior is listed in [privacy and security](privacy-and-security.md#network-behavior).
 - If the deployed site behaves strangely after a fix, do a hard refresh or use a fresh/private window so stable runtime URLs are not served from stale browser cache.
 - If a pass case fails, capture the exact error panel text or a screenshot and compare it against the deployed runtime files under `<basePath>/runtime/*.js`.

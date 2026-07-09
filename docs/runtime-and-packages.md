@@ -1,6 +1,6 @@
-# Runtime And Supported Packages
+# Runtime and Supported Packages
 
-## How The Local Viewer Works
+## How the Local Viewer Works
 
 The local viewer uses a Vite dev server plus a WebSocket bridge:
 
@@ -12,7 +12,7 @@ The local viewer uses a Vite dev server plus a WebSocket bridge:
 
 `component/View.tsx` remains a tracked placeholder file for the repo and package. `npm run slot:reset` restores that placeholder and clears inactive runtime slots and stale temp cache entries for the current workspace.
 
-## Built-In Packages
+## Built-in Packages
 
 These packages are available in the local viewer with no extra install step:
 
@@ -36,9 +36,7 @@ If your local artifact imports something else, install it in the repo and restar
 
 The hosted Pages mode keeps React on same-origin runtime modules so uploaded
 artifacts share the viewer's React instance. The preview frame carries an import
-map for the React runtime specifiers, and the browser transpiler rewrites bare
-imports beyond the React runtime specifiers to `https://esm.sh/` so those
-modules can load in the browser without a local bundler.
+map for these runtime specifiers:
 
 - `react`
 - `react-dom`
@@ -46,10 +44,10 @@ modules can load in the browser without a local bundler.
 - `react/jsx-runtime`
 - `react/jsx-dev-runtime`
 
-Those CDN URLs also force `react` and `react-dom` peer resolution to the exact
-React 18 runtime versions shipped by this viewer. That avoids hosted-mode drift
-where a package CDN build pulls a different React family than the same-origin
-preview frame is using.
+The browser transpiler rewrites other bare imports to `https://esm.sh/`. Those
+CDN URLs force `react` and `react-dom` peer resolution to the React 18 versions
+shipped by this viewer, so package builds share the same React instance as the
+preview frame.
 
 Browser mode can therefore handle many npm-backed single-file artifacts such as
 icon packages or charting helpers without asking the user to run a local dev
@@ -63,7 +61,7 @@ limitations](modes.md).
 
 The local viewer compiles Tailwind CSS v3 locally through PostCSS, so arbitrary utility classes in loaded artifacts work there without a CDN.
 
-The hosted Pages mode now detects class-based artifacts and loads Tailwind's
+The hosted Pages mode detects class-based artifacts and loads Tailwind's
 browser runtime from `https://cdn.tailwindcss.com/` before rendering. That lets
 normal utility-class-heavy single-file artifacts render in the hosted site.
 

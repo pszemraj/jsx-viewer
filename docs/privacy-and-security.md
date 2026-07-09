@@ -1,6 +1,6 @@
-# Privacy And Security
+# Privacy and Security
 
-## Analytics And Telemetry
+## Analytics and Telemetry
 
 The app ships with no analytics, telemetry, or third-party trackers.
 
