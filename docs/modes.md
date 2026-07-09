@@ -40,7 +40,7 @@ Browser mode is meant to handle real single-file React artifacts well. That incl
 - React peer resolution pinned to the viewer-owned React 18 runtime so CDN packages share that same React instance
 - Tailwind utility classes through the Tailwind browser runtime when the uploaded artifact is class-based
 - standard `import.meta.url` access inside the uploaded module
-- normal browser HTTPS image loads, `fetch`, and WebSocket requests, subject to browser CORS and permission rules
+- normal browser HTTPS image, style, font, media, frame, `fetch`, and WebSocket requests, subject to browser CORS and permission rules
 - rendering inside a dedicated preview frame so clear and swap fully tear down prior module state
 
 ## What Browser Mode Rejects

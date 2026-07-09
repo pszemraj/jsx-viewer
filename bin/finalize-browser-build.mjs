@@ -106,6 +106,20 @@ function assertBrowserCsp(filePath, options = {}) {
   );
   assert.equal(getCspDirective(csp, "connect-src"), "connect-src 'self' https: wss:");
   assert.equal(getCspDirective(csp, "img-src"), "img-src 'self' https: blob: data:");
+  assert.equal(
+    getCspDirective(csp, "style-src"),
+    "style-src 'self' 'unsafe-inline' https: blob:",
+  );
+  assert.equal(
+    getCspDirective(csp, "font-src"),
+    "font-src 'self' https: blob: data:",
+  );
+  assert.equal(
+    getCspDirective(csp, "media-src"),
+    "media-src 'self' https: blob: data:",
+  );
+  assert.equal(getCspDirective(csp, "frame-src"), "frame-src 'self' https:");
+  assert.equal(getCspDirective(csp, "worker-src"), "worker-src 'self' blob:");
 }
 
 function assertPreviewImportMap(filePath) {

@@ -182,7 +182,7 @@ test("preview frame CSP hashes the inline import map instead of requiring unsafe
   assert.doesNotMatch(scriptSrcDirective, /unsafe-inline/);
 });
 
-test("browser CSP allows standard HTTPS image and data requests for trusted artifacts", () => {
+test("browser CSP allows ordinary non-script browser resources for trusted artifacts", () => {
   const csp = buildBrowserContentSecurityPolicy();
   const connectSrcDirective = csp
     .split("; ")
@@ -190,9 +190,32 @@ test("browser CSP allows standard HTTPS image and data requests for trusted arti
   const imgSrcDirective = csp
     .split("; ")
     .find((directive) => directive.startsWith("img-src "));
+  const styleSrcDirective = csp
+    .split("; ")
+    .find((directive) => directive.startsWith("style-src "));
+  const fontSrcDirective = csp
+    .split("; ")
+    .find((directive) => directive.startsWith("font-src "));
+  const mediaSrcDirective = csp
+    .split("; ")
+    .find((directive) => directive.startsWith("media-src "));
+  const frameSrcDirective = csp
+    .split("; ")
+    .find((directive) => directive.startsWith("frame-src "));
+  const workerSrcDirective = csp
+    .split("; ")
+    .find((directive) => directive.startsWith("worker-src "));
 
   assert.equal(connectSrcDirective, "connect-src 'self' https: wss:");
   assert.equal(imgSrcDirective, "img-src 'self' https: blob: data:");
+  assert.equal(
+    styleSrcDirective,
+    "style-src 'self' 'unsafe-inline' https: blob:",
+  );
+  assert.equal(fontSrcDirective, "font-src 'self' https: blob: data:");
+  assert.equal(mediaSrcDirective, "media-src 'self' https: blob: data:");
+  assert.equal(frameSrcDirective, "frame-src 'self' https:");
+  assert.equal(workerSrcDirective, "worker-src 'self' blob:");
 });
 
 test("cli reports the package version from package metadata", () => {

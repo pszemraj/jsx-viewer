@@ -34,18 +34,26 @@ export function buildBrowserContentSecurityPolicy(options?: {
     "https://cdn.tailwindcss.com",
     ...inlineScriptHashes.map((hash) => `'${hash}'`),
   ];
-  // Hosted mode is a trusted-artifact browser path, so preserve normal HTTPS
-  // image/data requests while still constraining executable script origins.
+  // Hosted mode is a trusted-artifact browser path, so preserve ordinary
+  // non-script HTTPS resources while constraining executable script origins.
   const connectSrc = ["'self'", "https:", "wss:"];
+  const fontSrc = ["'self'", "https:", "blob:", "data:"];
+  const frameSrc = ["'self'", "https:"];
   const imgSrc = ["'self'", "https:", "blob:", "data:"];
+  const mediaSrc = ["'self'", "https:", "blob:", "data:"];
+  const styleSrc = ["'self'", "'unsafe-inline'", "https:", "blob:"];
+  const workerSrc = ["'self'", "blob:"];
 
   return [
     "default-src 'self'",
     `script-src ${scriptSrc.join(" ")}`,
     `connect-src ${connectSrc.join(" ")}`,
     `img-src ${imgSrc.join(" ")}`,
-    "style-src 'self' 'unsafe-inline'",
-    "font-src 'self' data:",
+    `style-src ${styleSrc.join(" ")}`,
+    `font-src ${fontSrc.join(" ")}`,
+    `media-src ${mediaSrc.join(" ")}`,
+    `frame-src ${frameSrc.join(" ")}`,
+    `worker-src ${workerSrc.join(" ")}`,
     "object-src 'none'",
     "base-uri 'none'",
     "form-action 'none'",

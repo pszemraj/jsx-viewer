@@ -40,7 +40,7 @@ The Pages mode runs the uploaded artifact inside a dedicated preview frame. It:
 5. renders the component inside an isolated preview document on the same origin
 
 That keeps clear and swap from leaking module-scope timers or listeners across previews, but browser mode is still a trusted-artifact path rather than a security sandbox.
-The preview document is emitted as `preview-frame.html` and uses a CSP-hashed inline import map plus external bootstrap code, which keeps the deployed policy locked down without relying on unrestricted inline scripts while still allowing ordinary HTTPS image/data requests from trusted artifacts.
+The preview document is emitted as `preview-frame.html` and uses a CSP-hashed inline import map plus external bootstrap code, which keeps executable script origins constrained while still allowing ordinary HTTPS resources from trusted artifacts.
 
 ## Validation
 
