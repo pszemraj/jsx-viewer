@@ -21,7 +21,7 @@ import {
 import { BROWSER_RUNTIME_DISPLAY_SPECIFIERS } from "./runtimeManifest";
 import { transpileArtifact } from "./transpiler";
 
-const REPOSITORY_URL = "https://github.com/pszemraj/jsx-viewer";
+export const BROWSER_REPOSITORY_URL = "https://github.com/pszemraj/jsx-viewer";
 
 interface BrowserArtifactState {
   artifact: BrowserPreviewArtifact | null;
@@ -396,9 +396,9 @@ function Toolbar({ filename, onClear, onSwap }: ToolbarProps) {
       }}
     >
       <a
-        href={REPOSITORY_URL}
+        href={BROWSER_REPOSITORY_URL}
         target="_blank"
-        rel="noreferrer"
+        rel="noopener noreferrer"
         aria-label="Open jsx-viewer repository on GitHub"
         title="Open jsx-viewer repository on GitHub"
         style={{
