@@ -2,6 +2,7 @@ import {
   resolveCurrentBrowserBaseUrl,
   resolveCurrentRuntimeModuleUrl,
 } from "./browserRuntimeContext";
+import type { BrowserRuntimeSpecifier } from "./runtimeManifest";
 
 export interface PreviewFrameRuntimeModuleUrls {
   readonly reactUrl: string;
@@ -37,14 +38,8 @@ export function getPreviewFrameDocumentUrl() {
   return new URL(PREVIEW_FRAME_DOCUMENT_PATH, baseUrl).toString();
 }
 
-function getRuntimeUrl(specifier: string) {
-  const runtimeUrl = resolveCurrentRuntimeModuleUrl(specifier);
-
-  if (!runtimeUrl) {
-    throw new Error(`Missing browser runtime module URL for "${specifier}".`);
-  }
-
-  return runtimeUrl;
+function getRuntimeUrl(specifier: BrowserRuntimeSpecifier) {
+  return resolveCurrentRuntimeModuleUrl(specifier);
 }
 
 export function getPreviewFrameRuntimeModuleUrls(): PreviewFrameRuntimeModuleUrls {

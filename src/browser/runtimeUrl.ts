@@ -1,6 +1,6 @@
 import {
   getBrowserRuntimeModulePath,
-  isBrowserRuntimeSpecifier,
+  type BrowserRuntimeSpecifier,
 } from "./runtimeManifest";
 import { resolveBrowserBaseUrl } from "./basePath";
 
@@ -11,13 +11,9 @@ interface ResolveRuntimeModuleUrlOptions {
 }
 
 export function resolveRuntimeModuleUrl(
-  specifier: string,
+  specifier: BrowserRuntimeSpecifier,
   options: ResolveRuntimeModuleUrlOptions,
 ) {
-  if (!isBrowserRuntimeSpecifier(specifier)) {
-    return null;
-  }
-
   const baseUrl = resolveBrowserBaseUrl(options.origin, options.basePath);
   const runtimeModulePath = getBrowserRuntimeModulePath(specifier, options.dev);
   return new URL(runtimeModulePath, baseUrl).toString();

@@ -1,5 +1,7 @@
 import {
   BROWSER_RUNTIME_SPECIFIERS,
+  isBrowserRuntimeSpecifier,
+  type BrowserRuntimeSpecifier,
 } from "./runtimeManifest";
 import { resolveCurrentRuntimeModuleUrl } from "./browserRuntimeContext";
 import { resolveRemotePackageUrl } from "./remotePackageUrl";
@@ -167,9 +169,6 @@ interface ResolvedNodeTarget {
   path: BabelNodePath;
 }
 
-const BROWSER_ARTIFACT_RUNTIME_IMPORT_SET = new Set<string>(
-  BROWSER_RUNTIME_SPECIFIERS,
-);
 const SUPPORTED_IMPORTS = BROWSER_RUNTIME_SPECIFIERS.join(", ");
 const GLOBAL_OBJECT_ALIASES = new Set(["globalThis", "window", "self"]);
 const UNSUPPORTED_PACKAGE_STYLESHEET_EXTENSIONS = new Set([
@@ -200,18 +199,8 @@ function getBabelApi() {
   return babelApiPromise;
 }
 
-function getRuntimeModuleUrl(specifier: string) {
-  const runtimeUrl = resolveCurrentRuntimeModuleUrl(specifier);
-
-  if (!runtimeUrl) {
-    throw new Error(
-      `Unsupported bare import "${specifier}" in browser mode. ` +
-        `Supported imports: ${SUPPORTED_IMPORTS}. ` +
-        "Use the local Node/Vite viewer for custom packages.",
-    );
-  }
-
-  return runtimeUrl;
+function getRuntimeModuleUrl(specifier: BrowserRuntimeSpecifier) {
+  return resolveCurrentRuntimeModuleUrl(specifier);
 }
 
 function getImportScheme(specifier: string) {
@@ -279,7 +268,7 @@ function resolveImportSpecifier(specifier: string) {
     );
   }
 
-  if (!BROWSER_ARTIFACT_RUNTIME_IMPORT_SET.has(specifier)) {
+  if (!isBrowserRuntimeSpecifier(specifier)) {
     if (isReactRuntimeFamilySpecifier(specifier)) {
       throw new Error(
         `Unsupported React runtime import "${specifier}" in browser mode. ` +

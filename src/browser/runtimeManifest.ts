@@ -1,40 +1,36 @@
 export interface BrowserRuntimeEntry {
   readonly entryName: string;
-  readonly devPath: `/${string}`;
+  readonly devPath: string;
 }
-
-export const BROWSER_RUNTIME_SPECIFIERS = [
-  "react",
-  "react-dom",
-  "react-dom/client",
-  "react/jsx-runtime",
-  "react/jsx-dev-runtime",
-] as const;
-
-export type BrowserRuntimeSpecifier = typeof BROWSER_RUNTIME_SPECIFIERS[number];
 
 export const BROWSER_RUNTIME_ENTRIES = {
   react: {
     entryName: "runtime/react",
-    devPath: "/src/browser/runtime/react.ts",
+    devPath: "src/browser/runtime/react.ts",
   },
   "react-dom": {
     entryName: "runtime/react-dom",
-    devPath: "/src/browser/runtime/react-dom.ts",
+    devPath: "src/browser/runtime/react-dom.ts",
   },
   "react-dom/client": {
     entryName: "runtime/react-dom-client",
-    devPath: "/src/browser/runtime/react-dom-client.ts",
+    devPath: "src/browser/runtime/react-dom-client.ts",
   },
   "react/jsx-runtime": {
     entryName: "runtime/react-jsx-runtime",
-    devPath: "/src/browser/runtime/react-jsx-runtime.ts",
+    devPath: "src/browser/runtime/react-jsx-runtime.ts",
   },
   "react/jsx-dev-runtime": {
     entryName: "runtime/react-jsx-dev-runtime",
-    devPath: "/src/browser/runtime/react-jsx-dev-runtime.ts",
+    devPath: "src/browser/runtime/react-jsx-dev-runtime.ts",
   },
-} as const satisfies Record<BrowserRuntimeSpecifier, BrowserRuntimeEntry>;
+} as const satisfies Record<string, BrowserRuntimeEntry>;
+
+export type BrowserRuntimeSpecifier = keyof typeof BROWSER_RUNTIME_ENTRIES;
+
+export const BROWSER_RUNTIME_SPECIFIERS = Object.freeze(
+  Object.keys(BROWSER_RUNTIME_ENTRIES) as BrowserRuntimeSpecifier[],
+);
 
 export function isBrowserRuntimeSpecifier(
   specifier: string,
@@ -48,7 +44,7 @@ export function getBrowserRuntimeModulePath(
 ) {
   const entry = BROWSER_RUNTIME_ENTRIES[specifier];
 
-  return dev ? entry.devPath.slice(1) : `${entry.entryName}.js`;
+  return dev ? entry.devPath : `${entry.entryName}.js`;
 }
 
 export const BROWSER_RUNTIME_DISPLAY_SPECIFIERS = [

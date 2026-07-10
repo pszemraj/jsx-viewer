@@ -27,7 +27,3 @@ export function matchesBrowserBasePath(
 export function resolveBrowserBaseUrl(origin: string, basePath: string | undefined) {
   return new URL(normalizeBrowserBasePath(basePath), origin);
 }
-
-export function stripLeadingSlash(pathname: string) {
-  return pathname.replace(/^\/+/, "");
-}

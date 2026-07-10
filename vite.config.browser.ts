@@ -21,7 +21,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const runtimeInputs = Object.values(BROWSER_RUNTIME_ENTRIES).reduce<
   Record<string, string>
 >((inputs, entry) => {
-  inputs[entry.entryName] = path.resolve(__dirname, entry.devPath.slice(1));
+  inputs[entry.entryName] = path.resolve(__dirname, entry.devPath);
   return inputs;
 }, {});
 

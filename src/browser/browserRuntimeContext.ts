@@ -1,4 +1,5 @@
 import { resolveBrowserBaseUrl } from "./basePath";
+import type { BrowserRuntimeSpecifier } from "./runtimeManifest";
 import { resolveRuntimeModuleUrl } from "./runtimeUrl";
 
 interface BrowserRuntimeViteEnv {
@@ -19,7 +20,7 @@ export function resolveCurrentBrowserBaseUrl() {
   return resolveBrowserBaseUrl(getBrowserRuntimeOrigin(), env?.BASE_URL);
 }
 
-export function resolveCurrentRuntimeModuleUrl(specifier: string) {
+export function resolveCurrentRuntimeModuleUrl(specifier: BrowserRuntimeSpecifier) {
   const env = getBrowserRuntimeEnv();
   return resolveRuntimeModuleUrl(specifier, {
     basePath: env?.BASE_URL,
