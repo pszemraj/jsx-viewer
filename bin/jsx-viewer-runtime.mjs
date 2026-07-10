@@ -385,6 +385,7 @@ export function getViteServerConfig(port, wsPort) {
       fs: {
         allow: [ROOT, getRuntimeRoot(port)],
       },
+      host: "localhost",
       port,
       open: !process.env.CI,
       strictPort: true,

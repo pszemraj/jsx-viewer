@@ -327,6 +327,7 @@ test("runtime workspace keeps slots and Vite cache outside the tracked package t
         path.resolve(REPO_ROOT),
         getRuntimeRoot(DEFAULT_VIEWER_PORT),
       ]);
+      assert.equal(viteServerConfig.server.host, "localhost");
     });
   } finally {
     rmSync(runtimeSlotsBase, { recursive: true, force: true });
@@ -602,7 +603,7 @@ test("startup failures clear the runtime slot without touching the tracked place
 
     await new Promise((resolve, reject) => {
       blocker.once("error", reject);
-      blocker.listen(0, resolve);
+      blocker.listen(0, "localhost", resolve);
     });
 
     const address = blocker.address();

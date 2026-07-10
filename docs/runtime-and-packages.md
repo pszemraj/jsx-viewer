@@ -25,7 +25,7 @@ These packages are available in the local viewer with no extra install step:
 | d3           | 7.x     | Data visualization          |
 | three        | 0.164.x | 3D graphics                 |
 | lodash       | 4.x     | Utilities                   |
-| mathjs       | 13.x    | Math operations             |
+| mathjs       | 15.x    | Math operations             |
 | papaparse    | 5.x     | CSV parsing                 |
 | chart.js     | 4.x     | Canvas charts               |
 | tone         | 15.x    | Audio synthesis             |
