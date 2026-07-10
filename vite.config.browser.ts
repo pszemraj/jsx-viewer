@@ -37,6 +37,8 @@ function browserContentSecurityPolicy(): Plugin {
     name: "browser-content-security-policy",
     apply: "build" as const,
     transformIndexHtml(_html, context) {
+      // CSP hashes are byte-sensitive: keep these serialized contents identical
+      // to the import-map plugin below. The finalizer fails if Vite reformats them.
       const previewImportMap = context.filename.endsWith("preview-frame.html")
         ? buildPreviewImportMapScriptContents(process.env.VITE_BASE_PATH, false)
         : null;
