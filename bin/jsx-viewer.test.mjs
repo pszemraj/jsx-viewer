@@ -199,7 +199,6 @@ test("browser npm entrypoints stay behind the Node version gate", () => {
   assert.equal(packageJson.scripts?.prebuild, versionGateScript);
   assert.equal(packageJson.scripts?.["prebuild:browser"], versionGateScript);
   assert.equal(packageJson.scripts?.["predev:browser"], versionGateScript);
-  assert.equal(packageJson.scripts?.["prepreview:browser"], versionGateScript);
 });
 
 test("browser preview script serves the finalized Pages artifact", () => {

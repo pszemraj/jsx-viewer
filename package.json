@@ -67,7 +67,6 @@
     "prebuild": "node ./bin/check-node-version.mjs",
     "prebuild:browser": "node ./bin/check-node-version.mjs",
     "predev:browser": "node ./bin/check-node-version.mjs",
-    "prepreview:browser": "node ./bin/check-node-version.mjs",
     "dev": "node bin/jsx-viewer.mjs",
     "start": "node bin/jsx-viewer.mjs",
     "demo": "node bin/jsx-viewer.mjs example/Dashboard.tsx",
