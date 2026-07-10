@@ -8,6 +8,7 @@ import {
   type PreviewFrameStatusMessage,
 } from "./previewFrameDocument";
 import { toError } from "../viewerShared";
+import { VIEWER_CONTENT_MIN_HEIGHT } from "../viewerShell";
 
 export interface BrowserPreviewArtifact {
   code: string;
@@ -41,7 +42,10 @@ export function BrowserPreviewFrame({
     onReady,
     onRuntimeError,
   });
-  const runtimeModuleUrls = useMemo(() => getPreviewFrameRuntimeModuleUrls(), []);
+  const runtimeModuleUrls = useMemo(
+    () => getPreviewFrameRuntimeModuleUrls(),
+    [],
+  );
 
   useEffect(() => {
     callbacksRef.current = {
@@ -58,9 +62,12 @@ export function BrowserPreviewFrame({
     }
 
     const artifactUrl = URL.createObjectURL(
-      new Blob([`${artifact.code}\n//# sourceURL=${artifact.filename}.browser.js`], {
-        type: "text/javascript",
-      }),
+      new Blob(
+        [`${artifact.code}\n//# sourceURL=${artifact.filename}.browser.js`],
+        {
+          type: "text/javascript",
+        },
+      ),
     );
     const initMessage = buildPreviewFrameInitMessage({
       artifactUrl,
@@ -70,7 +77,10 @@ export function BrowserPreviewFrame({
       version: artifact.version,
     });
     const previewDocumentUrl = new URL(getPreviewFrameDocumentUrl());
-    previewDocumentUrl.searchParams.set("preview-version", String(artifact.version));
+    previewDocumentUrl.searchParams.set(
+      "preview-version",
+      String(artifact.version),
+    );
 
     const handleMessage = (event: MessageEvent<PreviewFrameStatusMessage>) => {
       if (
@@ -146,7 +156,7 @@ export function BrowserPreviewFrame({
         border: 0,
         display: "block",
         height: "100%",
-        minHeight: "calc(100vh - 49px)",
+        minHeight: VIEWER_CONTENT_MIN_HEIGHT,
         width: "100%",
       }}
       title={`Browser preview for ${artifact.filename}`}

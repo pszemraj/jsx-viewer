@@ -1,20 +1,16 @@
-import {
-  useCallback,
-  useRef,
-  useState,
-  type MouseEvent,
-} from "react";
+import { useCallback, useRef, useState, type MouseEvent } from "react";
 import { createLoadTracker } from "../loadTracker";
 import {
-  useArtifactDropZone,
   useArtifactInput,
   type ArtifactInputController,
 } from "../useArtifactInput";
+import { createFileReadError, MONO, toError } from "../viewerShared";
 import {
-  MONO,
-  SANS,
-  toError,
-} from "../viewerShared";
+  ArtifactDropZone,
+  VIEWER_CONTENT_MIN_HEIGHT,
+  ViewerStatusPanel,
+  ViewerToolbar,
+} from "../viewerShell";
 import {
   BrowserPreviewFrame,
   type BrowserPreviewArtifact,
@@ -58,133 +54,62 @@ function ErrorPanel({
   details?: string;
 }) {
   return (
-    <div
-      style={{
-        padding: "32px",
-        fontFamily: MONO,
-        background: "#0a0a0a",
-        minHeight: "calc(100vh - 49px)",
-      }}
+    <ViewerStatusPanel
+      indicatorColor="#ef4444"
+      maxWidth="860px"
+      title={title}
+      titleColor="#f5f5f5"
     >
-      <div style={{ maxWidth: "860px", margin: "0 auto" }}>
-        <div
+      <pre
+        style={{
+          background: "#111",
+          border: "1px solid #333",
+          borderRadius: "8px",
+          padding: "20px",
+          overflow: "auto",
+          fontSize: "13px",
+          lineHeight: 1.6,
+          color: "#ef4444",
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+          margin: 0,
+        }}
+      >
+        {error.message}
+      </pre>
+      {details ? (
+        <p
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-            marginBottom: "24px",
-          }}
-        >
-          <div
-            style={{
-              width: "12px",
-              height: "12px",
-              borderRadius: "50%",
-              background: "#ef4444",
-            }}
-          />
-          <h2
-            style={{
-              margin: 0,
-              fontSize: "18px",
-              fontWeight: 500,
-              color: "#f5f5f5",
-            }}
-          >
-            {title}
-          </h2>
-        </div>
-        <pre
-          style={{
-            background: "#111",
-            border: "1px solid #333",
-            borderRadius: "8px",
-            padding: "20px",
-            overflow: "auto",
+            color: "#666",
             fontSize: "13px",
+            marginTop: "16px",
             lineHeight: 1.6,
-            color: "#ef4444",
             whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-            margin: 0,
           }}
         >
-          {error.message}
-        </pre>
-        {details ? (
-          <p
-            style={{
-              color: "#666",
-              fontSize: "13px",
-              marginTop: "16px",
-              lineHeight: 1.6,
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            {details}
-          </p>
-        ) : null}
-      </div>
-    </div>
+          {details}
+        </p>
+      ) : null}
+    </ViewerStatusPanel>
   );
 }
 
-function LoadingState({
-  status,
-}: {
-  status: string;
-}) {
+function LoadingState({ status }: { status: string }) {
   return (
-    <div
-      style={{
-        minHeight: "calc(100vh - 49px)",
-        background: "#0a0a0a",
-        color: "#ededed",
-        fontFamily: MONO,
-        padding: "32px",
-      }}
-    >
-      <div style={{ maxWidth: "720px", margin: "0 auto" }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-            marginBottom: "24px",
-          }}
-        >
-          <div
-            style={{
-              width: "12px",
-              height: "12px",
-              borderRadius: "50%",
-              background: "#f59e0b",
-            }}
-          />
-          <h2
-            style={{
-              margin: 0,
-              fontSize: "18px",
-              fontWeight: 500,
-            }}
-          >
-            {status}
-          </h2>
-        </div>
-        <p
-          style={{
-            color: "#888",
-            fontSize: "13px",
-            lineHeight: 1.6,
-            margin: 0,
-          }}
-        >
-          Browser mode compiles the artifact client-side, then boots it inside a
-          dedicated preview frame on the same origin. This is a trusted-code
-          path, not a sandbox.
-        </p>
-      </div>
-    </div>
+    <ViewerStatusPanel indicatorColor="#f59e0b" title={status}>
+      <p
+        style={{
+          color: "#888",
+          fontSize: "13px",
+          lineHeight: 1.6,
+          margin: 0,
+        }}
+      >
+        Browser mode compiles the artifact client-side, then boots it inside a
+        dedicated preview frame on the same origin. This is a trusted-code path,
+        not a sandbox.
+      </p>
+    </ViewerStatusPanel>
   );
 }
 
@@ -193,170 +118,102 @@ function DropZone({
   openFilePicker,
   submitText,
 }: DropZoneProps) {
-  const {
-    containerRef,
-    handleDragLeave,
-    handleDragOver,
-    handleDrop,
-    isDragging,
-  } = useArtifactDropZone(handleArtifactFile, submitText);
-
   return (
-    <div
-      ref={containerRef}
-      tabIndex={0}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "calc(100vh - 49px)",
-        background: "#0a0a0a",
-        color: "#ededed",
-        fontFamily: SANS,
-        padding: "32px",
-        outline: "none",
-      }}
-    >
-      <div
-        style={{
-          border: `2px dashed ${isDragging ? "#0070f3" : "#333"}`,
-          borderRadius: "12px",
-          padding: "64px 48px",
-          textAlign: "center",
-          maxWidth: "720px",
-          width: "100%",
-          transition: "border-color 150ms ease",
-          background: isDragging ? "rgba(0,112,243,0.04)" : "transparent",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "40px",
-            marginBottom: "16px",
-            opacity: 0.3,
-            fontFamily: MONO,
-          }}
-        >
-          {"</>"}
-        </div>
-        <h2
-          style={{
-            fontSize: "20px",
-            fontWeight: 600,
-            margin: "0 0 8px 0",
-            letterSpacing: "-0.02em",
-          }}
-        >
-          Drop, upload, or paste JSX/TSX
-        </h2>
-        <p
-          style={{
-            fontSize: "14px",
-            color: "#888",
-            margin: "0 0 24px 0",
-            lineHeight: 1.6,
-          }}
-        >
+    <ArtifactDropZone
+      description={
+        <>
           GitHub Pages mode compiles the artifact in the browser and renders it
           directly inside this site. It supports trusted, single-file React 18
           components, browser-capable CDN package imports, and Tailwind utility
           classes.
-        </p>
-        <button
-          onClick={openFilePicker}
-          style={{
-            background: "#111",
-            color: "#ededed",
-            border: "1px solid #333",
-            borderRadius: "6px",
-            padding: "8px 20px",
-            fontSize: "13px",
-            fontFamily: MONO,
-            cursor: "pointer",
-            transition: "background 150ms ease",
-          }}
-          onMouseEnter={(event: MouseEvent<HTMLButtonElement>) => {
-            event.currentTarget.style.background = "#1a1a1a";
-          }}
-          onMouseLeave={(event: MouseEvent<HTMLButtonElement>) => {
-            event.currentTarget.style.background = "#111";
-          }}
-        >
-          upload artifact
-        </button>
-      </div>
-
-      <div
-        style={{
-          marginTop: "40px",
-          maxWidth: "720px",
-          width: "100%",
-          display: "grid",
-          gap: "16px",
-          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-        }}
-      >
+        </>
+      }
+      descriptionLineHeight={1.6}
+      details={
         <div
           style={{
-            border: "1px solid #222",
-            borderRadius: "10px",
-            padding: "16px",
-            background: "#050505",
+            marginTop: "40px",
+            maxWidth: "720px",
+            width: "100%",
+            display: "grid",
+            gap: "16px",
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
           }}
         >
-          <div style={{ color: "#f5f5f5", fontFamily: MONO, marginBottom: "8px" }}>
-            browser-mode imports
+          <div
+            style={{
+              border: "1px solid #222",
+              borderRadius: "10px",
+              padding: "16px",
+              background: "#050505",
+            }}
+          >
+            <div
+              style={{
+                color: "#f5f5f5",
+                fontFamily: MONO,
+                marginBottom: "8px",
+              }}
+            >
+              browser-mode imports
+            </div>
+            <div
+              style={{
+                color: "#888",
+                fontSize: "12px",
+                lineHeight: 1.7,
+                fontFamily: MONO,
+                wordBreak: "break-word",
+              }}
+            >
+              {BROWSER_RUNTIME_DISPLAY_SPECIFIERS.join(", ")}
+              <br />
+              other bare imports resolve through esm.sh
+              <br />
+              React 18 runtime modules stay local
+            </div>
           </div>
           <div
             style={{
-              color: "#888",
-              fontSize: "12px",
-              lineHeight: 1.7,
-              fontFamily: MONO,
-              wordBreak: "break-word",
+              border: "1px solid #222",
+              borderRadius: "10px",
+              padding: "16px",
+              background: "#050505",
             }}
           >
-            {BROWSER_RUNTIME_DISPLAY_SPECIFIERS.join(", ")}
-            <br />
-            other bare imports resolve through esm.sh
-            <br />
-            React 18 runtime modules stay local
+            <div
+              style={{
+                color: "#f5f5f5",
+                fontFamily: MONO,
+                marginBottom: "8px",
+              }}
+            >
+              browser-mode limits
+            </div>
+            <div
+              style={{
+                color: "#888",
+                fontSize: "12px",
+                lineHeight: 1.7,
+                fontFamily: MONO,
+              }}
+            >
+              single file only
+              <br />
+              no relative imports
+              <br />
+              no Vite-only globals
+              <br />
+              trusted code only
+            </div>
           </div>
         </div>
-        <div
-          style={{
-            border: "1px solid #222",
-            borderRadius: "10px",
-            padding: "16px",
-            background: "#050505",
-          }}
-        >
-          <div style={{ color: "#f5f5f5", fontFamily: MONO, marginBottom: "8px" }}>
-            browser-mode limits
-          </div>
-          <div
-            style={{
-              color: "#888",
-              fontSize: "12px",
-              lineHeight: 1.7,
-              fontFamily: MONO,
-            }}
-          >
-            single file only
-            <br />
-            no relative imports
-            <br />
-            no Vite-only globals
-            <br />
-            trusted code only
-          </div>
-        </div>
-      </div>
-    </div>
+      }
+      handleArtifactFile={handleArtifactFile}
+      maxWidth="720px"
+      openFilePicker={openFilePicker}
+      submitText={submitText}
+    />
   );
 }
 
@@ -368,127 +225,57 @@ function Toolbar({
   openFilePicker,
 }: ToolbarProps) {
   return (
-    <div
-      style={{
-        height: "48px",
-        borderBottom: "1px solid #222",
-        background: "#0a0a0a",
-        display: "flex",
-        alignItems: "center",
-        padding: "0 16px",
-        fontFamily: MONO,
-        fontSize: "12px",
-        gap: "12px",
-        color: "#888",
-        flexShrink: 0,
-      }}
-    >
-      <a
-        href={BROWSER_REPOSITORY_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Open jsx-viewer repository on GitHub"
-        title="Open jsx-viewer repository on GitHub"
-        style={{
-          color: "#555",
-          fontWeight: 600,
-          letterSpacing: "0.05em",
-          textDecoration: "none",
-        }}
-        onMouseEnter={(event: MouseEvent<HTMLAnchorElement>) => {
-          event.currentTarget.style.color = "#ededed";
-        }}
-        onMouseLeave={(event: MouseEvent<HTMLAnchorElement>) => {
-          event.currentTarget.style.color = "#555";
-        }}
-      >
-        JSX VIEWER
-      </a>
-      <span style={{ color: "#333" }}>|</span>
-      <span
-        style={{
-          color: "#f59e0b",
-          border: "1px solid #4b3604",
-          borderRadius: "999px",
-          padding: "2px 8px",
-          background: "rgba(245, 158, 11, 0.08)",
-        }}
-      >
-        browser mode
-      </span>
-      <span style={{ color: filename ? "#ededed" : "#555" }}>
-        {filename ?? "no file loaded"}
-      </span>
-      <div style={{ flex: 1 }} />
-      <span
-        style={{ color: "#666" }}
-        title="Loaded code runs in a dedicated preview frame on the same origin."
-      >
-        trusted artifact only
-      </span>
-      <button
-        onClick={onClear}
-        disabled={!filename}
-        style={{
-          background: "transparent",
-          color: filename ? "#888" : "#444",
-          border: "1px solid #333",
-          borderRadius: "4px",
-          padding: "4px 10px",
-          fontSize: "11px",
-          fontFamily: MONO,
-          cursor: filename ? "pointer" : "default",
-        }}
-        onMouseEnter={(event: MouseEvent<HTMLButtonElement>) => {
-          if (!filename) {
-            return;
-          }
-          event.currentTarget.style.color = "#f5f5f5";
-          event.currentTarget.style.borderColor = "#666";
-        }}
-        onMouseLeave={(event: MouseEvent<HTMLButtonElement>) => {
-          event.currentTarget.style.color = filename ? "#888" : "#444";
-          event.currentTarget.style.borderColor = "#333";
-        }}
-        title={
-          filename
-            ? "Return to the empty drop/upload/paste state"
-            : "No file loaded"
-        }
-      >
-        clear
-      </button>
-      <button
-        onClick={openFilePicker}
-        style={{
-          background: "#111",
-          color: "#888",
-          border: "1px solid #333",
-          borderRadius: "4px",
-          padding: "4px 10px",
-          fontSize: "11px",
-          fontFamily: MONO,
-          cursor: "pointer",
-        }}
-        onMouseEnter={(event: MouseEvent<HTMLButtonElement>) => {
-          event.currentTarget.style.color = "#ededed";
-          event.currentTarget.style.borderColor = "#555";
-        }}
-        onMouseLeave={(event: MouseEvent<HTMLButtonElement>) => {
-          event.currentTarget.style.color = "#888";
-          event.currentTarget.style.borderColor = "#333";
-        }}
-      >
-        swap file
-      </button>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".jsx,.tsx"
-        onChange={handleFileSelect}
-        style={{ display: "none" }}
-      />
-    </div>
+    <ViewerToolbar
+      context={
+        <span
+          style={{
+            color: "#f59e0b",
+            border: "1px solid #4b3604",
+            borderRadius: "999px",
+            padding: "2px 8px",
+            background: "rgba(245, 158, 11, 0.08)",
+          }}
+        >
+          browser mode
+        </span>
+      }
+      fileInputRef={fileInputRef}
+      filename={filename}
+      handleFileSelect={handleFileSelect}
+      identity={
+        <a
+          href={BROWSER_REPOSITORY_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Open jsx-viewer repository on GitHub"
+          title="Open jsx-viewer repository on GitHub"
+          style={{
+            color: "#555",
+            fontWeight: 600,
+            letterSpacing: "0.05em",
+            textDecoration: "none",
+          }}
+          onMouseEnter={(event: MouseEvent<HTMLAnchorElement>) => {
+            event.currentTarget.style.color = "#ededed";
+          }}
+          onMouseLeave={(event: MouseEvent<HTMLAnchorElement>) => {
+            event.currentTarget.style.color = "#555";
+          }}
+        >
+          JSX VIEWER
+        </a>
+      }
+      onClear={onClear}
+      openFilePicker={openFilePicker}
+      status={
+        <span
+          style={{ color: "#666" }}
+          title="Loaded code runs in a dedicated preview frame on the same origin."
+        >
+          trusted artifact only
+        </span>
+      }
+    />
   );
 }
 
@@ -497,7 +284,9 @@ export default function AppBrowser() {
   const previewVersionRef = useRef(0);
   const [filename, setFilename] = useState<string | null>(null);
   const [runtimeError, setRuntimeError] = useState<Error | null>(null);
-  const [state, setState] = useState<BrowserArtifactState>({ view: "dropzone" });
+  const [state, setState] = useState<BrowserArtifactState>({
+    view: "dropzone",
+  });
 
   const bumpPreviewVersion = useCallback(() => {
     previewVersionRef.current += 1;
@@ -552,10 +341,7 @@ export default function AppBrowser() {
       setRuntimeError(null);
       setState({
         view: "error",
-        error: new Error(
-          `Unable to read "${file.name}": ${readError.message}`,
-          { cause: readError },
-        ),
+        error: createFileReadError(file.name, readError),
       });
     },
     [bumpPreviewVersion],
@@ -629,11 +415,18 @@ export default function AppBrowser() {
                   lineHeight: 1.6,
                 }}
               >
-                <strong style={{ color: "#fca5a5" }}>Uncaught runtime error:</strong>{" "}
+                <strong style={{ color: "#fca5a5" }}>
+                  Uncaught runtime error:
+                </strong>{" "}
                 {runtimeError.message}
               </div>
             ) : null}
-            <div style={{ minHeight: "calc(100vh - 49px)", position: "relative" }}>
+            <div
+              style={{
+                minHeight: VIEWER_CONTENT_MIN_HEIGHT,
+                position: "relative",
+              }}
+            >
               <BrowserPreviewFrame
                 artifact={state.artifact}
                 onLoadError={(version, error) => {

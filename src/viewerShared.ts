@@ -5,6 +5,10 @@ export function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
 
+export function createFileReadError(fileName: string, cause: Error): Error {
+  return new Error(`Unable to read "${fileName}": ${cause.message}`, { cause });
+}
+
 export function getFirstFile(files: FileList | null | undefined) {
   return files?.item(0) ?? null;
 }
