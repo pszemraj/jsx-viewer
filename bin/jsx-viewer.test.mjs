@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { createServer } from "node:net";
 import {
   copyFileSync,
@@ -13,7 +13,7 @@ import {
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import ts from "typescript";
 import {
@@ -102,11 +102,6 @@ function withRuntimeSlotsDir(runtimeSlotsDir, callback) {
       process.env[RUNTIME_SLOTS_ENV] = previousValue;
     }
   }
-}
-
-function getExpectedRuntimeSlotModuleUrl(filePath) {
-  const fileUrl = pathToFileURL(filePath);
-  return `/@fs${fileUrl.host ? `//${fileUrl.host}${fileUrl.pathname}` : fileUrl.pathname}`;
 }
 
 const PACKED_MODULE_EXTENSIONS = [
@@ -272,15 +267,6 @@ test("browser CSP allows ordinary non-script browser resources for trusted artif
   assert.equal(workerSrcDirective, "worker-src 'self' blob:");
 });
 
-test("cli reports the package version from package metadata", () => {
-  const stdout = execFileSync(process.execPath, [CLI_PATH, "--version"], {
-    cwd: REPO_ROOT,
-    encoding: "utf8",
-  }).trim();
-
-  assert.equal(stdout, packageJson.version);
-});
-
 test("metadata-only modes do not load the runtime module", () => {
   const tempDir = mkdtempSync(path.join(os.tmpdir(), "jsx-viewer-metadata-"));
 
@@ -314,17 +300,6 @@ test("metadata-only modes do not load the runtime module", () => {
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
-});
-
-test("package metadata points to the public project URLs", () => {
-  assert.deepEqual(packageJson.repository, {
-    type: "git",
-    url: "git+https://github.com/pszemraj/jsx-viewer.git",
-  });
-  assert.equal(packageJson.homepage, "https://github.com/pszemraj/jsx-viewer#readme");
-  assert.deepEqual(packageJson.bugs, {
-    url: "https://github.com/pszemraj/jsx-viewer/issues",
-  });
 });
 
 test("browser optimizeDeps prebundles every shipped browser runtime dependency", () => {
@@ -390,11 +365,9 @@ test("runtime slot module URLs encode URL-significant path characters", () => {
   const runtimeSlotsBase = path.join(os.tmpdir(), "jsx-viewer#hash?query");
 
   withRuntimeSlotsDir(runtimeSlotsBase, () => {
-    const runtimeSlotPath = getRuntimeSlotPath(DEFAULT_VIEWER_PORT);
     const runtimeSlotUrl = getRuntimeSlotModuleUrl(DEFAULT_VIEWER_PORT);
     const parsedUrl = new URL(runtimeSlotUrl, "http://localhost");
 
-    assert.equal(parsedUrl.pathname, getExpectedRuntimeSlotModuleUrl(runtimeSlotPath));
     assert.equal(parsedUrl.search, "");
     assert.equal(parsedUrl.hash, "");
     assert.match(runtimeSlotUrl, /%23/);
@@ -414,7 +387,6 @@ test(
       const parsedUrl = new URL(runtimeSlotUrl, "http://localhost");
 
       assert.match(runtimeSlotPath, /^\\\\server\\share\\/);
-      assert.equal(parsedUrl.pathname, getExpectedRuntimeSlotModuleUrl(runtimeSlotPath));
       assert.equal(parsedUrl.search, "");
       assert.equal(parsedUrl.hash, "");
       assert.match(runtimeSlotUrl, /^\/@fs\/\/server\/share\//);

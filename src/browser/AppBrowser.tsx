@@ -18,7 +18,7 @@ import {
 import { BROWSER_RUNTIME_DISPLAY_SPECIFIERS } from "./runtimeManifest";
 import { transpileArtifact } from "./transpiler";
 
-export const BROWSER_REPOSITORY_URL = "https://github.com/pszemraj/jsx-viewer";
+const BROWSER_REPOSITORY_URL = "https://github.com/pszemraj/jsx-viewer";
 
 type BrowserArtifactState =
   | { view: "dropzone" }
