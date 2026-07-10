@@ -417,6 +417,7 @@ function Toolbar({
 export default function App() {
   const { Component, isPlaceholder, error, version } = useLoadedComponent();
   const [filename, setFilename] = useState<string | null>(null);
+  const [fileReadError, setFileReadError] = useState<Error | null>(null);
 
   const handleWsMessage = useCallback(
     (message: ServerMessage) => {
@@ -431,12 +432,22 @@ export default function App() {
 
   const handleContent = useCallback(
     (content: string, name: string) => {
+      setFileReadError(null);
       if (send({ type: "load-artifact", content, filename: name })) {
         setFilename(name);
       }
     },
     [send],
   );
+
+  const handleFileReadError = useCallback((readError: Error, file: File) => {
+    setFilename(file.name);
+    setFileReadError(
+      new Error(`Unable to read "${file.name}": ${readError.message}`, {
+        cause: readError,
+      }),
+    );
+  }, []);
 
   const {
     cancelPending,
@@ -445,10 +456,11 @@ export default function App() {
     handleFileSelect,
     openFilePicker,
     submitText,
-  } = useArtifactInput(handleContent);
+  } = useArtifactInput(handleContent, handleFileReadError);
 
   const handleClear = useCallback(() => {
     cancelPending();
+    setFileReadError(null);
     if (send({ type: "reset-slot" })) {
       setFilename(null);
     }
@@ -472,7 +484,7 @@ export default function App() {
         openFilePicker={openFilePicker}
       />
       <div style={{ flex: 1, position: "relative" }}>
-        {error ? (
+        {fileReadError || error ? (
           <div
             style={{
               padding: "32px",
@@ -506,7 +518,7 @@ export default function App() {
                     color: "#f5f5f5",
                   }}
                 >
-                  Module Error
+                  {fileReadError ? "File Read Error" : "Module Error"}
                 </h2>
               </div>
               <pre
@@ -523,7 +535,7 @@ export default function App() {
                   wordBreak: "break-word",
                 }}
               >
-                {error.message}
+                {(fileReadError ?? error)?.message}
               </pre>
               <p
                 style={{
@@ -533,7 +545,9 @@ export default function App() {
                   lineHeight: 1.5,
                 }}
               >
-                Fix the JSX/TSX file and save. Vite HMR will reload automatically.
+                {fileReadError
+                  ? "Choose or drop the file again after making sure it is still available."
+                  : "Fix the JSX/TSX file and save. Vite HMR will reload automatically."}
               </p>
             </div>
           </div>

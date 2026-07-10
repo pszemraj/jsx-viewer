@@ -8,9 +8,10 @@ import {
   type RefObject,
 } from "react";
 import { createLoadTracker } from "./loadTracker";
-import { getFirstFile, readArtifactFile } from "./viewerShared";
+import { getFirstFile, readArtifactFile, toError } from "./viewerShared";
 
 type OnArtifactContent = (content: string, name: string) => void;
+type OnArtifactFileError = (error: Error, file: File) => void;
 
 type LatestArtifactFileReader = ((file: File) => Promise<{
   content: string;
@@ -33,8 +34,15 @@ export function createLatestArtifactFileReader() {
 
   const readLatestArtifactFile = (async (file: File) => {
     const loadToken = loadTracker.begin();
-    const artifact = await readArtifactFile(file);
-    return loadTracker.isCurrent(loadToken) ? artifact : null;
+    try {
+      const artifact = await readArtifactFile(file);
+      return loadTracker.isCurrent(loadToken) ? artifact : null;
+    } catch (error) {
+      if (!loadTracker.isCurrent(loadToken)) {
+        return null;
+      }
+      throw error;
+    }
   }) as LatestArtifactFileReader;
 
   readLatestArtifactFile.invalidate = () => {
@@ -44,8 +52,25 @@ export function createLatestArtifactFileReader() {
   return readLatestArtifactFile;
 }
 
+export async function loadArtifactFile(
+  reader: LatestArtifactFileReader,
+  file: File,
+  onContent: OnArtifactContent,
+  onError: OnArtifactFileError,
+) {
+  try {
+    const artifact = await reader(file);
+    if (artifact) {
+      onContent(artifact.content, artifact.name);
+    }
+  } catch (error) {
+    onError(toError(error), file);
+  }
+}
+
 export function useArtifactInput(
   onContent: OnArtifactContent,
+  onFileError: OnArtifactFileError,
 ): ArtifactInputController {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const latestArtifactFileReaderRef = useRef<ReturnType<
@@ -70,14 +95,12 @@ export function useArtifactInput(
 
   const handleArtifactFile = useCallback(
     async (file: File) => {
-      const artifact = await latestArtifactFileReaderRef.current?.(file);
-      if (!artifact) {
-        return;
+      const reader = latestArtifactFileReaderRef.current;
+      if (reader) {
+        await loadArtifactFile(reader, file, onContent, onFileError);
       }
-
-      onContent(artifact.content, artifact.name);
     },
-    [onContent],
+    [onContent, onFileError],
   );
 
   const handleFileSelect = useCallback(

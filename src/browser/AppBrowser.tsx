@@ -580,6 +580,25 @@ export default function AppBrowser() {
     [bumpPreviewVersion],
   );
 
+  const handleFileReadError = useCallback(
+    (readError: Error, file: File) => {
+      loadTrackerRef.current.begin();
+      bumpPreviewVersion();
+      setFilename(file.name);
+      setRuntimeError(null);
+      setState({
+        artifact: null,
+        error: new Error(
+          `Unable to read "${file.name}": ${readError.message}`,
+          { cause: readError },
+        ),
+        isLoading: false,
+        status: null,
+      });
+    },
+    [bumpPreviewVersion],
+  );
+
   const {
     cancelPending,
     fileInputRef,
@@ -587,7 +606,7 @@ export default function AppBrowser() {
     handleFileSelect,
     openFilePicker,
     submitText,
-  } = useArtifactInput(loadArtifact);
+  } = useArtifactInput(loadArtifact, handleFileReadError);
 
   const resetToEmpty = useCallback(() => {
     cancelPending();
