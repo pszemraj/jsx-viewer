@@ -164,6 +164,8 @@ export function useArtifactDropZone(
   }, []);
 
   useEffect(() => {
+    // This window listener exists only while the empty-state drop zone is
+    // mounted; loading an artifact removes it before the preview is rendered.
     const handlePasteEvent = (event: ClipboardEvent) => {
       const text = event.clipboardData?.getData("text/plain");
       if (text?.trim()) {
