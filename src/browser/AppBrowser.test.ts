@@ -26,21 +26,35 @@ test("browser shell keeps the preview mounted while an artifact is booting", () 
   assert.equal(shouldShowLoadingOverlay(state), true);
 });
 
-test("browser shell falls back to the dropzone only when there is no artifact", () => {
+test("browser shell shows initial compilation progress before an artifact exists", () => {
   assert.equal(
     getBrowserShellView({
       artifact: null,
       error: null,
+      isLoading: true,
+      status: "Compiling artifact in the browser",
     }),
-    "dropzone",
+    "loading",
   );
   assert.equal(
     shouldShowLoadingOverlay({
       artifact: null,
       isLoading: true,
-      status: "Booting preview frame",
+      status: "Compiling artifact in the browser",
     }),
     false,
+  );
+});
+
+test("browser shell falls back to the dropzone when it is idle", () => {
+  assert.equal(
+    getBrowserShellView({
+      artifact: null,
+      error: null,
+      isLoading: false,
+      status: null,
+    }),
+    "dropzone",
   );
 });
 

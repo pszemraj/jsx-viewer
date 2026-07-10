@@ -40,16 +40,23 @@ interface ToolbarProps {
   onSwap: (content: string, name: string) => void;
 }
 
-type BrowserShellView = "dropzone" | "error" | "preview";
+type BrowserShellView = "dropzone" | "error" | "loading" | "preview";
 
 export function getBrowserShellView(
-  state: Pick<BrowserArtifactState, "artifact" | "error">,
+  state: Pick<
+    BrowserArtifactState,
+    "artifact" | "error" | "isLoading" | "status"
+  >,
 ): BrowserShellView {
   if (state.error) {
     return "error";
   }
 
-  return state.artifact ? "preview" : "dropzone";
+  if (state.artifact) {
+    return "preview";
+  }
+
+  return state.isLoading && state.status ? "loading" : "dropzone";
 }
 
 export function shouldShowLoadingOverlay(
@@ -611,6 +618,8 @@ export default function AppBrowser() {
             error={state.error ?? new Error("Unknown browser-mode error.")}
             details={browserModeDetails}
           />
+        ) : shellView === "loading" ? (
+          <LoadingState status={state.status ?? "Loading artifact"} />
         ) : shellView === "dropzone" ? (
           <DropZone onContent={loadArtifact} />
         ) : state.artifact ? (
