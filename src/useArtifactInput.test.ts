@@ -39,3 +39,16 @@ test("latest artifact file reader ignores an older read that finishes last", asy
   firstText.resolve("export default function First() { return null; }");
   assert.equal(await firstRead, null);
 });
+
+test("latest artifact file reader can invalidate a pending read", async () => {
+  const readLatestArtifactFile = createLatestArtifactFileReader();
+  const text = createDeferredText();
+  const pendingRead = readLatestArtifactFile(
+    createArtifactFile("stale.tsx", text.promise),
+  );
+
+  readLatestArtifactFile.invalidate();
+  text.resolve("export default function Stale() { return null; }");
+
+  assert.equal(await pendingRead, null);
+});

@@ -5,23 +5,48 @@ import {
   useState,
   type ChangeEvent,
   type DragEvent,
+  type RefObject,
 } from "react";
 import { createLoadTracker } from "./loadTracker";
 import { getFirstFile, readArtifactFile } from "./viewerShared";
 
 type OnArtifactContent = (content: string, name: string) => void;
 
+type LatestArtifactFileReader = ((file: File) => Promise<{
+  content: string;
+  name: string;
+} | null>) & {
+  invalidate(): void;
+};
+
+export interface ArtifactInputController {
+  cancelPending(): void;
+  fileInputRef: RefObject<HTMLInputElement>;
+  handleArtifactFile(file: File): Promise<void>;
+  handleFileSelect(event: ChangeEvent<HTMLInputElement>): void;
+  openFilePicker(): void;
+  submitText(content: string, name: string): void;
+}
+
 export function createLatestArtifactFileReader() {
   const loadTracker = createLoadTracker();
 
-  return async (file: File) => {
+  const readLatestArtifactFile = (async (file: File) => {
     const loadToken = loadTracker.begin();
     const artifact = await readArtifactFile(file);
     return loadTracker.isCurrent(loadToken) ? artifact : null;
+  }) as LatestArtifactFileReader;
+
+  readLatestArtifactFile.invalidate = () => {
+    loadTracker.begin();
   };
+
+  return readLatestArtifactFile;
 }
 
-export function useArtifactFilePicker(onContent: OnArtifactContent) {
+export function useArtifactInput(
+  onContent: OnArtifactContent,
+): ArtifactInputController {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const latestArtifactFileReaderRef = useRef<ReturnType<
     typeof createLatestArtifactFileReader
@@ -30,6 +55,18 @@ export function useArtifactFilePicker(onContent: OnArtifactContent) {
   if (latestArtifactFileReaderRef.current === null) {
     latestArtifactFileReaderRef.current = createLatestArtifactFileReader();
   }
+
+  const cancelPending = useCallback(() => {
+    latestArtifactFileReaderRef.current?.invalidate();
+  }, []);
+
+  const submitText = useCallback(
+    (content: string, name: string) => {
+      cancelPending();
+      onContent(content, name);
+    },
+    [cancelPending, onContent],
+  );
 
   const handleArtifactFile = useCallback(
     async (file: File) => {
@@ -54,14 +91,26 @@ export function useArtifactFilePicker(onContent: OnArtifactContent) {
     [handleArtifactFile],
   );
 
-  return { fileInputRef, handleArtifactFile, handleFileSelect };
+  const openFilePicker = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  return {
+    cancelPending,
+    fileInputRef,
+    handleArtifactFile,
+    handleFileSelect,
+    openFilePicker,
+    submitText,
+  };
 }
 
-export function useArtifactDropZone(onContent: OnArtifactContent) {
+export function useArtifactDropZone(
+  handleArtifactFile: ArtifactInputController["handleArtifactFile"],
+  submitText: ArtifactInputController["submitText"],
+) {
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const { fileInputRef, handleArtifactFile, handleFileSelect } =
-    useArtifactFilePicker(onContent);
 
   const handleDrop = useCallback(
     async (event: DragEvent<HTMLDivElement>) => {
@@ -96,21 +145,19 @@ export function useArtifactDropZone(onContent: OnArtifactContent) {
       const text = event.clipboardData?.getData("text/plain");
       if (text?.trim()) {
         event.preventDefault();
-        onContent(text, "pasted.tsx");
+        submitText(text, "pasted.tsx");
       }
     };
 
     window.addEventListener("paste", handlePasteEvent);
     return () => window.removeEventListener("paste", handlePasteEvent);
-  }, [onContent]);
+  }, [submitText]);
 
   return {
     containerRef,
-    fileInputRef,
     handleDragLeave,
     handleDragOver,
     handleDrop,
-    handleFileSelect,
     isDragging,
   };
 }

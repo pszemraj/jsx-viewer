@@ -9,7 +9,8 @@ import { isSlotComponent, type SlotComponent } from "./slotComponent";
 import { SlotPreview } from "./SlotPreview";
 import {
   useArtifactDropZone,
-  useArtifactFilePicker,
+  useArtifactInput,
+  type ArtifactInputController,
 } from "./useArtifactInput";
 import {
   MONO,
@@ -37,14 +38,18 @@ interface LoadedComponentState {
 }
 
 interface DropZoneProps {
-  onContent: (content: string, name: string) => void;
+  handleArtifactFile: ArtifactInputController["handleArtifactFile"];
+  openFilePicker: ArtifactInputController["openFilePicker"];
+  submitText: ArtifactInputController["submitText"];
 }
 
 interface ToolbarProps {
   filename: string | null;
   connected: boolean;
+  fileInputRef: ArtifactInputController["fileInputRef"];
+  handleFileSelect: ArtifactInputController["handleFileSelect"];
   onClear: () => void;
-  onSwap: (content: string, name: string) => void;
+  openFilePicker: ArtifactInputController["openFilePicker"];
 }
 
 function useLoadedComponent() {
@@ -179,16 +184,18 @@ function useWebSocket(onMessage: (message: ServerMessage) => void) {
   return { send, connected };
 }
 
-function DropZone({ onContent }: DropZoneProps) {
+function DropZone({
+  handleArtifactFile,
+  openFilePicker,
+  submitText,
+}: DropZoneProps) {
   const {
     containerRef,
-    fileInputRef,
     handleDragLeave,
     handleDragOver,
     handleDrop,
-    handleFileSelect,
     isDragging,
-  } = useArtifactDropZone(onContent);
+  } = useArtifactDropZone(handleArtifactFile, submitText);
 
   return (
     <div
@@ -255,7 +262,7 @@ function DropZone({ onContent }: DropZoneProps) {
           d3, three.js, chart.js, and more.
         </p>
         <button
-          onClick={() => fileInputRef.current?.click()}
+          onClick={openFilePicker}
           style={{
             background: "#111",
             color: "#ededed",
@@ -276,13 +283,6 @@ function DropZone({ onContent }: DropZoneProps) {
         >
           upload artifact
         </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".jsx,.tsx"
-          onChange={handleFileSelect}
-          style={{ display: "none" }}
-        />
       </div>
 
       <div
@@ -307,9 +307,14 @@ function DropZone({ onContent }: DropZoneProps) {
   );
 }
 
-function Toolbar({ filename, connected, onClear, onSwap }: ToolbarProps) {
-  const { fileInputRef, handleFileSelect } = useArtifactFilePicker(onSwap);
-
+function Toolbar({
+  filename,
+  connected,
+  fileInputRef,
+  handleFileSelect,
+  onClear,
+  openFilePicker,
+}: ToolbarProps) {
   return (
     <div
       style={{
@@ -376,7 +381,7 @@ function Toolbar({ filename, connected, onClear, onSwap }: ToolbarProps) {
         clear
       </button>
       <button
-        onClick={() => fileInputRef.current?.click()}
+        onClick={openFilePicker}
         style={{
           background: "#111",
           color: "#888",
@@ -433,11 +438,21 @@ export default function App() {
     [send],
   );
 
+  const {
+    cancelPending,
+    fileInputRef,
+    handleArtifactFile,
+    handleFileSelect,
+    openFilePicker,
+    submitText,
+  } = useArtifactInput(handleContent);
+
   const handleClear = useCallback(() => {
+    cancelPending();
     if (send({ type: "reset-slot" })) {
       setFilename(null);
     }
-  }, [send]);
+  }, [cancelPending, send]);
 
   return (
     <div
@@ -451,8 +466,10 @@ export default function App() {
       <Toolbar
         filename={filename}
         connected={connected}
+        fileInputRef={fileInputRef}
+        handleFileSelect={handleFileSelect}
         onClear={handleClear}
-        onSwap={handleContent}
+        openFilePicker={openFilePicker}
       />
       <div style={{ flex: 1, position: "relative" }}>
         {error ? (
@@ -521,7 +538,11 @@ export default function App() {
             </div>
           </div>
         ) : isPlaceholder || !Component ? (
-          <DropZone onContent={handleContent} />
+          <DropZone
+            handleArtifactFile={handleArtifactFile}
+            openFilePicker={openFilePicker}
+            submitText={submitText}
+          />
         ) : (
           <SlotPreview Component={Component} version={version} />
         )}
