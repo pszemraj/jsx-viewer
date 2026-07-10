@@ -14,8 +14,25 @@ const REMOTE_PEER_DEPENDENCIES_QUERY = Object.entries(
   .map(([packageName, version]) => `${packageName}@${version}`)
   .join(",");
 
+function invalidRemotePackageSpecifier(specifier: string) {
+  return new Error(
+    `Invalid bare package import "${specifier}" in browser mode. ` +
+      'Use an npm package name such as "package" or "@scope/package".',
+  );
+}
+
 export function resolveRemotePackageUrl(specifier: string) {
   const packageUrl = new URL(specifier, `${REMOTE_PACKAGE_CDN_ORIGIN}/`);
+
+  if (
+    specifier.trim() !== specifier ||
+    specifier.includes("\\") ||
+    packageUrl.origin !== REMOTE_PACKAGE_CDN_ORIGIN ||
+    packageUrl.pathname === "/"
+  ) {
+    throw invalidRemotePackageSpecifier(specifier);
+  }
+
   packageUrl.searchParams.set("target", REMOTE_PACKAGE_TARGET);
   packageUrl.searchParams.set("deps", REMOTE_PEER_DEPENDENCIES_QUERY);
   packageUrl.searchParams.set(

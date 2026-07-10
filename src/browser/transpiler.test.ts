@@ -188,6 +188,19 @@ rejectionTest(
   /Unsupported import scheme "npm:" in browser mode/,
 );
 
+rejectionTest(
+  "transpileArtifact rejects backslash package specifiers before URL normalization",
+  "BadBackslashPackage.tsx",
+  String.raw`
+    import value from "\\\\example.com\\package";
+
+    export default function BadBackslashPackage() {
+      return <div>{String(value)}</div>;
+    }
+  `,
+  /Invalid bare package import/,
+);
+
 allowExampleTest(
   "transpileArtifact accepts the shipped PolyField example",
   "PolyField.tsx",

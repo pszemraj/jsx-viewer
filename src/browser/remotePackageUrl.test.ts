@@ -43,3 +43,19 @@ test("resolveRemotePackageUrl supports scoped packages", () => {
   assert.equal(packageUrl.pathname, "/@radix-ui/react-dialog");
   assert.equal(packageUrl.searchParams.get("deps"), expectedDepsQuery);
 });
+
+test("resolveRemotePackageUrl cannot escape the esm.sh origin", () => {
+  assert.throws(
+    () => resolveRemotePackageUrl("\\\\example.com\\package"),
+    /Invalid bare package import/,
+  );
+});
+
+test("resolveRemotePackageUrl rejects specifiers without a package path", () => {
+  for (const specifier of ["", ".", "#internal", "?flag", " package"] as const) {
+    assert.throws(
+      () => resolveRemotePackageUrl(specifier),
+      /Invalid bare package import/,
+    );
+  }
+});
