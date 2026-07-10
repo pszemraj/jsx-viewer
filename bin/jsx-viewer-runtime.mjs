@@ -22,8 +22,8 @@ import {
  * @typedef {import("vite").ViteDevServer} ViteDevServer
  * @typedef {import("ws").RawData} WebSocketRawData
  * @typedef {import("ws").WebSocketServer} RuntimeWebSocketServer
+ * @typedef {import("./jsx-viewer-cli.mjs").RunCliArgs} RunCliArgs
  * @typedef {import("../shared/protocol.mjs").ServerMessage} ServerMessage
- * @typedef {{mode: "run", inputFile: string | null, port: number, wsPort: number}} RunCliArgs
  * @typedef {{ (): void, dispose(): void }} QueuedArtifactReload
  */
 
