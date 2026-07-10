@@ -239,6 +239,10 @@ function hasUnsupportedPackageStylesheetExtension(specifier: string) {
   return false;
 }
 
+function isReactRuntimeFamilySpecifier(specifier: string) {
+  return /^(?:react|react-dom)(?:$|[/@?#])/u.test(specifier);
+}
+
 function resolveImportSpecifier(specifier: string) {
   if (specifier.startsWith("./") || specifier.startsWith("../")) {
     throw new Error(
@@ -276,6 +280,14 @@ function resolveImportSpecifier(specifier: string) {
   }
 
   if (!BROWSER_ARTIFACT_RUNTIME_IMPORT_SET.has(specifier)) {
+    if (isReactRuntimeFamilySpecifier(specifier)) {
+      throw new Error(
+        `Unsupported React runtime import "${specifier}" in browser mode. ` +
+          `Browser mode keeps a single React instance and supports only: ${SUPPORTED_IMPORTS}. ` +
+          "Use one of those specifiers or switch to the local Node/Vite viewer.",
+      );
+    }
+
     if (hasUnsupportedPackageStylesheetExtension(specifier)) {
       throw new Error(
         `Package stylesheet imports are not supported in browser mode: "${specifier}". ` +

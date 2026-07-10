@@ -51,9 +51,12 @@ preview frame.
 
 Browser mode can therefore handle many npm-backed single-file artifacts such as
 icon packages or charting helpers without asking the user to run a local dev
-server first. If the artifact imports `package@version`, that version is
-preserved; otherwise `esm.sh` resolves the current package build. Packages still
-need to execute in a plain browser and tolerate the viewer-owned React runtime.
+server first. If the artifact imports a non-runtime package as
+`package@version`, that version is preserved; otherwise `esm.sh` resolves the
+current package build. React runtime versions and subpaths outside the import
+map are rejected instead of being sent to the CDN, because loading a second
+React instance would break hooks and renderer identity. Packages still need to
+execute in a plain browser and tolerate the viewer-owned React runtime.
 Unsupported import forms and Node-only globals are listed in [modes and
 limitations](modes.md).
 

@@ -125,6 +125,19 @@ allowTest(
 );
 
 allowTest(
+  "transpileArtifact does not mistake react-prefixed packages for the local runtime",
+  "ReactRouterImport.tsx",
+  `
+    import { Link } from "react-router-dom";
+
+    export default function ReactRouterImport() {
+      return <Link to="/example">example</Link>;
+    }
+  `,
+  [/https:\/\/esm\.sh\/react-router-dom\?/],
+);
+
+allowTest(
   "transpileArtifact rewrites react-dom/client imports to the browser runtime",
   "ReactDomClientImport.tsx",
   `
@@ -200,6 +213,21 @@ rejectionTest(
   `,
   /Invalid bare package import/,
 );
+
+for (const specifier of ["react@19", "react-dom/server"] as const) {
+  rejectionTest(
+    `transpileArtifact rejects duplicate React runtime import ${specifier}`,
+    "DuplicateReactRuntime.tsx",
+    `
+      import runtime from "${specifier}";
+
+      export default function DuplicateReactRuntime() {
+        return <div>{String(Boolean(runtime))}</div>;
+      }
+    `,
+    /Unsupported React runtime import/,
+  );
+}
 
 allowExampleTest(
   "transpileArtifact accepts the shipped PolyField example",
