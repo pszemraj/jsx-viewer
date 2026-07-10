@@ -37,6 +37,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Test
+        run: npm test
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build local app
+        run: npm run build
+
       - name: Build browser app
         run: npm run build:browser
         env:
