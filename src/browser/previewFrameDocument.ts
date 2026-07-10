@@ -77,6 +77,18 @@ function isPreviewFrameRecord(value: unknown): value is Record<string, unknown> 
   return typeof value === "object" && value !== null;
 }
 
+export function isExpectedPreviewFrameMessageEvent(
+  event: Pick<MessageEvent<unknown>, "origin" | "source">,
+  expectedSource: MessageEventSource | null,
+  expectedOrigin: string,
+) {
+  return (
+    expectedSource !== null &&
+    event.source === expectedSource &&
+    event.origin === expectedOrigin
+  );
+}
+
 export function isPreviewFrameInitMessage(
   value: unknown,
 ): value is PreviewFrameInitMessage {

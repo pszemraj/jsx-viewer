@@ -4,6 +4,7 @@ import {
   BROWSER_PREVIEW_MESSAGE_SOURCE,
   buildPreviewFrameInitMessage,
   getPreviewFrameDocumentUrl,
+  isExpectedPreviewFrameMessageEvent,
   isPreviewFrameInitMessage,
 } from "./previewFrameDocument";
 
@@ -39,4 +40,43 @@ test("buildPreviewFrameInitMessage keeps the preview bootstrap payload explicit"
 
 test("getPreviewFrameDocumentUrl resolves the dedicated preview document on the same origin", () => {
   assert.equal(getPreviewFrameDocumentUrl(), "http://localhost/preview-frame.html");
+});
+
+test("preview frame messages require both the expected window and origin", () => {
+  const expectedSource = {} as MessageEventSource;
+  const otherSource = {} as MessageEventSource;
+  const expectedOrigin = "https://example.com";
+
+  assert.equal(
+    isExpectedPreviewFrameMessageEvent(
+      { origin: expectedOrigin, source: expectedSource },
+      expectedSource,
+      expectedOrigin,
+    ),
+    true,
+  );
+  assert.equal(
+    isExpectedPreviewFrameMessageEvent(
+      { origin: expectedOrigin, source: otherSource },
+      expectedSource,
+      expectedOrigin,
+    ),
+    false,
+  );
+  assert.equal(
+    isExpectedPreviewFrameMessageEvent(
+      { origin: "https://other.example", source: expectedSource },
+      expectedSource,
+      expectedOrigin,
+    ),
+    false,
+  );
+  assert.equal(
+    isExpectedPreviewFrameMessageEvent(
+      { origin: expectedOrigin, source: null },
+      null,
+      expectedOrigin,
+    ),
+    false,
+  );
 });

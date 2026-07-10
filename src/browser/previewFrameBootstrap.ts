@@ -2,6 +2,7 @@ import type { ComponentType, ReactNode } from "react";
 import { isSlotComponent } from "../slotComponent";
 import {
   BROWSER_PREVIEW_MESSAGE_SOURCE,
+  isExpectedPreviewFrameMessageEvent,
   isPreviewFrameInitMessage,
   type PreviewFrameInitMessage,
   type PreviewFrameStatusMessage,
@@ -90,7 +91,14 @@ async function ensureTailwindRuntime(enabled: boolean) {
 function waitForInitMessage(): Promise<PreviewFrameState> {
   return new Promise((resolve) => {
     const handleMessage = (event: MessageEvent<unknown>) => {
-      if (event.source !== parent || !isPreviewFrameInitMessage(event.data)) {
+      if (
+        !isExpectedPreviewFrameMessageEvent(
+          event,
+          parent,
+          window.location.origin,
+        ) ||
+        !isPreviewFrameInitMessage(event.data)
+      ) {
         return;
       }
 

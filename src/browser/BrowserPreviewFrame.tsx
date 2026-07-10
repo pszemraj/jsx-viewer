@@ -4,6 +4,7 @@ import {
   buildPreviewFrameInitMessage,
   getPreviewFrameDocumentUrl,
   getPreviewFrameRuntimeModuleUrls,
+  isExpectedPreviewFrameMessageEvent,
   type PreviewFrameStatusMessage,
 } from "./previewFrameDocument";
 import { toError } from "../viewerShared";
@@ -72,7 +73,13 @@ export function BrowserPreviewFrame({
     previewDocumentUrl.searchParams.set("preview-version", String(artifact.version));
 
     const handleMessage = (event: MessageEvent<PreviewFrameStatusMessage>) => {
-      if (event.source !== frame.contentWindow) {
+      if (
+        !isExpectedPreviewFrameMessageEvent(
+          event,
+          frame.contentWindow,
+          window.location.origin,
+        )
+      ) {
         return;
       }
 
