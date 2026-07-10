@@ -24,12 +24,15 @@ import { transpileArtifact } from "./transpiler";
 
 export const BROWSER_REPOSITORY_URL = "https://github.com/pszemraj/jsx-viewer";
 
-interface BrowserArtifactState {
-  artifact: BrowserPreviewArtifact | null;
-  error: Error | null;
-  isLoading: boolean;
-  status: string | null;
-}
+type BrowserArtifactState =
+  | { view: "dropzone" }
+  | { view: "error"; error: Error }
+  | { view: "loading"; status: string }
+  | {
+      view: "preview";
+      artifact: BrowserPreviewArtifact;
+      status: string | null;
+    };
 
 interface DropZoneProps {
   handleArtifactFile: ArtifactInputController["handleArtifactFile"];
@@ -43,31 +46,6 @@ interface ToolbarProps {
   handleFileSelect: ArtifactInputController["handleFileSelect"];
   onClear: () => void;
   openFilePicker: ArtifactInputController["openFilePicker"];
-}
-
-type BrowserShellView = "dropzone" | "error" | "loading" | "preview";
-
-export function getBrowserShellView(
-  state: Pick<
-    BrowserArtifactState,
-    "artifact" | "error" | "isLoading" | "status"
-  >,
-): BrowserShellView {
-  if (state.error) {
-    return "error";
-  }
-
-  if (state.artifact) {
-    return "preview";
-  }
-
-  return state.isLoading && state.status ? "loading" : "dropzone";
-}
-
-export function shouldShowLoadingOverlay(
-  state: Pick<BrowserArtifactState, "artifact" | "isLoading" | "status">,
-) {
-  return state.artifact !== null && state.isLoading && state.status !== null;
 }
 
 function ErrorPanel({
@@ -519,12 +497,7 @@ export default function AppBrowser() {
   const previewVersionRef = useRef(0);
   const [filename, setFilename] = useState<string | null>(null);
   const [runtimeError, setRuntimeError] = useState<Error | null>(null);
-  const [state, setState] = useState<BrowserArtifactState>({
-    artifact: null,
-    error: null,
-    isLoading: false,
-    status: null,
-  });
+  const [state, setState] = useState<BrowserArtifactState>({ view: "dropzone" });
 
   const bumpPreviewVersion = useCallback(() => {
     previewVersionRef.current += 1;
@@ -538,9 +511,7 @@ export default function AppBrowser() {
       setFilename(name);
       setRuntimeError(null);
       setState({
-        artifact: null,
-        error: null,
-        isLoading: true,
+        view: "loading",
         status: "Compiling artifact in the browser",
       });
 
@@ -553,14 +524,13 @@ export default function AppBrowser() {
 
         const artifactVersion = bumpPreviewVersion();
         setState({
+          view: "preview",
           artifact: {
             code,
             enableTailwindRuntime: features.enableTailwindRuntime,
             filename: name,
             version: artifactVersion,
           },
-          error: null,
-          isLoading: true,
           status: "Booting preview frame",
         });
       } catch (error) {
@@ -568,12 +538,7 @@ export default function AppBrowser() {
           return;
         }
 
-        setState({
-          artifact: null,
-          error: toError(error),
-          isLoading: false,
-          status: null,
-        });
+        setState({ view: "error", error: toError(error) });
       }
     },
     [bumpPreviewVersion],
@@ -586,13 +551,11 @@ export default function AppBrowser() {
       setFilename(file.name);
       setRuntimeError(null);
       setState({
-        artifact: null,
+        view: "error",
         error: new Error(
           `Unable to read "${file.name}": ${readError.message}`,
           { cause: readError },
         ),
-        isLoading: false,
-        status: null,
       });
     },
     [bumpPreviewVersion],
@@ -613,12 +576,7 @@ export default function AppBrowser() {
     setFilename(null);
     setRuntimeError(null);
     bumpPreviewVersion();
-    setState({
-      artifact: null,
-      error: null,
-      isLoading: false,
-      status: null,
-    });
+    setState({ view: "dropzone" });
   }, [bumpPreviewVersion, cancelPending]);
 
   const browserModeDetails =
@@ -626,9 +584,6 @@ export default function AppBrowser() {
     "That lets clear and swap fully tear down module-scope state, but it is still a trusted-code path rather than a security sandbox. " +
     "Relative imports, direct remote URL imports, Vite-only globals, and CommonJS are intentionally rejected early. " +
     "Bare package imports resolve through esm.sh, with React peer dependencies pinned to the viewer runtime, and class-heavy artifacts can load Tailwind's browser runtime.";
-  const shellView = getBrowserShellView(state);
-  const showLoadingOverlay = shouldShowLoadingOverlay(state);
-
   return (
     <div
       style={{
@@ -646,21 +601,21 @@ export default function AppBrowser() {
         openFilePicker={openFilePicker}
       />
       <div style={{ flex: 1, position: "relative" }}>
-        {shellView === "error" ? (
+        {state.view === "error" ? (
           <ErrorPanel
             title="Browser Mode Error"
-            error={state.error ?? new Error("Unknown browser-mode error.")}
+            error={state.error}
             details={browserModeDetails}
           />
-        ) : shellView === "loading" ? (
-          <LoadingState status={state.status ?? "Loading artifact"} />
-        ) : shellView === "dropzone" ? (
+        ) : state.view === "loading" ? (
+          <LoadingState status={state.status} />
+        ) : state.view === "dropzone" ? (
           <DropZone
             handleArtifactFile={handleArtifactFile}
             openFilePicker={openFilePicker}
             submitText={submitText}
           />
-        ) : state.artifact ? (
+        ) : (
           <>
             {runtimeError ? (
               <div
@@ -684,25 +639,20 @@ export default function AppBrowser() {
                 onLoadError={(version, error) => {
                   setRuntimeError(null);
                   setState((current) =>
-                    current.artifact?.version !== version
+                    current.view !== "preview" ||
+                    current.artifact.version !== version
                       ? current
-                      : {
-                          artifact: null,
-                          error,
-                          isLoading: false,
-                          status: null,
-                        },
+                      : { view: "error", error },
                   );
                 }}
                 onReady={(version) => {
                   setRuntimeError(null);
                   setState((current) =>
-                    current.artifact?.version !== version
+                    current.view !== "preview" ||
+                    current.artifact.version !== version
                       ? current
                       : {
                           ...current,
-                          error: null,
-                          isLoading: false,
                           status: null,
                         },
                   );
@@ -713,7 +663,7 @@ export default function AppBrowser() {
                   );
                 }}
               />
-              {showLoadingOverlay ? (
+              {state.status !== null ? (
                 <div
                   style={{
                     inset: 0,
@@ -721,12 +671,12 @@ export default function AppBrowser() {
                     position: "absolute",
                   }}
                 >
-                  <LoadingState status={state.status ?? "Loading preview"} />
+                  <LoadingState status={state.status} />
                 </div>
               ) : null}
             </div>
           </>
-        ) : null}
+        )}
       </div>
     </div>
   );
