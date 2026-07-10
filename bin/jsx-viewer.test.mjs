@@ -15,6 +15,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
+import ts from "typescript";
 import {
   buildBrowserContentSecurityPolicy,
   computeInlineScriptHash,
@@ -106,6 +107,57 @@ function withRuntimeSlotsDir(runtimeSlotsDir, callback) {
 function getExpectedRuntimeSlotModuleUrl(filePath) {
   const fileUrl = pathToFileURL(filePath);
   return `/@fs${fileUrl.host ? `//${fileUrl.host}${fileUrl.pathname}` : fileUrl.pathname}`;
+}
+
+const PACKED_MODULE_EXTENSIONS = [
+  ".css",
+  ".js",
+  ".jsx",
+  ".json",
+  ".mjs",
+  ".ts",
+  ".tsx",
+];
+
+function getPackedImportCandidates(importerPath, specifier) {
+  const resolvedPath = path.posix.normalize(
+    path.posix.join(path.posix.dirname(importerPath), specifier),
+  );
+
+  if (path.posix.extname(resolvedPath)) {
+    return [resolvedPath];
+  }
+
+  return PACKED_MODULE_EXTENSIONS.flatMap((extension) => [
+    `${resolvedPath}${extension}`,
+    `${resolvedPath}/index${extension}`,
+  ]);
+}
+
+function assertPackedImportClosure(packedPaths) {
+  const packedPathSet = new Set(packedPaths);
+
+  for (const importerPath of packedPaths) {
+    if (!/\.[cm]?[jt]sx?$/u.test(importerPath)) {
+      continue;
+    }
+
+    const source = readFileSync(path.join(REPO_ROOT, importerPath), "utf8");
+    const importedFiles = ts.preProcessFile(source, true, true).importedFiles;
+
+    for (const { fileName: specifier } of importedFiles) {
+      if (!specifier.startsWith(".")) {
+        continue;
+      }
+
+      const candidates = getPackedImportCandidates(importerPath, specifier);
+      assert.equal(
+        candidates.some((candidate) => packedPathSet.has(candidate)),
+        true,
+        `${importerPath} imports ${specifier}, but no matching module is packed.`,
+      );
+    }
+  }
 }
 
 test("cli entrypoint does not depend on the tsx loader", () => {
@@ -720,4 +772,5 @@ test("npm pack only ships runtime package files", () => {
   );
   assert.equal(packedPaths.includes("src/browser/devEntryUrl.ts"), true);
   assert.equal(packedPaths.includes("src/hotReload.ts"), true);
+  assertPackedImportClosure(packedPaths);
 });
