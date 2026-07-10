@@ -1,3 +1,4 @@
+import type { TransformResult } from "@babel/standalone";
 import {
   BROWSER_RUNTIME_SPECIFIERS,
   isBrowserRuntimeSpecifier,
@@ -10,22 +11,6 @@ import {
   type BrowserArtifactFeatures,
 } from "./artifactFeatures";
 import { toError } from "../viewerShared";
-
-interface BabelTransformResult {
-  code?: string | null;
-}
-
-interface BabelTransformApi {
-  transform(
-    source: string,
-    options: {
-      filename: string;
-      plugins?: unknown[];
-      presets?: Array<[string, Record<string, unknown>]>;
-      sourceType: "module";
-    },
-  ): BabelTransformResult;
-}
 
 interface BabelApi {
   types: {
@@ -181,19 +166,23 @@ const UNSUPPORTED_PACKAGE_STYLESHEET_EXTENSIONS = new Set([
   ".styl",
   ".stylus",
 ]);
-const UNSUPPORTED_GLOBAL_REFERENCE_NAMES = new Set([
+const UNSUPPORTED_GLOBAL_REFERENCE_NAMES = new Set<UnsupportedWriteTarget>([
   "process",
   "require",
   "module",
   "exports",
 ]);
-let babelApiPromise: Promise<BabelTransformApi> | null = null;
+let babelApiPromise: Promise<typeof import("@babel/standalone")> | null = null;
+
+function isUnsupportedGlobalReferenceName(
+  name: string,
+): name is UnsupportedWriteTarget {
+  return UNSUPPORTED_GLOBAL_REFERENCE_NAMES.has(name as UnsupportedWriteTarget);
+}
 
 function getBabelApi() {
   if (babelApiPromise === null) {
-    babelApiPromise = import("@babel/standalone").then(
-      (module) => module as unknown as BabelTransformApi,
-    );
+    babelApiPromise = import("@babel/standalone");
   }
 
   return babelApiPromise;
@@ -642,9 +631,9 @@ function resolveUnsupportedGlobalAliasMemberSource(
 
   if (
     propertyName !== null &&
-    UNSUPPORTED_GLOBAL_REFERENCE_NAMES.has(propertyName)
+    isUnsupportedGlobalReferenceName(propertyName)
   ) {
-    return propertyName as Exclude<UnsupportedReferenceSource, "import.meta">;
+    return propertyName;
   }
 
   return null;
@@ -849,10 +838,7 @@ function resolveUnsupportedReferenceSource(
   }
 
   if (
-    (name === "process" ||
-      name === "require" ||
-      name === "module" ||
-      name === "exports") &&
+    isUnsupportedGlobalReferenceName(name) &&
     !hasBinding(path, name)
   ) {
     return name;
@@ -1268,10 +1254,8 @@ function findUnsupportedWriteTarget(
     const name = (unwrappedNode as { name?: unknown }).name;
 
     if (
-      (name === "process" ||
-        name === "require" ||
-        name === "module" ||
-        name === "exports") &&
+      typeof name === "string" &&
+      isUnsupportedGlobalReferenceName(name) &&
       !hasBinding(path, name)
     ) {
       return name;
@@ -1481,54 +1465,36 @@ function createBrowserGuardsPlugin() {
       throw path.buildCodeFrameError(getUnsupportedReferenceMessage(source));
     };
 
+    const guardUnsupportedWriteTarget = (
+      path: BabelNodePath,
+      target: unknown,
+    ) => {
+      const unsupportedTarget = findUnsupportedWriteTarget(target, path, types);
+
+      if (unsupportedTarget) {
+        throw path.buildCodeFrameError(
+          getUnsupportedReferenceMessage(unsupportedTarget),
+        );
+      }
+    };
+
     return {
       name: "jsx-viewer-browser-guards",
       visitor: {
         AssignmentExpression(
           path: BabelNodePath<BabelAssignmentExpressionNode>,
         ) {
-          const unsupportedTarget = findUnsupportedWriteTarget(
-            path.node.left,
-            path,
-            types,
-          );
-
-          if (unsupportedTarget) {
-            throw path.buildCodeFrameError(
-              getUnsupportedReferenceMessage(unsupportedTarget),
-            );
-          }
-
+          guardUnsupportedWriteTarget(path, path.node.left);
           guardUnsupportedSourceAccess(path, path.node.left, path.node.right);
         },
         AssignmentPattern(path: BabelNodePath<BabelAssignmentPatternNode>) {
           guardUnsupportedSourceAccess(path, path.node.left, path.node.right);
         },
         ForInStatement(path: BabelNodePath<BabelForXStatementNode>) {
-          const unsupportedTarget = findUnsupportedWriteTarget(
-            path.node.left,
-            path,
-            types,
-          );
-
-          if (unsupportedTarget) {
-            throw path.buildCodeFrameError(
-              getUnsupportedReferenceMessage(unsupportedTarget),
-            );
-          }
+          guardUnsupportedWriteTarget(path, path.node.left);
         },
         ForOfStatement(path: BabelNodePath<BabelForXStatementNode>) {
-          const unsupportedTarget = findUnsupportedWriteTarget(
-            path.node.left,
-            path,
-            types,
-          );
-
-          if (unsupportedTarget) {
-            throw path.buildCodeFrameError(
-              getUnsupportedReferenceMessage(unsupportedTarget),
-            );
-          }
+          guardUnsupportedWriteTarget(path, path.node.left);
         },
         Identifier(path: BabelNodePath) {
           guardIdentifierReference(path);
@@ -1632,7 +1598,7 @@ function createImportRewritePlugin() {
   };
 }
 
-function requireCode(result: BabelTransformResult, filename: string) {
+function requireCode(result: TransformResult, filename: string) {
   if (typeof result.code === "string" && result.code.trim().length > 0) {
     return result.code;
   }
