@@ -574,7 +574,6 @@ export default function AppBrowser() {
           isLoading: false,
           status: null,
         });
-        bumpPreviewVersion();
       }
     },
     [bumpPreviewVersion],

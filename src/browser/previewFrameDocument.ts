@@ -17,19 +17,19 @@ interface BuildPreviewFrameInitMessageOptions extends PreviewFrameRuntimeModuleU
 export interface PreviewFrameInitMessage
   extends BuildPreviewFrameInitMessageOptions {
   readonly mono: string;
-  readonly source: typeof PREVIEW_MESSAGE_SOURCE;
+  readonly source: typeof BROWSER_PREVIEW_MESSAGE_SOURCE;
   readonly type: "init";
 }
 
 export interface PreviewFrameStatusMessage {
   readonly message?: string;
-  readonly source: typeof PREVIEW_MESSAGE_SOURCE;
+  readonly source: typeof BROWSER_PREVIEW_MESSAGE_SOURCE;
   readonly type: "load-error" | "ready" | "runtime-error";
   readonly version: number;
 }
 
 const PREVIEW_MONO = '"JetBrains Mono", "Fira Code", "SF Mono", monospace';
-const PREVIEW_MESSAGE_SOURCE = "jsx-viewer-browser-preview";
+export const BROWSER_PREVIEW_MESSAGE_SOURCE = "jsx-viewer-browser-preview";
 const PREVIEW_FRAME_DOCUMENT_PATH = "preview-frame.html";
 
 export function getPreviewFrameDocumentUrl() {
@@ -67,7 +67,7 @@ export function buildPreviewFrameInitMessage({
     mono: PREVIEW_MONO,
     reactDomClientUrl,
     reactUrl,
-    source: PREVIEW_MESSAGE_SOURCE,
+    source: BROWSER_PREVIEW_MESSAGE_SOURCE,
     type: "init",
     version,
   };
@@ -102,11 +102,9 @@ export function isPreviewFrameInitMessage(
     typeof value.mono === "string" &&
     typeof value.reactDomClientUrl === "string" &&
     typeof value.reactUrl === "string" &&
-    value.source === PREVIEW_MESSAGE_SOURCE &&
+    value.source === BROWSER_PREVIEW_MESSAGE_SOURCE &&
     value.type === "init" &&
     typeof value.version === "number" &&
     Number.isFinite(value.version)
   );
 }
-
-export const BROWSER_PREVIEW_MESSAGE_SOURCE = PREVIEW_MESSAGE_SOURCE;

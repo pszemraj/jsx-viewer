@@ -1,5 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
 import { isSlotComponent } from "../slotComponent";
+import { toError } from "../viewerShared";
 import {
   BROWSER_PREVIEW_MESSAGE_SOURCE,
   isExpectedPreviewFrameMessageEvent,
@@ -24,14 +25,6 @@ interface ErrorBoundaryState {
 type PreviewFrameStatusType = PreviewFrameStatusMessage["type"];
 const TAILWIND_BROWSER_CDN_URL = "https://cdn.tailwindcss.com";
 
-function toMessage(value: unknown) {
-  if (value instanceof Error) {
-    return value.message;
-  }
-
-  return typeof value === "string" ? value : String(value);
-}
-
 function postToParent(
   state: PreviewFrameState,
   type: PreviewFrameStatusType,
@@ -53,32 +46,11 @@ async function ensureTailwindRuntime(enabled: boolean) {
     return;
   }
 
-  const existingScript = document.querySelector<HTMLScriptElement>(
-    `script[src="${TAILWIND_BROWSER_CDN_URL}"]`,
-  );
-
-  if (existingScript) {
-    if (existingScript.dataset.loaded === "true") {
-      return;
-    }
-
-    await new Promise<void>((resolve, reject) => {
-      existingScript.addEventListener("load", () => resolve(), { once: true });
-      existingScript.addEventListener(
-        "error",
-        () => reject(new Error("Failed to load the Tailwind browser runtime.")),
-        { once: true },
-      );
-    });
-    return;
-  }
-
   const script = document.createElement("script");
   script.src = TAILWIND_BROWSER_CDN_URL;
 
   await new Promise<void>((resolve, reject) => {
     script.addEventListener("load", () => {
-      script.dataset.loaded = "true";
       resolve();
     });
     script.addEventListener("error", () => {
@@ -121,11 +93,11 @@ async function boot() {
     postToParent(
       state,
       "runtime-error",
-      toMessage(event.error ?? event.message ?? "Unknown runtime error"),
+      toError(event.error ?? event.message ?? "Unknown runtime error").message,
     );
   });
   window.addEventListener("unhandledrejection", (event) => {
-    postToParent(state, "runtime-error", toMessage(event.reason));
+    postToParent(state, "runtime-error", toError(event.reason).message);
   });
 
   try {
@@ -156,7 +128,7 @@ async function boot() {
       }
 
       componentDidCatch(error: Error) {
-        postToParent(state, "runtime-error", toMessage(error));
+        postToParent(state, "runtime-error", toError(error).message);
       }
 
       render() {
@@ -208,7 +180,7 @@ async function boot() {
                   wordBreak: "break-word",
                 },
               },
-              toMessage(this.state.error),
+              toError(this.state.error).message,
             ),
           ),
         );
@@ -275,7 +247,7 @@ async function boot() {
     );
     postToParent(state, "ready");
   } catch (error) {
-    postToParent(state, "load-error", toMessage(error));
+    postToParent(state, "load-error", toError(error).message);
   }
 }
 
