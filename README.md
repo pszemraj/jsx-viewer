@@ -6,6 +6,9 @@ Preview standalone React `.jsx` and `.tsx` files without scaffolding a temporary
 
 `jsx-viewer` is for AI-generated UI artifacts, quick prototypes, and component examples that need to be rendered before they are copied into a project. Use the hosted viewer for trusted single-file artifacts, or run the local viewer for watched files, local dependencies, relative imports, and Tailwind compilation.
 
+> [!TIP]
+> You can clone, build, and run `jsx-viewer` entirely on your own machine. For most people, the easiest option is the [hosted viewer](https://pszemraj.github.io/jsx-viewer/), which still compiles and renders your file locally in your browser rather than uploading it to a backend.
+
 ## Hosted viewer
 
 Open [pszemraj.github.io/jsx-viewer](https://pszemraj.github.io/jsx-viewer/) and paste, upload, or drag and drop a trusted `.jsx` or `.tsx` file.
