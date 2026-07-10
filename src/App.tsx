@@ -94,7 +94,6 @@ function useLoadedComponent() {
       setState((current) => ({
         ...current,
         error: toError(error),
-        version: current.version + 1,
       }));
     }
   }, []);
@@ -111,7 +110,7 @@ function useLoadedComponent() {
     );
   }, [load]);
 
-  return { ...state, reload: load };
+  return state;
 }
 
 function useWebSocket(onMessage: (message: ServerMessage) => void) {

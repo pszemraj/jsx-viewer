@@ -20,11 +20,8 @@ import {
  * @typedef {import("chokidar").FSWatcher} FSWatcher
  * @typedef {import("vite").InlineConfig} ViteServerConfig
  * @typedef {import("vite").ViteDevServer} ViteDevServer
- * @typedef {{ on(event: "add" | "change", listener: () => void): unknown }} ArtifactWatcher
  * @typedef {import("ws").RawData} WebSocketRawData
- * @typedef {import("ws").WebSocket} RuntimeWebSocket
  * @typedef {import("ws").WebSocketServer} RuntimeWebSocketServer
- * @typedef {import("../shared/protocol.mjs").ClientMessage} ClientMessage
  * @typedef {import("../shared/protocol.mjs").ServerMessage} ServerMessage
  * @typedef {{mode: "run", inputFile: string | null, port: number, wsPort: number}} RunCliArgs
  * @typedef {{ (): void, dispose(): void }} QueuedArtifactReload
