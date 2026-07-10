@@ -6,16 +6,38 @@ import {
   type ChangeEvent,
   type DragEvent,
 } from "react";
+import { createLoadTracker } from "./loadTracker";
 import { getFirstFile, readArtifactFile } from "./viewerShared";
 
 type OnArtifactContent = (content: string, name: string) => void;
 
+export function createLatestArtifactFileReader() {
+  const loadTracker = createLoadTracker();
+
+  return async (file: File) => {
+    const loadToken = loadTracker.begin();
+    const artifact = await readArtifactFile(file);
+    return loadTracker.isCurrent(loadToken) ? artifact : null;
+  };
+}
+
 export function useArtifactFilePicker(onContent: OnArtifactContent) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const latestArtifactFileReaderRef = useRef<ReturnType<
+    typeof createLatestArtifactFileReader
+  > | null>(null);
+
+  if (latestArtifactFileReaderRef.current === null) {
+    latestArtifactFileReaderRef.current = createLatestArtifactFileReader();
+  }
 
   const handleArtifactFile = useCallback(
     async (file: File) => {
-      const artifact = await readArtifactFile(file);
+      const artifact = await latestArtifactFileReaderRef.current?.(file);
+      if (!artifact) {
+        return;
+      }
+
       onContent(artifact.content, artifact.name);
     },
     [onContent],
