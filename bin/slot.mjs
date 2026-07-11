@@ -63,10 +63,7 @@ function getRuntimeSharedRoot() {
  * @returns {string}
  */
 function getWorkspaceFingerprint(rootPath = ROOT) {
-  const resolvedRoot =
-    typeof fs.realpathSync.native === "function"
-      ? fs.realpathSync.native(rootPath)
-      : fs.realpathSync(rootPath);
+  const resolvedRoot = fs.realpathSync.native(rootPath);
   return process.platform === "win32" ? resolvedRoot.toLowerCase() : resolvedRoot;
 }
 
@@ -84,12 +81,8 @@ export function getRuntimeWorkspaceName(rootPath = ROOT) {
   return `${RUNTIME_WORKSPACE_PREFIX}${digest}`;
 }
 
-export function getRuntimeWorkspaceRoot() {
-  return path.join(getRuntimeSharedRoot(), getRuntimeWorkspaceName());
-}
-
 export function getRuntimeSlotsRoot() {
-  return getRuntimeWorkspaceRoot();
+  return path.join(getRuntimeSharedRoot(), getRuntimeWorkspaceName());
 }
 
 export function getRuntimeCacheRoot() {
@@ -154,23 +147,12 @@ export function getRuntimeSlotModuleUrl(port) {
 }
 
 /**
- * @param {string} slotPath
- * @returns {void}
- */
-function ensureSlotDir(slotPath) {
-  const dir = path.dirname(slotPath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-}
-
-/**
  * @param {string} content
  * @param {string} [slotPath]
  * @returns {void}
  */
 export function writeSlot(content, slotPath = TRACKED_SLOT_PATH) {
-  ensureSlotDir(slotPath);
+  fs.mkdirSync(path.dirname(slotPath), { recursive: true });
   fs.writeFileSync(slotPath, content, "utf-8");
 }
 
@@ -257,14 +239,6 @@ function clearManagedRuntimePortDirs(
       force: true,
     });
   }
-}
-
-export function clearRuntimeSlots() {
-  clearManagedRuntimePortDirs(getRuntimeSlotsRoot());
-}
-
-export function clearRuntimeCaches() {
-  clearManagedRuntimePortDirs(getRuntimeCacheRoot());
 }
 
 /**

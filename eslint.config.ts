@@ -4,25 +4,16 @@ import tsPlugin from "@typescript-eslint/eslint-plugin";
 import reactPlugin from "eslint-plugin-react";
 import reactHooksPlugin from "eslint-plugin-react-hooks";
 
-const browserGlobals = {
-  console: "readonly",
-  document: "readonly",
-  FileReader: "readonly",
-  location: "readonly",
-  setTimeout: "readonly",
-  WebSocket: "readonly",
-  window: "readonly",
-} as const;
-
-const nodeGlobals = {
-  console: "readonly",
-  process: "readonly",
-  setTimeout: "readonly",
-} as const;
-
 export default [
   {
-    ignores: ["dist/**", "node_modules/**", ".tmp/**"],
+    ignores: [
+      "dist/**",
+      "dist-browser/**",
+      "node_modules/**",
+      ".npm-cache/**",
+      ".tmp/**",
+      ".tmp-*/**",
+    ],
   },
   js.configs.recommended,
   {
@@ -39,7 +30,6 @@ export default [
       parserOptions: {
         ecmaFeatures: { jsx: true },
       },
-      globals: browserGlobals,
     },
     rules: {
       ...reactHooksPlugin.configs.recommended.rules,
@@ -61,7 +51,6 @@ export default [
       parser: tsParser,
       ecmaVersion: 2022,
       sourceType: "module",
-      globals: nodeGlobals,
     },
     rules: {
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],

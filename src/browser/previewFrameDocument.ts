@@ -1,0 +1,105 @@
+import {
+  resolveCurrentBrowserBaseUrl,
+  resolveCurrentRuntimeModuleUrl,
+} from "./browserRuntimeContext";
+import type { BrowserRuntimeSpecifier } from "./runtimeManifest";
+
+export interface PreviewFrameRuntimeModuleUrls {
+  readonly reactUrl: string;
+  readonly reactDomClientUrl: string;
+}
+
+interface BuildPreviewFrameInitMessageOptions extends PreviewFrameRuntimeModuleUrls {
+  readonly artifactUrl: string;
+  readonly enableTailwindRuntime: boolean;
+  readonly version: number;
+}
+
+export interface PreviewFrameInitMessage
+  extends BuildPreviewFrameInitMessageOptions {
+  readonly mono: string;
+  readonly source: typeof BROWSER_PREVIEW_MESSAGE_SOURCE;
+  readonly type: "init";
+}
+
+export interface PreviewFrameStatusMessage {
+  readonly message?: string;
+  readonly source: typeof BROWSER_PREVIEW_MESSAGE_SOURCE;
+  readonly type: "load-error" | "ready" | "runtime-error";
+  readonly version: number;
+}
+
+const PREVIEW_MONO = '"JetBrains Mono", "Fira Code", "SF Mono", monospace';
+export const BROWSER_PREVIEW_MESSAGE_SOURCE = "jsx-viewer-browser-preview";
+const PREVIEW_FRAME_DOCUMENT_PATH = "preview-frame.html";
+
+export function getPreviewFrameDocumentUrl() {
+  const baseUrl = resolveCurrentBrowserBaseUrl();
+  return new URL(PREVIEW_FRAME_DOCUMENT_PATH, baseUrl).toString();
+}
+
+function getRuntimeUrl(specifier: BrowserRuntimeSpecifier) {
+  return resolveCurrentRuntimeModuleUrl(specifier);
+}
+
+export function getPreviewFrameRuntimeModuleUrls(): PreviewFrameRuntimeModuleUrls {
+  return {
+    reactUrl: getRuntimeUrl("react"),
+    reactDomClientUrl: getRuntimeUrl("react-dom/client"),
+  };
+}
+
+export function buildPreviewFrameInitMessage({
+  artifactUrl,
+  enableTailwindRuntime,
+  reactDomClientUrl,
+  reactUrl,
+  version,
+}: BuildPreviewFrameInitMessageOptions): PreviewFrameInitMessage {
+  return {
+    artifactUrl,
+    enableTailwindRuntime,
+    mono: PREVIEW_MONO,
+    reactDomClientUrl,
+    reactUrl,
+    source: BROWSER_PREVIEW_MESSAGE_SOURCE,
+    type: "init",
+    version,
+  };
+}
+
+function isPreviewFrameRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+export function isExpectedPreviewFrameMessageEvent(
+  event: Pick<MessageEvent<unknown>, "origin" | "source">,
+  expectedSource: MessageEventSource | null,
+  expectedOrigin: string,
+) {
+  return (
+    expectedSource !== null &&
+    event.source === expectedSource &&
+    event.origin === expectedOrigin
+  );
+}
+
+export function isPreviewFrameInitMessage(
+  value: unknown,
+): value is PreviewFrameInitMessage {
+  if (!isPreviewFrameRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.artifactUrl === "string" &&
+    typeof value.enableTailwindRuntime === "boolean" &&
+    typeof value.mono === "string" &&
+    typeof value.reactDomClientUrl === "string" &&
+    typeof value.reactUrl === "string" &&
+    value.source === BROWSER_PREVIEW_MESSAGE_SOURCE &&
+    value.type === "init" &&
+    typeof value.version === "number" &&
+    Number.isFinite(value.version)
+  );
+}

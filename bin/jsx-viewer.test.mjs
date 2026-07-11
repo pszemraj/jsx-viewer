@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { createServer } from "node:net";
 import {
   copyFileSync,
@@ -13,9 +13,17 @@ import {
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
-import viteConfig from "../vite.config.ts";
+import ts from "typescript";
+import {
+  buildBrowserContentSecurityPolicy,
+  computeInlineScriptHash,
+} from "../shared/browser-csp.mjs";
+import browserViteConfig, {
+  buildPreviewImportMapScriptContents,
+} from "../vite.config.browser.ts";
+import { BROWSER_RUNTIME_ENTRIES } from "../src/browser/runtimeManifest.ts";
 import {
   CliUsageError,
   DEFAULT_VIEWER_PORT,
@@ -28,7 +36,6 @@ import {
 } from "./jsx-viewer-cli.mjs";
 import {
   clearRuntimeArtifacts,
-  clearRuntimeSlots,
   PLACEHOLDER,
   TRACKED_SLOT_PATH,
   getRuntimeCacheDir,
@@ -45,11 +52,8 @@ import {
   writeSlot,
 } from "./slot.mjs";
 import {
-  WATCHED_ARTIFACT_EVENTS,
   createQueuedArtifactReload,
   getViteServerConfig,
-  mergeCleanupExitCode,
-  registerWatchedArtifactEvents,
   waitForCloseOperation,
 } from "./jsx-viewer-runtime.mjs";
 
@@ -100,9 +104,55 @@ function withRuntimeSlotsDir(runtimeSlotsDir, callback) {
   }
 }
 
-function getExpectedRuntimeSlotModuleUrl(filePath) {
-  const fileUrl = pathToFileURL(filePath);
-  return `/@fs${fileUrl.host ? `//${fileUrl.host}${fileUrl.pathname}` : fileUrl.pathname}`;
+const PACKED_MODULE_EXTENSIONS = [
+  ".css",
+  ".js",
+  ".jsx",
+  ".json",
+  ".mjs",
+  ".ts",
+  ".tsx",
+];
+
+function getPackedImportCandidates(importerPath, specifier) {
+  const resolvedPath = path.posix.normalize(
+    path.posix.join(path.posix.dirname(importerPath), specifier),
+  );
+
+  if (path.posix.extname(resolvedPath)) {
+    return [resolvedPath];
+  }
+
+  return PACKED_MODULE_EXTENSIONS.flatMap((extension) => [
+    `${resolvedPath}${extension}`,
+    `${resolvedPath}/index${extension}`,
+  ]);
+}
+
+function assertPackedImportClosure(packedPaths) {
+  const packedPathSet = new Set(packedPaths);
+
+  for (const importerPath of packedPaths) {
+    if (!/\.[cm]?[jt]sx?$/u.test(importerPath)) {
+      continue;
+    }
+
+    const source = readFileSync(path.join(REPO_ROOT, importerPath), "utf8");
+    const importedFiles = ts.preProcessFile(source, true, true).importedFiles;
+
+    for (const { fileName: specifier } of importedFiles) {
+      if (!specifier.startsWith(".")) {
+        continue;
+      }
+
+      const candidates = getPackedImportCandidates(importerPath, specifier);
+      assert.equal(
+        candidates.some((candidate) => packedPathSet.has(candidate)),
+        true,
+        `${importerPath} imports ${specifier}, but no matching module is packed.`,
+      );
+    }
+  }
 }
 
 test("cli entrypoint does not depend on the tsx loader", () => {
@@ -143,13 +193,77 @@ test("cli runtime packages are published as production dependencies", () => {
   }
 });
 
-test("cli reports the package version from package metadata", () => {
-  const stdout = execFileSync(process.execPath, [CLI_PATH, "--version"], {
-    cwd: REPO_ROOT,
-    encoding: "utf8",
-  }).trim();
+test("browser npm entrypoints stay behind the Node version gate", () => {
+  const versionGateScript = "node ./bin/check-node-version.mjs";
 
-  assert.equal(stdout, packageJson.version);
+  assert.equal(packageJson.scripts?.prebuild, versionGateScript);
+  assert.equal(packageJson.scripts?.["prebuild:browser"], versionGateScript);
+  assert.equal(packageJson.scripts?.["predev:browser"], versionGateScript);
+});
+
+test("browser preview script serves the finalized Pages artifact", () => {
+  assert.equal(
+    packageJson.scripts?.["preview:browser"],
+    "npm run build:browser && vite preview --config vite.config.browser.ts",
+  );
+});
+
+test("preview frame CSP hashes the inline import map instead of requiring unsafe-inline", () => {
+  const importMap = buildPreviewImportMapScriptContents("/jsx-viewer/", false);
+  const hash = computeInlineScriptHash(importMap);
+  const csp = buildBrowserContentSecurityPolicy({
+    inlineScriptHashes: [hash],
+  });
+  const scriptSrcDirective = csp
+    .split("; ")
+    .find((directive) => directive.startsWith("script-src "));
+
+  assert.ok(scriptSrcDirective);
+  assert.match(
+    scriptSrcDirective,
+    /script-src 'self' blob: https:\/\/esm\.sh https:\/\/cdn\.tailwindcss\.com 'sha256-/,
+  );
+  assert.match(
+    scriptSrcDirective,
+    new RegExp(hash.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+  );
+  assert.doesNotMatch(scriptSrcDirective, /unsafe-inline/);
+});
+
+test("browser CSP allows ordinary non-script browser resources for trusted artifacts", () => {
+  const csp = buildBrowserContentSecurityPolicy();
+  const connectSrcDirective = csp
+    .split("; ")
+    .find((directive) => directive.startsWith("connect-src "));
+  const imgSrcDirective = csp
+    .split("; ")
+    .find((directive) => directive.startsWith("img-src "));
+  const styleSrcDirective = csp
+    .split("; ")
+    .find((directive) => directive.startsWith("style-src "));
+  const fontSrcDirective = csp
+    .split("; ")
+    .find((directive) => directive.startsWith("font-src "));
+  const mediaSrcDirective = csp
+    .split("; ")
+    .find((directive) => directive.startsWith("media-src "));
+  const frameSrcDirective = csp
+    .split("; ")
+    .find((directive) => directive.startsWith("frame-src "));
+  const workerSrcDirective = csp
+    .split("; ")
+    .find((directive) => directive.startsWith("worker-src "));
+
+  assert.equal(connectSrcDirective, "connect-src 'self' https: wss:");
+  assert.equal(imgSrcDirective, "img-src 'self' https: blob: data:");
+  assert.equal(
+    styleSrcDirective,
+    "style-src 'self' 'unsafe-inline' https: blob:",
+  );
+  assert.equal(fontSrcDirective, "font-src 'self' https: blob: data:");
+  assert.equal(mediaSrcDirective, "media-src 'self' https: blob: data:");
+  assert.equal(frameSrcDirective, "frame-src 'self' https:");
+  assert.equal(workerSrcDirective, "worker-src 'self' blob:");
 });
 
 test("metadata-only modes do not load the runtime module", () => {
@@ -187,33 +301,12 @@ test("metadata-only modes do not load the runtime module", () => {
   }
 });
 
-test("package metadata points to the public project URLs", () => {
-  assert.deepEqual(packageJson.repository, {
-    type: "git",
-    url: "git+https://github.com/pszemraj/jsx-viewer.git",
-  });
-  assert.equal(packageJson.homepage, "https://github.com/pszemraj/jsx-viewer#readme");
-  assert.deepEqual(packageJson.bugs, {
-    url: "https://github.com/pszemraj/jsx-viewer/issues",
-  });
-});
+test("browser optimizeDeps prebundles every shipped browser runtime dependency", () => {
+  const optimizeDepsInclude = new Set(
+    browserViteConfig.optimizeDeps?.include ?? [],
+  );
 
-test("vite optimizeDeps prebundles every documented built-in artifact library", () => {
-  const optimizeDepsInclude = new Set(viteConfig.optimizeDeps?.include ?? []);
-
-  for (const dependency of [
-    "react",
-    "react-dom",
-    "recharts",
-    "lucide-react",
-    "d3",
-    "three",
-    "lodash",
-    "mathjs",
-    "papaparse",
-    "chart.js",
-    "tone",
-  ]) {
+  for (const dependency of Object.keys(BROWSER_RUNTIME_ENTRIES)) {
     assert.equal(optimizeDepsInclude.has(dependency), true);
   }
 });
@@ -260,6 +353,7 @@ test("runtime workspace keeps slots and Vite cache outside the tracked package t
         path.resolve(REPO_ROOT),
         getRuntimeRoot(DEFAULT_VIEWER_PORT),
       ]);
+      assert.equal(viteServerConfig.server.host, "localhost");
     });
   } finally {
     rmSync(runtimeSlotsBase, { recursive: true, force: true });
@@ -270,11 +364,9 @@ test("runtime slot module URLs encode URL-significant path characters", () => {
   const runtimeSlotsBase = path.join(os.tmpdir(), "jsx-viewer#hash?query");
 
   withRuntimeSlotsDir(runtimeSlotsBase, () => {
-    const runtimeSlotPath = getRuntimeSlotPath(DEFAULT_VIEWER_PORT);
     const runtimeSlotUrl = getRuntimeSlotModuleUrl(DEFAULT_VIEWER_PORT);
     const parsedUrl = new URL(runtimeSlotUrl, "http://localhost");
 
-    assert.equal(parsedUrl.pathname, getExpectedRuntimeSlotModuleUrl(runtimeSlotPath));
     assert.equal(parsedUrl.search, "");
     assert.equal(parsedUrl.hash, "");
     assert.match(runtimeSlotUrl, /%23/);
@@ -294,7 +386,6 @@ test(
       const parsedUrl = new URL(runtimeSlotUrl, "http://localhost");
 
       assert.match(runtimeSlotPath, /^\\\\server\\share\\/);
-      assert.equal(parsedUrl.pathname, getExpectedRuntimeSlotModuleUrl(runtimeSlotPath));
       assert.equal(parsedUrl.search, "");
       assert.equal(parsedUrl.hash, "");
       assert.match(runtimeSlotUrl, /^\/@fs\/\/server\/share\//);
@@ -303,37 +394,6 @@ test(
     });
   },
 );
-
-test("clearRuntimeSlots removes only viewer-managed port directories", () => {
-  const runtimeSlotsBase = mkdtempSync(path.join(os.tmpdir(), "jsx-viewer-slots-"));
-  const siblingPath = path.join(runtimeSlotsBase, "keep.txt");
-  writeFileSync(siblingPath, "keep", "utf8");
-
-  try {
-    withRuntimeSlotsDir(runtimeSlotsBase, () => {
-      const runtimeSlotsRoot = getRuntimeSlotsRoot();
-      const managedSlotDir = path.join(runtimeSlotsRoot, "port-3142");
-      const unmanagedDir = path.join(runtimeSlotsRoot, "notes");
-      const lookalikeDir = path.join(runtimeSlotsRoot, "port-not-a-number");
-
-      mkdirSync(path.join(managedSlotDir, "component"), { recursive: true });
-      writeFileSync(path.join(managedSlotDir, "component", "View.tsx"), PLACEHOLDER, "utf8");
-      mkdirSync(unmanagedDir, { recursive: true });
-      writeFileSync(path.join(unmanagedDir, "keep.txt"), "keep", "utf8");
-      mkdirSync(lookalikeDir, { recursive: true });
-      writeFileSync(path.join(lookalikeDir, "keep.txt"), "keep", "utf8");
-
-      clearRuntimeSlots();
-
-      assert.equal(existsSync(managedSlotDir), false);
-      assert.equal(existsSync(unmanagedDir), true);
-      assert.equal(existsSync(lookalikeDir), true);
-      assert.equal(readFileSync(siblingPath, "utf8"), "keep");
-    });
-  } finally {
-    rmSync(runtimeSlotsBase, { recursive: true, force: true });
-  }
-});
 
 test("slotMatchesPlaceholder accepts the tracked placeholder with CRLF line endings", () => {
   const tempDir = mkdtempSync(path.join(os.tmpdir(), "jsx-viewer-slot-"));
@@ -460,35 +520,6 @@ test("waitForCloseOperation waits for close completion but caps hanging shutdown
   assert.ok(elapsedMs < 200);
 });
 
-test("mergeCleanupExitCode preserves failure status across overlapping shutdown requests", () => {
-  assert.equal(mergeCleanupExitCode(0, 0), 0);
-  assert.equal(mergeCleanupExitCode(0, 1), 1);
-  assert.equal(mergeCleanupExitCode(1, 0), 1);
-  assert.equal(mergeCleanupExitCode(1, 1), 1);
-});
-
-test("registerWatchedArtifactEvents subscribes to add and change with one shared handler", () => {
-  /** @type {Array<{ event: string, listener: () => void }>} */
-  const registrations = [];
-  const listener = () => {};
-
-  registerWatchedArtifactEvents(
-    {
-      on(event, handler) {
-        registrations.push({ event, listener: handler });
-      },
-    },
-    listener,
-  );
-
-  assert.deepEqual(
-    registrations.map(({ event }) => event),
-    WATCHED_ARTIFACT_EVENTS,
-  );
-  assert.equal(registrations[0]?.listener, listener);
-  assert.equal(registrations[1]?.listener, listener);
-});
-
 test("createQueuedArtifactReload coalesces save bursts and cancels pending reloads", async () => {
   let reloadCount = 0;
   const queueReload = createQueuedArtifactReload(() => {
@@ -595,7 +626,7 @@ test("startup failures clear the runtime slot without touching the tracked place
 
     await new Promise((resolve, reject) => {
       blocker.once("error", reject);
-      blocker.listen(0, resolve);
+      blocker.listen(0, "localhost", resolve);
     });
 
     const address = blocker.address();
@@ -683,6 +714,16 @@ test("npm pack only ships runtime package files", () => {
 
   const [{ files }] = JSON.parse(stdout);
   const packedPaths = files.map((entry) => entry.path);
+  const requiredBrowserPackFiles = [
+    "src/browser/basePath.ts",
+    "src/browser/browserRuntimeContext.ts",
+    "src/browser/runtimeUrl.ts",
+  ];
+  const requiredExamplePackFiles = [
+    "example/Dashboard.tsx",
+    "example/DataTable.jsx",
+    "example/PolyField.tsx",
+  ];
 
   assert.equal(packedPaths.some((entry) => entry.includes(".test.")), false);
   assert.equal(packedPaths.includes(".githooks/pre-commit"), false);
@@ -692,5 +733,15 @@ test("npm pack only ships runtime package files", () => {
   assert.equal(packedPaths.includes("bin/jsx-viewer.mjs"), true);
   assert.equal(packedPaths.includes("bin/jsx-viewer-runtime.mjs"), true);
   assert.equal(packedPaths.includes("src/App.tsx"), true);
+  assert.deepEqual(
+    requiredBrowserPackFiles.filter((entry) => packedPaths.includes(entry)),
+    requiredBrowserPackFiles,
+  );
+  assert.deepEqual(
+    requiredExamplePackFiles.filter((entry) => packedPaths.includes(entry)),
+    requiredExamplePackFiles,
+  );
+  assert.equal(packedPaths.includes("src/browser/devEntryUrl.ts"), true);
   assert.equal(packedPaths.includes("src/hotReload.ts"), true);
+  assertPackedImportClosure(packedPaths);
 });

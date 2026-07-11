@@ -28,6 +28,7 @@
     "example/**/*.tsx",
     "shared/**/*.ts",
     "vite.config.ts",
+    "vite.config.browser.ts",
     "tailwind.config.ts",
     "eslint.config.ts"
   ]

@@ -4,10 +4,9 @@ import {
   type PropsWithChildren,
   type ReactNode,
 } from "react";
+import { ViewerStatusPanel } from "./viewerShell";
 
-interface ErrorBoundaryProps extends PropsWithChildren {
-  resetKey: number;
-}
+type ErrorBoundaryProps = PropsWithChildren;
 
 interface ErrorBoundaryState {
   error: Error | null;
@@ -31,96 +30,60 @@ export class ErrorBoundary extends Component<
     this.setState({ error, errorInfo });
   }
 
-  override componentDidUpdate(prevProps: Readonly<ErrorBoundaryProps>) {
-    if (prevProps.resetKey !== this.props.resetKey) {
-      this.setState({ error: null, errorInfo: null });
-    }
-  }
-
   override render(): ReactNode {
     if (this.state.error) {
       return (
-        <div
-          style={{
-            padding: "32px",
-            fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-            background: "#1a1a1a",
-            color: "#f5f5f5",
-            minHeight: "100vh",
-          }}
+        <ViewerStatusPanel
+          background="#1a1a1a"
+          indicatorColor="#ef4444"
+          minHeight="100vh"
+          title="Render Error"
         >
-          <div
+          <pre
             style={{
-              maxWidth: "720px",
-              margin: "0 auto",
+              background: "#111",
+              border: "1px solid #333",
+              borderRadius: "8px",
+              padding: "20px",
+              overflow: "auto",
+              fontSize: "13px",
+              lineHeight: 1.6,
+              color: "#ef4444",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "12px",
-                marginBottom: "24px",
-              }}
-            >
-              <div
+            {this.state.error.toString()}
+          </pre>
+          {this.state.errorInfo && (
+            <details style={{ marginTop: "16px" }}>
+              <summary
                 style={{
-                  width: "12px",
-                  height: "12px",
-                  borderRadius: "50%",
-                  background: "#ef4444",
+                  cursor: "pointer",
+                  color: "#888",
+                  fontSize: "13px",
                 }}
-              />
-              <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 500 }}>
-                Render Error
-              </h2>
-            </div>
-            <pre
-              style={{
-                background: "#111",
-                border: "1px solid #333",
-                borderRadius: "8px",
-                padding: "20px",
-                overflow: "auto",
-                fontSize: "13px",
-                lineHeight: 1.6,
-                color: "#ef4444",
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-              }}
-            >
-              {this.state.error.toString()}
-            </pre>
-            {this.state.errorInfo && (
-              <details style={{ marginTop: "16px" }}>
-                <summary
-                  style={{
-                    cursor: "pointer",
-                    color: "#888",
-                    fontSize: "13px",
-                  }}
-                >
-                  Component stack trace
-                </summary>
-                <pre
-                  style={{
-                    background: "#111",
-                    border: "1px solid #333",
-                    borderRadius: "8px",
-                    padding: "20px",
-                    overflow: "auto",
-                    fontSize: "12px",
-                    lineHeight: 1.5,
-                    color: "#888",
-                    marginTop: "8px",
-                  }}
-                >
-                  {this.state.errorInfo.componentStack}
-                </pre>
-              </details>
-            )}
-          </div>
-        </div>
+              >
+                Component stack trace
+              </summary>
+              <pre
+                style={{
+                  background: "#111",
+                  border: "1px solid #333",
+                  borderRadius: "8px",
+                  padding: "20px",
+                  overflow: "auto",
+                  fontSize: "12px",
+                  lineHeight: 1.5,
+                  color: "#888",
+                  marginTop: "8px",
+                }}
+              >
+                {this.state.errorInfo.componentStack}
+              </pre>
+            </details>
+          )}
+        </ViewerStatusPanel>
       );
     }
 

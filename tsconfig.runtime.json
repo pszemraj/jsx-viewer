@@ -15,14 +15,10 @@
     ]
   },
   "include": [
-    "bin/check-node-version.mjs",
-    "bin/check-slot.mjs",
-    "bin/jsx-viewer-cli.mjs",
-    "bin/jsx-viewer-runtime.mjs",
-    "bin/jsx-viewer.mjs",
-    "bin/node-version.mjs",
-    "bin/setup-hooks.mjs",
-    "bin/slot.mjs",
-    "shared/protocol.mjs"
+    "bin/**/*.mjs",
+    "shared/**/*.mjs"
+  ],
+  "exclude": [
+    "**/*.test.mjs"
   ]
 }

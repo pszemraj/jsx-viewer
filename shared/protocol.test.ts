@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 import type {
   ClientMessage as DeclaredClientMessage,
+  FileUpdatedMessage as DeclaredFileUpdatedMessage,
+  LoadArtifactMessage as DeclaredLoadArtifactMessage,
+  ResetSlotMessage as DeclaredResetSlotMessage,
   ServerMessage as DeclaredServerMessage,
 } from "./protocol.d.mts";
 import { isClientMessage, isServerMessage } from "./protocol.mjs";
@@ -33,11 +35,15 @@ type _ClientMessageContractMatches = Assert<
 type _ServerMessageContractMatches = Assert<
   IsExactly<RuntimeServerMessage, DeclaredServerMessage>
 >;
-
-const declarationSource = readFileSync(
-  new URL("./protocol.d.mts", import.meta.url),
-  "utf8",
-);
+type _DeclaredClientUnionMatches = Assert<
+  IsExactly<
+    DeclaredClientMessage,
+    DeclaredLoadArtifactMessage | DeclaredResetSlotMessage
+  >
+>;
+type _DeclaredServerMessageMatches = Assert<
+  IsExactly<DeclaredServerMessage, DeclaredFileUpdatedMessage>
+>;
 
 const validClientMessageCases = [
   [
@@ -87,23 +93,3 @@ for (const [name, message, expected] of serverMessageCases) {
     assert.equal(isServerMessage(message), expected);
   });
 }
-
-test("shipped protocol declaration exposes the expected public surface", () => {
-  for (const pattern of [
-    /export interface FileUpdatedMessage/,
-    /type:\s*"file-updated";/,
-    /filename:\s*string \| null;/,
-    /export interface LoadArtifactMessage/,
-    /type:\s*"load-artifact";/,
-    /content:\s*string;/,
-    /filename\?:\s*string;/,
-    /export interface ResetSlotMessage/,
-    /type:\s*"reset-slot";/,
-    /export type ClientMessage = LoadArtifactMessage \| ResetSlotMessage;/,
-    /export type ServerMessage = FileUpdatedMessage;/,
-    /export function isClientMessage\(value: unknown\): value is ClientMessage;/,
-    /export function isServerMessage\(value: unknown\): value is ServerMessage;/,
-  ]) {
-    assert.match(declarationSource, pattern);
-  }
-});

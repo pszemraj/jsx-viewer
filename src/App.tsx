@@ -1,14 +1,16 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type DragEvent,
-  type MouseEvent,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { isSlotComponent, type SlotComponent } from "./slotComponent";
 import { SlotPreview } from "./SlotPreview";
+import {
+  useArtifactInput,
+  type ArtifactInputController,
+} from "./useArtifactInput";
+import { createFileReadError, MONO, toError } from "./viewerShared";
+import {
+  ArtifactDropZone,
+  ViewerStatusPanel,
+  ViewerToolbar,
+} from "./viewerShell";
 import {
   isServerMessage,
   type ClientMessage,
@@ -20,8 +22,6 @@ import { createLoadTracker } from "./loadTracker";
 
 // The viewer shell uses inline styles on purpose so its chrome stays isolated
 // from the loaded artifact's Tailwind classes and any class-name collisions.
-const MONO = '"JetBrains Mono", "Fira Code", "SF Mono", monospace';
-const SANS = '"Inter", -apple-system, "Helvetica Neue", sans-serif';
 declare const __JSX_VIEWER_SLOT_MODULE_URL__: string;
 
 interface LoadedComponentState {
@@ -32,29 +32,18 @@ interface LoadedComponentState {
 }
 
 interface DropZoneProps {
-  onContent: (content: string, name: string) => void;
+  handleArtifactFile: ArtifactInputController["handleArtifactFile"];
+  openFilePicker: ArtifactInputController["openFilePicker"];
+  submitText: ArtifactInputController["submitText"];
 }
 
 interface ToolbarProps {
   filename: string | null;
   connected: boolean;
+  fileInputRef: ArtifactInputController["fileInputRef"];
+  handleFileSelect: ArtifactInputController["handleFileSelect"];
   onClear: () => void;
-  onSwap: (content: string, name: string) => void;
-}
-
-function toError(error: unknown): Error {
-  return error instanceof Error ? error : new Error(String(error));
-}
-
-function getFirstFile(files: FileList | null | undefined) {
-  return files?.item(0) ?? null;
-}
-
-async function readArtifactFile(file: File) {
-  return {
-    content: await file.text(),
-    name: file.name,
-  };
+  openFilePicker: ArtifactInputController["openFilePicker"];
 }
 
 function useLoadedComponent() {
@@ -76,7 +65,9 @@ function useLoadedComponent() {
       const component = mod.default;
 
       if (!isSlotComponent(component)) {
-        throw new Error("Loaded artifact must default-export a React component.");
+        throw new Error(
+          "Loaded artifact must default-export a React component.",
+        );
       }
 
       // Ignore stale async completions so overlapping HMR reloads or StrictMode
@@ -99,7 +90,6 @@ function useLoadedComponent() {
       setState((current) => ({
         ...current,
         error: toError(error),
-        version: current.version + 1,
       }));
     }
   }, []);
@@ -116,7 +106,7 @@ function useLoadedComponent() {
     );
   }, [load]);
 
-  return { ...state, reload: load };
+  return state;
 }
 
 function useWebSocket(onMessage: (message: ServerMessage) => void) {
@@ -182,318 +172,104 @@ function useWebSocket(onMessage: (message: ServerMessage) => void) {
       return true;
     }
 
-    console.warn("[jsx-viewer] Cannot send message while WebSocket is disconnected.");
+    console.warn(
+      "[jsx-viewer] Cannot send message while WebSocket is disconnected.",
+    );
     return false;
   }, []);
 
   return { send, connected };
 }
 
-function DropZone({ onContent }: DropZoneProps) {
-  const [isDragging, setIsDragging] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  const handleFile = useCallback(
-    async (file: File) => {
-      const artifact = await readArtifactFile(file);
-      onContent(artifact.content, artifact.name);
-    },
-    [onContent],
-  );
-
-  const handleDrop = useCallback(
-    (event: DragEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      setIsDragging(false);
-
-      const file = getFirstFile(event.dataTransfer.files);
-      if (file) {
-        void handleFile(file);
-      }
-    },
-    [handleFile],
-  );
-
-  const handleFileSelect = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const file = getFirstFile(event.target.files);
-      if (file) {
-        void handleFile(file);
-      }
-      event.target.value = "";
-    },
-    [handleFile],
-  );
-
-  useEffect(() => {
-    containerRef.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    const handlePasteEvent = (event: ClipboardEvent) => {
-      const text = event.clipboardData?.getData("text/plain");
-      if (text?.trim()) {
-        event.preventDefault();
-        onContent(text, "pasted.tsx");
-      }
-    };
-
-    window.addEventListener("paste", handlePasteEvent);
-    return () => window.removeEventListener("paste", handlePasteEvent);
-  }, [onContent]);
-
+function DropZone({
+  handleArtifactFile,
+  openFilePicker,
+  submitText,
+}: DropZoneProps) {
   return (
-    <div
-      ref={containerRef}
-      tabIndex={0}
-      onDragOver={(event) => {
-        event.preventDefault();
-        setIsDragging(true);
-      }}
-      onDragLeave={() => setIsDragging(false)}
-      onDrop={handleDrop}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "calc(100vh - 49px)",
-        background: "#0a0a0a",
-        color: "#ededed",
-        fontFamily: SANS,
-        padding: "32px",
-        outline: "none",
-      }}
-    >
-      <div
-        style={{
-          border: `2px dashed ${isDragging ? "#0070f3" : "#333"}`,
-          borderRadius: "12px",
-          padding: "64px 48px",
-          textAlign: "center",
-          maxWidth: "520px",
-          width: "100%",
-          transition: "border-color 150ms ease",
-          background: isDragging ? "rgba(0,112,243,0.04)" : "transparent",
-        }}
-      >
+    <ArtifactDropZone
+      description={
+        <>
+          Drag a component in, click upload, or press Ctrl+V / Cmd+V to paste it
+          immediately. Supports React 18, Tailwind, recharts, lucide-react, d3,
+          three.js, chart.js, and more.
+        </>
+      }
+      descriptionLineHeight={1.5}
+      details={
         <div
           style={{
-            fontSize: "40px",
-            marginBottom: "16px",
-            opacity: 0.3,
+            marginTop: "48px",
+            fontSize: "12px",
+            color: "#555",
             fontFamily: MONO,
+            textAlign: "center",
+            lineHeight: 1.8,
           }}
         >
-          {"</>"}
+          <code>Upload JSX/TSX</code> &mdash; choose a local file
+          <br />
+          <code>Ctrl+V / Cmd+V</code> &mdash; paste from clipboard
+          <br />
+          <code>node bin/jsx-viewer.mjs file.tsx</code> &mdash; preload from CLI
+          <br />
+          <code>npm run dev -- --port 8080</code> &mdash; custom port
         </div>
-        <h2
-          style={{
-            fontSize: "20px",
-            fontWeight: 600,
-            margin: "0 0 8px 0",
-            letterSpacing: "-0.02em",
-          }}
-        >
-          Drop, upload, or paste JSX/TSX
-        </h2>
-        <p
-          style={{
-            fontSize: "14px",
-            color: "#888",
-            margin: "0 0 24px 0",
-            lineHeight: 1.5,
-          }}
-        >
-          Drag a component in, click upload, or press Ctrl+V / Cmd+V to paste
-          it immediately. Supports React 18, Tailwind, recharts, lucide-react,
-          d3, three.js, chart.js, and more.
-        </p>
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          style={{
-            background: "#111",
-            color: "#ededed",
-            border: "1px solid #333",
-            borderRadius: "6px",
-            padding: "8px 20px",
-            fontSize: "13px",
-            fontFamily: MONO,
-            cursor: "pointer",
-            transition: "background 150ms ease",
-          }}
-          onMouseEnter={(event: MouseEvent<HTMLButtonElement>) => {
-            event.currentTarget.style.background = "#1a1a1a";
-          }}
-          onMouseLeave={(event: MouseEvent<HTMLButtonElement>) => {
-            event.currentTarget.style.background = "#111";
-          }}
-        >
-          upload artifact
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".jsx,.tsx"
-          onChange={handleFileSelect}
-          style={{ display: "none" }}
-        />
-      </div>
-
-      <div
-        style={{
-          marginTop: "48px",
-          fontSize: "12px",
-          color: "#555",
-          fontFamily: MONO,
-          textAlign: "center",
-          lineHeight: 1.8,
-        }}
-      >
-        <code>Upload JSX/TSX</code> &mdash; choose a local file
-        <br />
-        <code>Ctrl+V / Cmd+V</code> &mdash; paste from clipboard
-        <br />
-        <code>node bin/jsx-viewer.mjs file.tsx</code> &mdash; preload from CLI
-        <br />
-        <code>npm run dev -- --port 8080</code> &mdash; custom port
-      </div>
-    </div>
+      }
+      handleArtifactFile={handleArtifactFile}
+      maxWidth="520px"
+      openFilePicker={openFilePicker}
+      submitText={submitText}
+    />
   );
 }
 
-function Toolbar({ filename, connected, onClear, onSwap }: ToolbarProps) {
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  const handleFileSelect = useCallback(
-    async (event: ChangeEvent<HTMLInputElement>) => {
-      const file = getFirstFile(event.target.files);
-      if (file) {
-        const artifact = await readArtifactFile(file);
-        onSwap(artifact.content, artifact.name);
-      }
-      event.target.value = "";
-    },
-    [onSwap],
-  );
-
+function Toolbar({
+  filename,
+  connected,
+  fileInputRef,
+  handleFileSelect,
+  onClear,
+  openFilePicker,
+}: ToolbarProps) {
   return (
-    <div
-      style={{
-        height: "48px",
-        borderBottom: "1px solid #222",
-        background: "#0a0a0a",
-        display: "flex",
-        alignItems: "center",
-        padding: "0 16px",
-        fontFamily: MONO,
-        fontSize: "12px",
-        gap: "12px",
-        color: "#888",
-        flexShrink: 0,
-      }}
-    >
-      <span style={{ color: "#555", fontWeight: 600, letterSpacing: "0.05em" }}>
-        JSX VIEWER
-      </span>
-      <span style={{ color: "#333" }}>|</span>
-      <span style={{ color: filename ? "#ededed" : "#555" }}>
-        {filename ?? "no file loaded"}
-      </span>
-      <div style={{ flex: 1 }} />
-      <div
-        style={{
-          width: "6px",
-          height: "6px",
-          borderRadius: "50%",
-          background: connected ? "#0cce6b" : "#666",
-        }}
-        title={connected ? "WebSocket connected" : "WebSocket disconnected"}
-      />
-      <button
-        onClick={onClear}
-        disabled={!filename}
-        style={{
-          background: "transparent",
-          color: filename ? "#888" : "#444",
-          border: "1px solid #333",
-          borderRadius: "4px",
-          padding: "4px 10px",
-          fontSize: "11px",
-          fontFamily: MONO,
-          cursor: filename ? "pointer" : "default",
-        }}
-        onMouseEnter={(event: MouseEvent<HTMLButtonElement>) => {
-          if (!filename) {
-            return;
-          }
-          event.currentTarget.style.color = "#f5f5f5";
-          event.currentTarget.style.borderColor = "#666";
-        }}
-        onMouseLeave={(event: MouseEvent<HTMLButtonElement>) => {
-          event.currentTarget.style.color = filename ? "#888" : "#444";
-          event.currentTarget.style.borderColor = "#333";
-        }}
-        title={
-          filename
-            ? "Return to the empty drop/upload/paste state"
-            : "No file loaded"
-        }
-      >
-        clear
-      </button>
-      <button
-        onClick={() => fileInputRef.current?.click()}
-        style={{
-          background: "#111",
-          color: "#888",
-          border: "1px solid #333",
-          borderRadius: "4px",
-          padding: "4px 10px",
-          fontSize: "11px",
-          fontFamily: MONO,
-          cursor: "pointer",
-        }}
-        onMouseEnter={(event: MouseEvent<HTMLButtonElement>) => {
-          event.currentTarget.style.color = "#ededed";
-          event.currentTarget.style.borderColor = "#555";
-        }}
-        onMouseLeave={(event: MouseEvent<HTMLButtonElement>) => {
-          event.currentTarget.style.color = "#888";
-          event.currentTarget.style.borderColor = "#333";
-        }}
-      >
-        swap file
-      </button>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".jsx,.tsx"
-        onChange={handleFileSelect}
-        style={{ display: "none" }}
-      />
-    </div>
+    <ViewerToolbar
+      fileInputRef={fileInputRef}
+      filename={filename}
+      handleFileSelect={handleFileSelect}
+      onClear={onClear}
+      openFilePicker={openFilePicker}
+      status={
+        <div
+          style={{
+            width: "6px",
+            height: "6px",
+            borderRadius: "50%",
+            background: connected ? "#0cce6b" : "#666",
+          }}
+          title={connected ? "WebSocket connected" : "WebSocket disconnected"}
+        />
+      }
+    />
   );
 }
 
 export default function App() {
   const { Component, isPlaceholder, error, version } = useLoadedComponent();
   const [filename, setFilename] = useState<string | null>(null);
+  const [fileReadError, setFileReadError] = useState<Error | null>(null);
 
-  const handleWsMessage = useCallback(
-    (message: ServerMessage) => {
-      // The WebSocket echo updates the toolbar state; Vite's afterUpdate hook
-      // performs the actual module reload once the slot write has been processed.
-      setFilename(message.filename);
-    },
-    [],
-  );
+  const handleWsMessage = useCallback((message: ServerMessage) => {
+    // The WebSocket echo updates the toolbar state; Vite's afterUpdate hook
+    // performs the actual module reload once the slot write has been processed.
+    setFilename(message.filename);
+  }, []);
 
   const { send, connected } = useWebSocket(handleWsMessage);
 
   const handleContent = useCallback(
     (content: string, name: string) => {
+      setFileReadError(null);
       if (send({ type: "load-artifact", content, filename: name })) {
         setFilename(name);
       }
@@ -501,11 +277,27 @@ export default function App() {
     [send],
   );
 
+  const handleFileReadError = useCallback((readError: Error, file: File) => {
+    setFilename(file.name);
+    setFileReadError(createFileReadError(file.name, readError));
+  }, []);
+
+  const {
+    cancelPending,
+    fileInputRef,
+    handleArtifactFile,
+    handleFileSelect,
+    openFilePicker,
+    submitText,
+  } = useArtifactInput(handleContent, handleFileReadError);
+
   const handleClear = useCallback(() => {
+    cancelPending();
+    setFileReadError(null);
     if (send({ type: "reset-slot" })) {
       setFilename(null);
     }
-  }, [send]);
+  }, [cancelPending, send]);
 
   return (
     <div
@@ -519,77 +311,53 @@ export default function App() {
       <Toolbar
         filename={filename}
         connected={connected}
+        fileInputRef={fileInputRef}
+        handleFileSelect={handleFileSelect}
         onClear={handleClear}
-        onSwap={handleContent}
+        openFilePicker={openFilePicker}
       />
       <div style={{ flex: 1, position: "relative" }}>
-        {error ? (
-          <div
-            style={{
-              padding: "32px",
-              fontFamily: MONO,
-              background: "#0a0a0a",
-              minHeight: "calc(100vh - 49px)",
-            }}
+        {fileReadError || error ? (
+          <ViewerStatusPanel
+            indicatorColor="#ef4444"
+            title={fileReadError ? "File Read Error" : "Module Error"}
+            titleColor="#f5f5f5"
           >
-            <div style={{ maxWidth: "720px", margin: "0 auto" }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  marginBottom: "24px",
-                }}
-              >
-                <div
-                  style={{
-                    width: "12px",
-                    height: "12px",
-                    borderRadius: "50%",
-                    background: "#ef4444",
-                  }}
-                />
-                <h2
-                  style={{
-                    margin: 0,
-                    fontSize: "18px",
-                    fontWeight: 500,
-                    color: "#f5f5f5",
-                  }}
-                >
-                  Module Error
-                </h2>
-              </div>
-              <pre
-                style={{
-                  background: "#111",
-                  border: "1px solid #333",
-                  borderRadius: "8px",
-                  padding: "20px",
-                  overflow: "auto",
-                  fontSize: "13px",
-                  lineHeight: 1.6,
-                  color: "#ef4444",
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                }}
-              >
-                {error.message}
-              </pre>
-              <p
-                style={{
-                  color: "#666",
-                  fontSize: "13px",
-                  marginTop: "16px",
-                  lineHeight: 1.5,
-                }}
-              >
-                Fix the JSX/TSX file and save. Vite HMR will reload automatically.
-              </p>
-            </div>
-          </div>
+            <pre
+              style={{
+                background: "#111",
+                border: "1px solid #333",
+                borderRadius: "8px",
+                padding: "20px",
+                overflow: "auto",
+                fontSize: "13px",
+                lineHeight: 1.6,
+                color: "#ef4444",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }}
+            >
+              {(fileReadError ?? error)?.message}
+            </pre>
+            <p
+              style={{
+                color: "#666",
+                fontSize: "13px",
+                marginTop: "16px",
+                lineHeight: 1.5,
+              }}
+            >
+              {fileReadError
+                ? "Choose or drop the file again after making sure it is still available."
+                : "Fix the JSX/TSX file and save. Vite HMR will reload automatically."}
+            </p>
+          </ViewerStatusPanel>
         ) : isPlaceholder || !Component ? (
-          <DropZone onContent={handleContent} />
+          <DropZone
+            handleArtifactFile={handleArtifactFile}
+            openFilePicker={openFilePicker}
+            submitText={submitText}
+          />
         ) : (
           <SlotPreview Component={Component} version={version} />
         )}
