@@ -29,6 +29,8 @@ The Pages workflow does the following:
 
 Using the configured base path avoids hardcoding the repository name and keeps the deployment compatible with nested repo paths and a future custom domain.
 
+Pull requests run the test, typecheck, lint, and both build paths without receiving deployment permissions; the Pages configuration, artifact upload, and deployment steps run only for `main` pushes or manual dispatches. Build and deploy jobs each have a 15-minute cap, and production deployments are serialized without canceling one that is already in progress.
+
 ## Runtime Shape
 
 The deployed site uses the browser mode described in [modes and limitations](modes.md). Deployment adds two static HTML entries:
