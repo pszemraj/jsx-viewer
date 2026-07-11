@@ -172,9 +172,16 @@ export function createQueuedArtifactReload(
 /**
  * @param {PromiseLike<unknown> | undefined | null} pendingClose
  * @param {number} [timeoutMs]
+ * @param {(callback: () => void, delayMs: number) => ReturnType<typeof setTimeout>} [schedule]
+ * @param {(timer: ReturnType<typeof setTimeout>) => void} [cancel]
  * @returns {Promise<void>}
  */
-export async function waitForCloseOperation(pendingClose, timeoutMs = 500) {
+export async function waitForCloseOperation(
+  pendingClose,
+  timeoutMs = 500,
+  schedule = setTimeout,
+  cancel = clearTimeout,
+) {
   if (!pendingClose) {
     return;
   }
@@ -186,12 +193,12 @@ export async function waitForCloseOperation(pendingClose, timeoutMs = 500) {
     await Promise.race([
       Promise.resolve(pendingClose),
       new Promise((resolve) => {
-        timer = setTimeout(resolve, timeoutMs);
+        timer = schedule(() => resolve(undefined), timeoutMs);
       }),
     ]);
   } finally {
     if (timer !== undefined) {
-      clearTimeout(timer);
+      cancel(timer);
     }
   }
 }
