@@ -237,13 +237,6 @@ function Toolbar({
       fileInputRef={fileInputRef}
       filename={filename}
       handleFileSelect={handleFileSelect}
-      identity={
-        <span
-          style={{ color: "#555", fontWeight: 600, letterSpacing: "0.05em" }}
-        >
-          JSX VIEWER
-        </span>
-      }
       onClear={onClear}
       openFilePicker={openFilePicker}
       status={

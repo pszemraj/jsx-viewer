@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type MouseEvent } from "react";
+import { useCallback, useRef, useState } from "react";
 import { createLoadTracker } from "../loadTracker";
 import {
   useArtifactInput,
@@ -17,8 +17,6 @@ import {
 } from "./BrowserPreviewFrame";
 import { BROWSER_RUNTIME_DISPLAY_SPECIFIERS } from "./runtimeManifest";
 import { transpileArtifact } from "./transpiler";
-
-const BROWSER_REPOSITORY_URL = "https://github.com/pszemraj/jsx-viewer";
 
 type BrowserArtifactState =
   | { view: "dropzone" }
@@ -242,29 +240,6 @@ function Toolbar({
       fileInputRef={fileInputRef}
       filename={filename}
       handleFileSelect={handleFileSelect}
-      identity={
-        <a
-          href={BROWSER_REPOSITORY_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Open jsx-viewer repository on GitHub"
-          title="Open jsx-viewer repository on GitHub"
-          style={{
-            color: "#555",
-            fontWeight: 600,
-            letterSpacing: "0.05em",
-            textDecoration: "none",
-          }}
-          onMouseEnter={(event: MouseEvent<HTMLAnchorElement>) => {
-            event.currentTarget.style.color = "#ededed";
-          }}
-          onMouseLeave={(event: MouseEvent<HTMLAnchorElement>) => {
-            event.currentTarget.style.color = "#555";
-          }}
-        >
-          JSX VIEWER
-        </a>
-      }
       onClear={onClear}
       openFilePicker={openFilePicker}
       status={

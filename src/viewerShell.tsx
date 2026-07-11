@@ -6,6 +6,7 @@ import {
 import { MONO, SANS } from "./viewerShared";
 
 export const VIEWER_CONTENT_MIN_HEIGHT = "calc(100vh - 49px)";
+const JSX_VIEWER_ISSUES_URL = "https://github.com/pszemraj/jsx-viewer/issues";
 
 interface ArtifactDropZoneProps {
   description: ReactNode;
@@ -129,7 +130,6 @@ interface ViewerToolbarProps {
   fileInputRef: ArtifactInputController["fileInputRef"];
   filename: string | null;
   handleFileSelect: ArtifactInputController["handleFileSelect"];
-  identity: ReactNode;
   onClear: () => void;
   openFilePicker: ArtifactInputController["openFilePicker"];
   status: ReactNode;
@@ -140,7 +140,6 @@ export function ViewerToolbar({
   fileInputRef,
   filename,
   handleFileSelect,
-  identity,
   onClear,
   openFilePicker,
   status,
@@ -161,7 +160,27 @@ export function ViewerToolbar({
         flexShrink: 0,
       }}
     >
-      {identity}
+      <a
+        href={JSX_VIEWER_ISSUES_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Report an issue with jsx-viewer on GitHub"
+        title="Report an issue with jsx-viewer on GitHub"
+        style={{
+          color: "#555",
+          fontWeight: 600,
+          letterSpacing: "0.05em",
+          textDecoration: "none",
+        }}
+        onMouseEnter={(event: MouseEvent<HTMLAnchorElement>) => {
+          event.currentTarget.style.color = "#ededed";
+        }}
+        onMouseLeave={(event: MouseEvent<HTMLAnchorElement>) => {
+          event.currentTarget.style.color = "#555";
+        }}
+      >
+        JSX VIEWER
+      </a>
       <span style={{ color: "#333" }}>|</span>
       {context}
       <span style={{ color: filename ? "#ededed" : "#555" }}>
