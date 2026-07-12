@@ -500,24 +500,56 @@ test("clearRuntimeArtifacts removes inactive artifacts in the current workspace 
 });
 
 test("waitForCloseOperation waits for close completion but caps hanging shutdowns", async () => {
+  const scheduledTimers = [];
+  const schedule = (callback, delayMs) => {
+    const timer = { callback, delayMs, canceled: false };
+    scheduledTimers.push(timer);
+    return timer;
+  };
+  const cancel = (timer) => {
+    timer.canceled = true;
+  };
+
   let closed = false;
-  await waitForCloseOperation(
-    new Promise((resolve) => {
-      setTimeout(() => {
-        closed = true;
-        resolve(undefined);
-      }, 10);
-    }),
+  let finishClose;
+  const pendingClose = new Promise((resolve) => {
+    finishClose = () => {
+      closed = true;
+      resolve(undefined);
+    };
+  });
+  const completedClose = waitForCloseOperation(
+    pendingClose,
     100,
+    schedule,
+    cancel,
   );
+  assert.equal(scheduledTimers[0].delayMs, 100);
+
+  finishClose();
+  await completedClose;
   assert.equal(closed, true);
+  assert.equal(scheduledTimers[0].canceled, true);
 
-  const start = Date.now();
-  await waitForCloseOperation(new Promise(() => {}), 10);
-  const elapsedMs = Date.now() - start;
+  const cappedClose = waitForCloseOperation(
+    new Promise(() => {}),
+    10,
+    schedule,
+    cancel,
+  );
+  let capReached = false;
+  void cappedClose.then(() => {
+    capReached = true;
+  });
+  await Promise.resolve();
 
-  assert.ok(elapsedMs >= 10);
-  assert.ok(elapsedMs < 200);
+  assert.equal(scheduledTimers[1].delayMs, 10);
+  assert.equal(capReached, false);
+
+  scheduledTimers[1].callback();
+  await cappedClose;
+  assert.equal(capReached, true);
+  assert.equal(scheduledTimers[1].canceled, true);
 });
 
 test("createQueuedArtifactReload coalesces save bursts and cancels pending reloads", async () => {
